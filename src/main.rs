@@ -2,14 +2,15 @@
 #![feature(try_trait_v2)]
 #![feature(try_trait_v2_residual)]
 
-use std::{collections::HashMap, fmt::Debug, io, process::Termination as _T};
+use std::{fmt::Debug, io, process::Termination as _T};
 
 use clap::{Parser, Subcommand};
 use cotton_netif::get_interfaces;
-use cotton_ssdp::{AsyncService, Notification};
+use cotton_ssdp::{Advertisement, AsyncService, Notification};
 use exit_safely::Termination;
 use futures_util::StreamExt;
 use try_v2::{Try, Try_ConvertResult};
+use uuid::Uuid;
 
 #[derive(Parser)]
 #[command(version)]
@@ -24,6 +25,8 @@ enum Command {
     Interfaces,
     /// list SSDP services
     Ssdp,
+    /// advertise dummy service
+    Test,
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -39,26 +42,20 @@ async fn main() -> Exit<()> {
         Command::Ssdp => {
             let mut netif = cotton_netif::get_interfaces_async()?;
             let mut ssdp = AsyncService::new()?;
-            let mut map = HashMap::new();
             let mut stream = ssdp.subscribe("ssdp:all");
             loop {
                 tokio::select! {
                     notification = stream.next() => {
-                        if let Some(r) = notification {
-                            if let Notification::Alive {
+                        if let Some(Notification::Alive {
                                 ref notification_type,
                                 ref unique_service_name,
                                 ref location,
-                            } = r
+                            }) = notification
                             {
-                                if !map.contains_key(unique_service_name) {
-                                    println!("+ {notification_type}");
-                                    println!("  {unique_service_name} at {location}");
-                                    map.insert(unique_service_name.clone(), r);
-                                }
+                                println!("+ {notification_type}");
+                                println!("  {unique_service_name} at {location}");
                             }
-                        }
-                    },
+                        },
                     e = netif.next() => {
                         if let Some(Ok(event)) = e {
                             ssdp.on_network_event(&event)?;
@@ -66,6 +63,15 @@ async fn main() -> Exit<()> {
                     }
                 }
             }
+        }
+        Command::Test => {
+            let mut ssdp = AsyncService::new()?;
+            let uuid = Uuid::new_v4();
+            let test_service = Advertisement {
+                notification_type: "test".to_string(),
+                location: "http://127.0.0.1/test".to_string(),
+            };
+            ssdp.advertise(uuid.to_string(), test_service);
         }
     }
     Exit::Ok(())

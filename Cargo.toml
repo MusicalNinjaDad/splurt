@@ -33,3 +33,4 @@ futures-util = { version = "0.3.32", default-features = false, features = [
     "async-await",
     "async-await-macro",
 ] }
+uuid = {version = "1.23.1", features = ["v4"]}
