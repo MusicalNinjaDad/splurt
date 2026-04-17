@@ -2,7 +2,7 @@
 #![feature(try_trait_v2)]
 #![feature(try_trait_v2_residual)]
 
-use std::{fmt::Debug, io, process::Termination as _T};
+use std::{collections::HashMap, fmt::Debug, io, process::Termination as _T};
 
 use clap::{Parser, Subcommand};
 use cotton_netif::get_interfaces;
@@ -41,6 +41,7 @@ async fn main() -> Exit<()> {
         }
         Command::Ssdp => {
             let mut netif = cotton_netif::get_interfaces_async()?;
+            let mut known_services = HashMap::<String, Notification>::new();
             let mut ssdp = AsyncService::new()?;
             let mut stream = ssdp.subscribe("ssdp:all");
             loop {
@@ -51,9 +52,11 @@ async fn main() -> Exit<()> {
                                 ref unique_service_name,
                                 ref location,
                             }) = notification
+                            && !known_services.contains_key(unique_service_name)
                             {
                                 println!("+ {notification_type}");
                                 println!("  {unique_service_name} at {location}");
+                                known_services.insert(unique_service_name.clone(), notification.expect("inside if let Some"));
                             }
                         },
                     e = netif.next() => {
