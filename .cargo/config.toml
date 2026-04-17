@@ -1,3 +1,8 @@
 [alias]
 x = "run --package try_v2_xtasks --"
 stage = "run --package try_v2_xtasks -- add"
+
+# We're assuming you're using our dev container!
+[target.'cfg(target_os = "linux")']
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=/usr/sbin/mold"]
