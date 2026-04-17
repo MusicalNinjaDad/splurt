@@ -24,5 +24,9 @@ try_v2 = "0.4.2"
 
 [dependencies]
 clap = { workspace = true }
+cotton-netif = { version = "0.1.0", default-features = false, features = [
+    "std",
+    "sync",
+] }
 exit_safely = { workspace = true }
 try_v2 = { workspace = true }
