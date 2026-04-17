@@ -12,3 +12,12 @@ categories = ["Command line utilities", "Network programming"]
 license = "MIT"
 rust-version = "1.85.1"
 exclude = [".github", ".devcontainer"]
+
+[workspace]
+members = ["xtask"]
+
+[workspace.dependencies]
+autocfg = "1.5.0"
+clap = { version = "4.6.0", features = ["derive"] }
+exit_safely = "0.2.1"
+try_v2 = "0.4.2"

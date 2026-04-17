@@ -1,0 +1,17 @@
+[package]
+name = "try_v2_xtasks"
+version = "0.0.1"
+edition = "2024"
+publish = false
+
+[dependencies]
+exit_safely = { workspace = true }
+try_v2 = { workspace = true }
+clap = { workspace = true }
+
+[dev-dependencies]
+dircpy = "0.3.20"
+tempfile = "3.27.0"
+
+[build-dependencies]
+autocfg = { workspace = true }
