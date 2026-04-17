@@ -1,0 +1,57 @@
+name: Monthly stability checks
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  pull_request:
+  schedule:
+    - cron: '0 3 6 * *'
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+    CARGO_TERM_COLOR: always
+    RUSTC_BOOTSTRAP: 1
+
+jobs:
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: ["stable", "beta", "nightly"]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - name: update rust
+      run: rustup update
+    - name: Run tests
+      run: cargo +${{ matrix.channel }} test --no-fail-fast
+
+  lint:
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: ["stable", "beta", "nightly"]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - name: update rust
+      run: rustup update && rustup component add --toolchain ${{ matrix.channel }} clippy
+    - name: clippy
+      run: cargo +${{ matrix.channel }} clippy -- --deny warnings
+
+  report:
+    if: ${{ always() }}
+    needs: [test, lint]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - name: Create issue on failure
+      if: ${{ github.event_name != 'pull_request' && (needs.test.result == 'failure' || needs.lint.result == 'failure') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh issue create --title "Monthly tests failed" --body "Run ID: $GITHUB_RUN_ID" --assignee "MusicalNinjaDad"

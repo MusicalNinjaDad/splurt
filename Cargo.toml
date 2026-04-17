@@ -1,0 +1,14 @@
+[package]
+name = "splurt"
+version = "0.0.1"
+edition = "2024"
+readme = "README.md"
+description = "A tiny ssdp/upnp repeater"
+authors = ["Mike Foster <https://github.com/MusicalNinjaDad>"]
+keywords = ["ssdp","upnp", "dlna", "docker"]
+homepage = "https://github.com/MusicalNinjaDad/splurt"
+repository = "https://github.com/MusicalNinjaDad/splurt"
+categories = ["Command line utilities", "Network programming"]
+license = "MIT"
+rust-version = "1.85.1"
+exclude = [".github", ".devcontainer"]

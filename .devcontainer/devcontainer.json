@@ -1,0 +1,64 @@
+{
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "remoteEnv": {
+        "RUSTC_BOOTSTRAP": "1"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                // rust
+                "rust-lang.rust-analyzer",
+                "andrewbrey.rust-test-highlight",
+                "fill-labs.dependi",
+                "vadimcn.vscode-lldb",
+                // configs, docs, etc.
+                "DavidAnson.vscode-markdownlint",
+                "tamasfe.even-better-toml"
+            ],
+            "settings": {
+                // rust
+                "rust-analyzer.interpret.tests": true,
+                "rust-analyzer.testExplorer": true,
+                // use subdirectory of target for analyzer builds
+                "rust-analyzer.cargo.targetDir": true,
+                // force BOOTSTRAP (always used for test builds - see https://github.com/rust-lang/rust-analyzer/issues/17149)
+                "rust-analyzer.cargo.extraEnv": {
+                    "RUSTC_BOOTSTRAP": "1",
+                    "CARGO_INCREMENTAL": "1"
+                },
+                "rust-analyzer.runnables.extraEnv": {
+                    "RUSTC_BOOTSTRAP": "1",
+                    "CARGO_INCREMENTAL": "1"
+                },
+                "[rust]": {
+                    "editor.rulers": [
+                        100
+                    ]
+                },
+                // docs
+                "markdownlint.config": {
+                    "MD013": false, // let the editor wrap lines not the author
+                    // multi-paragraph admonitions in mkdocs-material are considered indented code blocks
+                    // see also ... for possible improvements via a plugin:
+                    // - https://github.com/DavidAnson/vscode-markdownlint/issues/180
+                    // - https://github.com/DavidAnson/vscode-markdownlint/issues/302
+                    // - https://github.com/DavidAnson/markdownlint/issues/209
+                    "MD046": false // {"style": "fenced"} leads to errors on codeblocks in admonitions
+                },
+                "[markdown]": {
+                    "editor.tabSize": 2,
+                    "editor.detectIndentation": false
+                },
+                // shell
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "terminal.integrated.profiles.linux": {
+                    "bash": {
+                        "path": "/usr/bin/bash"
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,74 @@
+name: Rust
+
+on:
+  push:
+    paths: 
+    - "**.rs"
+    - "Cargo.toml"
+    - ".github/workflows/rust.yml"
+  pull_request:
+  workflow_call:
+
+env:
+    CARGO_TERM_COLOR: always
+    RUSTC_BOOTSTRAP: 1
+
+jobs:
+
+  skip_check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5.3.1
+        with:
+          concurrent_skipping: 'same_content_newer'
+
+  test:
+    needs: skip_check
+    if: needs.skip_check.outputs.should_skip != 'true'
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v6
+    - name: Run tests
+      run: cargo test
+
+  lint:
+    needs: skip_check
+    if: needs.skip_check.outputs.should_skip != 'true'
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+    - name: clippy
+      run: cargo clippy -- --deny warnings
+
+  fmt:
+    needs: skip_check
+    if: needs.skip_check.outputs.should_skip != 'true'
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+    - name: fmt
+      run: cargo fmt --check
+
+  msrv:
+    needs: skip_check
+    if: needs.skip_check.outputs.should_skip != 'true'
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+    - name: install cargo-msrv
+      uses: taiki-e/install-action@v2.75.5
+      with:
+        tool: cargo-msrv
+    - name: check MSRV
+      run: cargo msrv verify
