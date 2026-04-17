@@ -5,7 +5,7 @@ edition = "2024"
 readme = "README.md"
 description = "A tiny ssdp/upnp repeater"
 authors = ["Mike Foster <https://github.com/MusicalNinjaDad>"]
-keywords = ["ssdp","upnp", "dlna", "docker"]
+keywords = ["ssdp", "upnp", "dlna", "docker"]
 homepage = "https://github.com/MusicalNinjaDad/splurt"
 repository = "https://github.com/MusicalNinjaDad/splurt"
 categories = ["Command line utilities", "Network programming"]
@@ -21,3 +21,8 @@ autocfg = "1.5.0"
 clap = { version = "4.6.0", features = ["derive"] }
 exit_safely = "0.2.1"
 try_v2 = "0.4.2"
+
+[dependencies]
+clap = { workspace = true }
+exit_safely = { workspace = true }
+try_v2 = { workspace = true }
