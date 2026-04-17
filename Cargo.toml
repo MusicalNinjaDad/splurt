@@ -24,9 +24,12 @@ try_v2 = "0.4.2"
 
 [dependencies]
 clap = { workspace = true }
-cotton-netif = { version = "0.1.0", default-features = false, features = [
-    "std",
-    "sync",
-] }
+cotton-ssdp = "0.1.0"
+cotton-netif = { version = "0.1.0", default-features = true }
 exit_safely = { workspace = true }
+tokio = "1.52.1"
 try_v2 = { workspace = true }
+futures-util = { version = "0.3.32", default-features = false, features = [
+    "async-await",
+    "async-await-macro",
+] }
