@@ -72,8 +72,9 @@ async fn main() -> Exit<()> {
             let uuid = Uuid::new_v4();
             let test_service = Advertisement {
                 notification_type: "test".to_string(),
-                location: "http://127.0.0.1/test".to_string(),
+                location: "http://127.0.0.1:3333/test".to_string(),
             };
+            println!("advertising with uuid {}", uuid);
             ssdp.advertise(uuid.to_string(), test_service);
         }
     }
