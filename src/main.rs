@@ -75,6 +75,7 @@ async fn main() -> Exit<()> {
             }
         }
         Command::Test => {
+            let mut netif = cotton_netif::get_interfaces_async()?;
             let mut ssdp = AsyncService::new()?;
             let uuid = Uuid::new_v4();
             let test_service = Advertisement {
@@ -83,6 +84,15 @@ async fn main() -> Exit<()> {
             };
             println!("advertising with uuid {}", uuid);
             ssdp.advertise(uuid.to_string(), test_service);
+            loop {
+                tokio::select! {
+                    e = netif.next() => {
+                        if let Some(Ok(event)) = e {
+                            ssdp.on_network_event(&event)?;
+                        }
+                    }
+                }
+            }
         }
     }
     Exit::Ok(())
