@@ -1,12 +1,10 @@
 FROM ghcr.io/musicalninjas/pyo3-devcontainer:latest@sha256:77d7def358fe9f828476d056a0af166b2f8bc9bf6e7a56237472bc6a5f16322d
 
-# default nightly as we use experimental features
 # cargo-zigbuild to support building for specific glibc versions
 # cargo-msrv to validate MSRV
 USER root
 
-RUN rustup default nightly \
-    && uv pip install --system ziglang \
+RUN uv pip install --system ziglang \
     && cargo binstall -y cargo-zigbuild cargo-msrv
 
 USER 1000
