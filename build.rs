@@ -26,7 +26,7 @@ impl Display for AssertMatchesLocation {
     }
 }
 
-#[expect(dead_code, reason="not using assert_matches right now")]
+#[expect(dead_code, reason = "not using assert_matches right now")]
 impl AssertMatchesLocation {
     fn emit_possibilities() {
         autocfg::emit_possibility(&AssertMatchesLocation::Root.to_string());
@@ -42,7 +42,7 @@ trait Nightly {
     /// To be used at top-level crate via `#![cfg_attr(unstable_foo, feature(foo))]`
     fn emit_unstable_feature(&self, feature: &'static str);
 
-    #[expect(dead_code, reason="not using assert_matches right now")]
+    #[expect(dead_code, reason = "not using assert_matches right now")]
     /// Location of assert_matches!() macro. Stabilisation was reverted at last minute
     /// on 2026-04-10, leaving the macro in the new planned location.
     ///
