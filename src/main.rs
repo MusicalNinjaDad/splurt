@@ -1,3 +1,4 @@
+#![cfg_attr(unstable_let_chains, feature(let_chains))]
 #![feature(never_type)]
 #![feature(try_trait_v2)]
 #![feature(try_trait_v2_residual)]
