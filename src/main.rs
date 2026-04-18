@@ -85,12 +85,9 @@ async fn main() -> Exit<()> {
             println!("advertising with uuid {}", uuid);
             ssdp.advertise(uuid.to_string(), test_service);
             loop {
-                tokio::select! {
-                    e = netif.next() => {
-                        if let Some(Ok(event)) = e {
-                            ssdp.on_network_event(&event)?;
-                        }
-                    }
+                let event = netif.next().await;
+                if let Some(event) = event {
+                    ssdp.on_network_event(&event?)?;
                 }
             }
         }
