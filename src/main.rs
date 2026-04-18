@@ -44,13 +44,6 @@ async fn main() -> Exit<()> {
             let mut known_services = HashMap::<String, Notification>::new();
             let mut ssdp = AsyncService::new()?;
             let mut stream = ssdp.subscribe("ssdp:all");
-            let uuid = Uuid::new_v4();
-            let test_service = Advertisement {
-                notification_type: "test".to_string(),
-                location: "http://127.0.0.1:3333/test".to_string(),
-            };
-            println!("advertising with uuid {}", uuid);
-            ssdp.advertise(uuid.to_string(), test_service);
             loop {
                 tokio::select! {
                     notification = stream.next() => {
