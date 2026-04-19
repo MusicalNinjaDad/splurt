@@ -20,6 +20,7 @@ members = ["xtask"]
 autocfg = "1.5.0"
 clap = { version = "4.6.0", features = ["derive"] }
 clap_builder = "4.6.0"
+clap_complete = "4.6.2"
 clap_mangen = "0.3.0"
 exit_safely = "0.2.1"
 try_v2 = "0.4.2"
@@ -41,4 +42,5 @@ uuid = {version = "1.23.1", features = ["v4"]}
 autocfg = {workspace = true }
 clap = { workspace = true }
 clap_builder = {workspace = true}
+clap_complete = {workspace = true}
 clap_mangen = {workspace = true}

@@ -9,13 +9,21 @@ fn main() -> Result<(), BuildError> {
     ac.emit_unstable_feature("let_chains");
 
     if get_var("PROFILE")? == "release" {
-        use clap_builder::CommandFactory;
+        use clap_builder::{CommandFactory, ValueEnum};
+        use clap_complete::Shell;
+
         let out_dir = std::path::PathBuf::from(get_var("OUT_DIR")?);
-        let app_name = get_var("CARGO_PKG_NAME")?;
-        let manpage = clap_mangen::Man::new(Splurt::command());
+        let bin_name = get_var("CARGO_PKG_NAME")?;
+        let mut cmd = Splurt::command();
+
+        let manpage = clap_mangen::Man::new(cmd.clone());
         let mut buffer: Vec<u8> = Default::default();
         manpage.render(&mut buffer)?;
-        std::fs::write(out_dir.join(app_name).with_extension("1"), buffer)?;
+        std::fs::write(out_dir.join(&bin_name).with_extension("1"), buffer)?;
+
+        for &shell in Shell::value_variants() {
+            clap_complete::generate_to(shell, &mut cmd, &bin_name, &out_dir)?;
+        }
     };
 
     Ok(())
@@ -26,7 +34,10 @@ fn get_var(key: &str) -> Result<String, BuildError> {
 }
 
 #[derive(Debug)]
-#[allow(unused, reason="error contents output to stderr in Termination for Result")]
+#[allow(
+    unused,
+    reason = "error contents output to stderr in Termination for Result"
+)]
 enum BuildError {
     VarNotSet(OsString),
     VarInvalid(OsString, OsString),
