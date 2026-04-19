@@ -1,20 +1,16 @@
-use std::fmt::Display;
+use std::{env::VarError, ffi::OsString, fmt::Display};
 
 use autocfg::AutoCfg;
 
 include!("./src/cli.rs");
 
-fn main() -> std::io::Result<()> {
+fn main() -> Result<(), BuildError> {
     let ac = autocfg::new();
     ac.emit_unstable_feature("let_chains");
 
-    if let Some(profile) = std::env::var_os("PROFILE")
-        && profile == "release"
-    {
+    if get_var("PROFILE")? == "release" {
         use clap_builder::CommandFactory;
-        let out_dir = std::path::PathBuf::from(
-            std::env::var_os("OUT_DIR").ok_or(std::io::ErrorKind::NotFound)?,
-        );
+        let out_dir = std::path::PathBuf::from(get_var("OUT_DIR")?);
         let manpage = clap_mangen::Man::new(Splurt::command());
         let mut buffer: Vec<u8> = Default::default();
         manpage.render(&mut buffer)?;
@@ -22,6 +18,33 @@ fn main() -> std::io::Result<()> {
     };
 
     Ok(())
+}
+
+fn get_var(key: &str) -> Result<String, BuildError> {
+    std::env::var(key).map_err(|e| BuildError::from_var_error(key, e))
+}
+
+#[derive(Debug)]
+#[allow(unused)]
+enum BuildError {
+    VarNotSet(OsString),
+    VarInvalid(OsString, OsString),
+    IOError(Box<std::io::Error>),
+}
+
+impl BuildError {
+    fn from_var_error(var: &str, e: VarError) -> BuildError {
+        match e {
+            VarError::NotPresent => BuildError::VarNotSet(var.into()),
+            VarError::NotUnicode(contents) => BuildError::VarInvalid(var.into(), contents),
+        }
+    }
+}
+
+impl From<std::io::Error> for BuildError {
+    fn from(e: std::io::Error) -> Self {
+        BuildError::IOError(Box::new(e))
+    }
 }
 
 /// Location of assert_matches!() macro. Stabilisation was reverted at last minute
