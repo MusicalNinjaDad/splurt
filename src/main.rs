@@ -36,18 +36,21 @@ async fn main() -> Exit<()> {
             loop {
                 tokio::select! {
                     notification = stream.next() => {
-                        if let Some(Notification::Alive {
+                        match notification {
+                            Some(Notification::Alive {
                                 ref notification_type,
                                 ref unique_service_name,
                                 ref location,
-                            }) = notification
-                            && !known_services.contains_key(unique_service_name)
-                            {
+                            }) if !known_services.contains_key(unique_service_name) => {
                                 println!("+ {notification_type}");
                                 println!("  {unique_service_name} at {location}");
                                 known_services.insert(unique_service_name.clone(), notification.expect("inside if let Some"));
                             }
-                        },
+                            Some(Notification::Alive{..}) => todo!(),
+                            Some(Notification::ByeBye{..}) => todo!(),
+                            None => todo!(),
+                        }
+                    },
                     e = netif.next() => {
                         if let Some(Ok(event)) = e {
                             ssdp.on_network_event(&event)?;
