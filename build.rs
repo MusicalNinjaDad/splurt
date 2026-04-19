@@ -26,7 +26,7 @@ fn get_var(key: &str) -> Result<String, BuildError> {
 }
 
 #[derive(Debug)]
-#[allow(unused)]
+#[allow(unused, reason="error contents output to stderr in Termination for Result")]
 enum BuildError {
     VarNotSet(OsString),
     VarInvalid(OsString, OsString),
