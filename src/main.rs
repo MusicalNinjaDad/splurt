@@ -16,6 +16,31 @@ use uuid::Uuid;
 mod cli;
 use cli::*;
 
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+struct KnownService {
+    service_type: String,
+    location: String,
+}
+type UniqueServiceName = String;
+
+type KnownServices = HashMap<UniqueServiceName, KnownService>;
+
+impl KnownService {
+    fn from_notification(notification: &Notification) -> Option<Self> {
+        match notification {
+            Notification::Alive {
+                notification_type: service_type,
+                unique_service_name: _,
+                location,
+            } => Some(Self {
+                service_type: service_type.clone(),
+                location: location.clone(),
+            }),
+            Notification::ByeBye { .. } => None,
+        }
+    }
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Exit<()> {
     let splurt = Splurt::try_parse()?;
@@ -30,23 +55,30 @@ async fn main() -> Exit<()> {
         //      See #5 & #6
         Command::Ssdp => {
             let mut netif = cotton_netif::get_interfaces_async()?;
-            let mut known_services = HashMap::<String, Notification>::new();
+            let mut known_services = KnownServices::new();
             let mut ssdp = AsyncService::new()?;
             let mut stream = ssdp.subscribe("ssdp:all");
             loop {
                 tokio::select! {
                     notification = stream.next() => {
                         match notification {
-                            Some(Notification::Alive {
+                            Some(ref notification @ Notification::Alive {
                                 ref notification_type,
                                 ref unique_service_name,
                                 ref location,
-                            }) if !known_services.contains_key(unique_service_name) => {
-                                println!("+ {notification_type}");
-                                println!("  {unique_service_name} at {location}");
-                                known_services.insert(unique_service_name.clone(), notification.expect("inside if let Some"));
+                            }) => {
+                                match known_services.insert(unique_service_name.clone(), KnownService::from_notification(notification).expect("This is an alive")) {
+                                    None => {
+                                        println!("+ {notification_type}");
+                                        println!("  {unique_service_name} at {location}");
+                                    }
+                                    Some(previous) if previous != KnownService::from_notification(notification).expect("This is an alive") => {
+                                        println!("! {} -> {}", previous.service_type, notification_type);
+                                        println!("  {unique_service_name} at {} -> {}", previous.location, location);
+                                    },
+                                    Some(_) => (),
+                                }
                             }
-                            Some(Notification::Alive{..}) => todo!(),
                             Some(Notification::ByeBye{..}) => todo!(),
                             None => todo!(),
                         }
