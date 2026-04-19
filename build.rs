@@ -12,14 +12,12 @@ fn main() -> Result<(), BuildError> {
         use clap_builder::{CommandFactory, ValueEnum};
         use clap_complete::Shell;
 
-        let out_dir = std::path::PathBuf::from(get_var("OUT_DIR")?);
-        let bin_name = get_var("CARGO_PKG_NAME")?;
         let mut cmd = Splurt::command();
 
-        let manpage = clap_mangen::Man::new(cmd.clone());
-        let mut buffer: Vec<u8> = Default::default();
-        manpage.render(&mut buffer)?;
-        std::fs::write(out_dir.join(&bin_name).with_extension("1"), buffer)?;
+        let out_dir = std::path::PathBuf::from(get_var("OUT_DIR")?);
+        let bin_name = get_var("CARGO_PKG_NAME")?;
+
+        clap_mangen::generate_to(cmd.clone(), &out_dir)?;
 
         for &shell in Shell::value_variants() {
             clap_complete::generate_to(shell, &mut cmd, &bin_name, &out_dir)?;
