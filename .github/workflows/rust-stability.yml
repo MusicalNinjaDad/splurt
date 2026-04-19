@@ -6,6 +6,9 @@ on:
   pull_request:
   schedule:
     - cron: '0 3 6 * *'
+  push:
+    paths:
+      - ".github/workflows/rust-stability.yml"
 
 permissions:
   contents: read
