@@ -16,6 +16,4 @@ pub enum Command {
     Ssdp,
     /// advertise dummy service
     Test,
-    /// generate manpage to stdout
-    Man,
 }

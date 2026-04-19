@@ -3,14 +3,9 @@
 #![feature(try_trait_v2)]
 #![feature(try_trait_v2_residual)]
 
-use std::{
-    collections::HashMap,
-    fmt::Debug,
-    io::{self, stdout},
-    process::Termination as _T,
-};
+use std::{collections::HashMap, fmt::Debug, io, process::Termination as _T};
 
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use cotton_netif::get_interfaces;
 use cotton_ssdp::{Advertisement, AsyncService, Notification};
 use exit_safely::Termination;
@@ -75,10 +70,6 @@ async fn main() -> Exit<()> {
                     ssdp.on_network_event(&event?)?;
                 }
             }
-        }
-        Command::Man => {
-            let manpage = clap_mangen::Man::new(Splurt::command());
-            manpage.render(&mut stdout())?;
         }
     }
     Exit::Ok(())
