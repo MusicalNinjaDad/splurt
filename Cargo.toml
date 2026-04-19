@@ -24,6 +24,7 @@ try_v2 = "0.4.2"
 
 [dependencies]
 clap = { workspace = true }
+clap_mangen = "0.3.0"
 cotton-ssdp = "0.1.0"
 cotton-netif = { version = "0.1.0", default-features = true }
 exit_safely = { workspace = true }
