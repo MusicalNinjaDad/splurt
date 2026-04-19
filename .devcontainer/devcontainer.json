@@ -5,6 +5,7 @@
     "remoteEnv": {
         "RUSTC_BOOTSTRAP": "1"
     },
+    "updateContentCommand": "rustup install",
     "customizations": {
         "vscode": {
             "extensions": [
