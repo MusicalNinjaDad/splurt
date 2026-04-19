@@ -10,7 +10,7 @@ use std::{
     process::Termination as _T,
 };
 
-use clap::{CommandFactory, Parser, Subcommand};
+use clap::{CommandFactory, Parser};
 use cotton_netif::get_interfaces;
 use cotton_ssdp::{Advertisement, AsyncService, Notification};
 use exit_safely::Termination;
@@ -18,25 +18,8 @@ use futures_util::StreamExt;
 use try_v2::{Try, Try_ConvertResult};
 use uuid::Uuid;
 
-#[derive(Parser)]
-#[command(version)]
-/// Listen for and splurt out SSDP messages
-struct Splurt {
-    #[command(subcommand)]
-    command: Command,
-}
-
-#[derive(Subcommand)]
-enum Command {
-    /// list interfaces
-    Interfaces,
-    /// list SSDP services
-    Ssdp,
-    /// advertise dummy service
-    Test,
-    /// generate manpage to stdout
-    Man,
-}
+mod cli;
+use cli::*;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Exit<()> {
