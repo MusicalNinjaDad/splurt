@@ -11,10 +11,11 @@ fn main() -> Result<(), BuildError> {
     if get_var("PROFILE")? == "release" {
         use clap_builder::CommandFactory;
         let out_dir = std::path::PathBuf::from(get_var("OUT_DIR")?);
+        let app_name = get_var("CARGO_PKG_NAME")?;
         let manpage = clap_mangen::Man::new(Splurt::command());
         let mut buffer: Vec<u8> = Default::default();
         manpage.render(&mut buffer)?;
-        std::fs::write(out_dir.join("mybin.1"), buffer)?;
+        std::fs::write(out_dir.join(app_name).with_extension("1"), buffer)?;
     };
 
     Ok(())
