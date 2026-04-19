@@ -5,10 +5,42 @@ edition = "2024"
 readme = "README.md"
 description = "A tiny ssdp/upnp repeater"
 authors = ["Mike Foster <https://github.com/MusicalNinjaDad>"]
-keywords = ["ssdp","upnp", "dlna", "docker"]
+keywords = ["ssdp", "upnp", "dlna", "docker"]
 homepage = "https://github.com/MusicalNinjaDad/splurt"
 repository = "https://github.com/MusicalNinjaDad/splurt"
 categories = ["Command line utilities", "Network programming"]
 license = "MIT"
 rust-version = "1.85.1"
 exclude = [".github", ".devcontainer"]
+
+[workspace]
+members = ["xtask"]
+
+[workspace.dependencies]
+autocfg = "1.5.0"
+clap = { version = "4.6.0", features = ["derive"] }
+clap_builder = "4.6.0"
+clap_complete = "4.6.2"
+clap_mangen = "0.3.0"
+exit_safely = "0.2.1"
+try_v2 = "0.4.2"
+
+[dependencies]
+clap = { workspace = true }
+cotton-ssdp = "0.1.0"
+cotton-netif = { version = "0.1.0", default-features = true }
+exit_safely = { workspace = true }
+tokio = "1.52.1"
+try_v2 = { workspace = true }
+futures-util = { version = "0.3.32", default-features = false, features = [
+    "async-await",
+    "async-await-macro",
+] }
+uuid = {version = "1.23.1", features = ["v4"]}
+
+[build-dependencies]
+autocfg = {workspace = true }
+clap = { workspace = true }
+clap_builder = {workspace = true}
+clap_complete = {workspace = true}
+clap_mangen = {workspace = true}

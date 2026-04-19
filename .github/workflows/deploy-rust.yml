@@ -25,4 +25,4 @@ jobs:
       env:
         CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
       run:
-        cargo +nightly publish
+        cargo publish

@@ -2,9 +2,12 @@
     "build": {
         "dockerfile": "Dockerfile"
     },
+    // required so that command line & analyzer can share builds
     "remoteEnv": {
-        "RUSTC_BOOTSTRAP": "1"
+        "RUSTC_BOOTSTRAP": "1",
+        "CARGO_INCREMENTAL": "1"
     },
+    "updateContentCommand": "rustup install",
     "customizations": {
         "vscode": {
             "extensions": [
@@ -21,8 +24,6 @@
                 // rust
                 "rust-analyzer.interpret.tests": true,
                 "rust-analyzer.testExplorer": true,
-                // use subdirectory of target for analyzer builds
-                "rust-analyzer.cargo.targetDir": true,
                 // force BOOTSTRAP (always used for test builds - see https://github.com/rust-lang/rust-analyzer/issues/17149)
                 "rust-analyzer.cargo.extraEnv": {
                     "RUSTC_BOOTSTRAP": "1",

@@ -1,0 +1,5 @@
+[package]
+name = "try_v2_xtasks_fixture"
+version = "0.0.1"
+edition = "2024"
+publish = false
