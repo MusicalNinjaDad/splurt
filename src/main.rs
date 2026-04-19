@@ -15,6 +15,7 @@ use uuid::Uuid;
 
 #[derive(Parser)]
 #[command(version)]
+/// Listen for and splurt out SSDP messages
 struct Splurt {
     #[command(subcommand)]
     command: Command,
