@@ -2,10 +2,26 @@ use std::fmt::Display;
 
 use autocfg::AutoCfg;
 
-fn main() {
-    let ac = autocfg::new();
+include!("./src/cli.rs");
 
+fn main() -> std::io::Result<()> {
+    let ac = autocfg::new();
     ac.emit_unstable_feature("let_chains");
+
+    if let Some(profile) = std::env::var_os("PROFILE")
+        && profile == "release"
+    {
+        use clap_builder::CommandFactory;
+        let out_dir = std::path::PathBuf::from(
+            std::env::var_os("OUT_DIR").ok_or(std::io::ErrorKind::NotFound)?,
+        );
+        let manpage = clap_mangen::Man::new(Splurt::command());
+        let mut buffer: Vec<u8> = Default::default();
+        manpage.render(&mut buffer)?;
+        std::fs::write(out_dir.join("mybin.1"), buffer)?;
+    };
+
+    Ok(())
 }
 
 /// Location of assert_matches!() macro. Stabilisation was reverted at last minute
