@@ -1,14 +1,14 @@
 name: Monthly stability checks
 
 on:
-  workflow_dispatch:
-  workflow_call:
   pull_request:
-  schedule:
-    - cron: '0 3 6 * *'
   push:
     paths:
       - ".github/workflows/rust-stability.yml"
+  schedule:
+    - cron: '0 3 6 * *'
+  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
