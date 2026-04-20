@@ -104,7 +104,7 @@ async fn main() -> Exit<()> {
                         match event {
                             Some(event) => ssdp.on_network_event(&event?)?,
                             None => {
-                                println!("Network inteface monitor closed");
+                                println!("Network interface monitor closed");
                                 break
                             }
                         }
