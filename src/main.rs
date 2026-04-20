@@ -98,7 +98,7 @@ async fn main() -> Exit<()> {
                             None => {
                                 println!("SSDP listener closed");
                                 break
-                            },
+                            }
                         }
                     },
                     e = netif.next() => {
