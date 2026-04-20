@@ -11,12 +11,30 @@ pub enum Message {
 
 impl Message {
     pub fn parse(contents: &str) -> Option<Message> {
-        if contents.lines().any(|line| line == "NTS: ssdp:alive") {
+        let raw = RawMessage::parse(contents);
+        if raw.nts == "ssdp:alive" {
             return Some(Message::Alive);
         }
         None
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+struct RawMessage<'msg> {
+    ///Notification SubType
+    nts: &'msg str,
+}
+
+impl<'msg> RawMessage<'msg> {
+    fn parse(contents: &'msg str) -> Self {
+        let nts = contents
+            .lines()
+            .find_map(|l| l.strip_prefix("NTS: "))
+            .expect("must have nts");
+        Self { nts }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
