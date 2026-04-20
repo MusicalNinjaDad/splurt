@@ -14,7 +14,8 @@ rust-version = "1.85.1"
 exclude = [".github", ".devcontainer"]
 
 [workspace]
-members = ["xtask"]
+members = ["ssdp-rs", "xtask"]
+default-members = [".", "ssdp-rs"]
 
 [workspace.dependencies]
 autocfg = "1.5.0"
@@ -36,11 +37,11 @@ futures-util = { version = "0.3.32", default-features = false, features = [
     "async-await",
     "async-await-macro",
 ] }
-uuid = {version = "1.23.1", features = ["v4"]}
+uuid = { version = "1.23.1", features = ["v4"] }
 
 [build-dependencies]
-autocfg = {workspace = true }
+autocfg = { workspace = true }
 clap = { workspace = true }
-clap_builder = {workspace = true}
-clap_complete = {workspace = true}
-clap_mangen = {workspace = true}
+clap_builder = { workspace = true }
+clap_complete = { workspace = true }
+clap_mangen = { workspace = true }

@@ -1,0 +1,17 @@
+[package]
+name = "ssdp-rs"
+version = "0.0.1"
+edition = "2024"
+readme = "README.md"
+description = "SSDP message parsing, service announcement & subscription"
+authors = ["Mike Foster <https://github.com/MusicalNinjaDad>"]
+keywords = ["ssdp", "upnp", "dlna"]
+homepage = "https://github.com/MusicalNinjaDad/splurt"
+repository = "https://github.com/MusicalNinjaDad/splurt"
+categories = ["Command line utilities", "Network programming"]
+license = "MIT"
+rust-version = "1.85.1"
+
+[dependencies]
+
+[build-dependencies]
