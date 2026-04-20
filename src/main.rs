@@ -65,12 +65,13 @@ async fn main() -> Exit<()> {
                                 ref unique_service_name,
                                 ref location,
                             }) => {
-                                match known_services.insert(unique_service_name.clone(), KnownService::from_notification(notification).expect("This is an alive")) {
+                                let service = KnownService::from_notification(notification).expect("This is an alive");
+                                match known_services.insert(unique_service_name.clone(), service.clone()) {
                                     None => {
                                         println!("+  {notification_type}");
                                         println!("   {unique_service_name} at {location}");
                                     }
-                                    Some(previous) if previous != KnownService::from_notification(notification).expect("This is an alive") => {
+                                    Some(previous) if previous != service => {
                                         println!("!  {} -> {}", previous.service_type, notification_type);
                                         println!("   {unique_service_name} at {} -> {}", previous.location, location);
                                     },
