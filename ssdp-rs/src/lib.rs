@@ -10,8 +10,11 @@ pub enum Message {
 }
 
 impl Message {
-    pub fn parse(_contents: &str) -> Option<Message> {
-        Some(Message::Alive)
+    pub fn parse(contents: &str) -> Option<Message> {
+        if contents.lines().any(|line| line == "NTS: ssdp:alive") {
+            return Some(Message::Alive);
+        }
+        None
     }
 }
 #[cfg(test)]
