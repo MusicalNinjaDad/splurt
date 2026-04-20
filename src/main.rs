@@ -51,8 +51,6 @@ async fn main() -> Exit<()> {
                 println!("{:?}", e);
             }
         }
-        //TODO: This is directly from the cotton example and needs a bit of rework.
-        //      See #5 & #6
         Command::Ssdp => {
             let mut netif = cotton_netif::get_interfaces_async()?;
             let mut known_services = KnownServices::new();
