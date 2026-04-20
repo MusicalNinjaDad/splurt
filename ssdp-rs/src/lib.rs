@@ -1,4 +1,4 @@
-#![cfg_attr(unstable_assert_matches, feature(assert_matches))]
+#![cfg_attr(all(test, unstable_assert_matches), feature(assert_matches))]
 
 use std::collections::HashMap;
 
