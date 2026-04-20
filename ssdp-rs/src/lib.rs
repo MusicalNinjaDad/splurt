@@ -20,6 +20,7 @@ impl Message {
         };
         let raw: RawNotification = lines.filter_map(|line| line.split_once(": ")).collect();
         if *raw.get("NTS")? == "ssdp:alive" {
+            //TODO: flaky - capitalisation
             let location = raw.get("Location").map(ToString::to_string);
             return Some(Message::Alive(Notification { location }));
         }
