@@ -1,5 +1,7 @@
 #![cfg_attr(unstable_assert_matches, feature(assert_matches))]
 
+use std::collections::HashMap;
+
 /// A valid & parsed ssdp message
 ///
 /// Create with `Message::parse()`
@@ -10,30 +12,24 @@ pub enum Message {
 }
 
 impl Message {
+    /// Parse an ssdp message from given text
     pub fn parse(contents: &str) -> Option<Message> {
-        let raw = RawMessage::parse(contents);
-        if raw.nts == "ssdp:alive" {
+        let mut lines = contents.lines();
+        if lines.next()? != "NOTIFY * HTTP/1.1" {
+            return None;
+        };
+        let raw: RawNotification = lines.filter_map(|line| line.split_once(": ")).collect();
+        if *raw.get("NTS")? == "ssdp:alive" {
             return Some(Message::Alive);
         }
         None
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-struct RawMessage<'msg> {
-    ///Notification SubType
-    nts: &'msg str,
-}
-
-impl<'msg> RawMessage<'msg> {
-    fn parse(contents: &'msg str) -> Self {
-        let nts = contents
-            .lines()
-            .find_map(|l| l.strip_prefix("NTS: "))
-            .expect("must have nts");
-        Self { nts }
-    }
-}
+/// `key: value` pairings, ideally from a NOTIFY * HTTP/1.1
+///
+/// look at [Message::parse] to see how to safely construct this yourself
+type RawNotification<'msg> = HashMap<&'msg str, &'msg str>;
 
 #[cfg(test)]
 mod tests {
