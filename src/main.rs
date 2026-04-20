@@ -86,9 +86,9 @@ async fn main() -> Exit<()> {
                                     },
                                     Some((_, previous)) => {
                                         if previous.service_type == notification_type {
-                                            println!("!- {} -> {}", previous.service_type, notification_type);
-                                        } else {
                                             println!(" - {}", previous.service_type);
+                                        } else {
+                                            println!("!- {} -> {}", previous.service_type, notification_type);
                                         }
                                         println!("   {unique_service_name} at {}", previous.location);
                                     },
