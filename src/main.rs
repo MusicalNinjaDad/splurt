@@ -16,6 +16,31 @@ use uuid::Uuid;
 mod cli;
 use cli::*;
 
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+struct KnownService {
+    service_type: String,
+    location: String,
+}
+type UniqueServiceName = String;
+
+type KnownServices = HashMap<UniqueServiceName, KnownService>;
+
+impl KnownService {
+    fn from_notification(notification: &Notification) -> Option<Self> {
+        match notification {
+            Notification::Alive {
+                notification_type: service_type,
+                unique_service_name: _,
+                location,
+            } => Some(Self {
+                service_type: service_type.clone(),
+                location: location.clone(),
+            }),
+            Notification::ByeBye { .. } => None,
+        }
+    }
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Exit<()> {
     let splurt = Splurt::try_parse()?;
@@ -26,31 +51,62 @@ async fn main() -> Exit<()> {
                 println!("{:?}", e);
             }
         }
-        //TODO: This is directly from the cotton example and needs a bit of rework.
-        //      See #5 & #6
         Command::Ssdp => {
             let mut netif = cotton_netif::get_interfaces_async()?;
-            let mut known_services = HashMap::<String, Notification>::new();
+            let mut known_services = KnownServices::new();
             let mut ssdp = AsyncService::new()?;
             let mut stream = ssdp.subscribe("ssdp:all");
             loop {
                 tokio::select! {
                     notification = stream.next() => {
-                        if let Some(Notification::Alive {
+                        match notification {
+                            Some(ref notification @ Notification::Alive {
                                 ref notification_type,
                                 ref unique_service_name,
                                 ref location,
-                            }) = notification
-                            && !known_services.contains_key(unique_service_name)
-                            {
-                                println!("+ {notification_type}");
-                                println!("  {unique_service_name} at {location}");
-                                known_services.insert(unique_service_name.clone(), notification.expect("inside if let Some"));
+                            }) => {
+                                let service = KnownService::from_notification(notification).expect("This is an alive");
+                                match known_services.insert(unique_service_name.clone(), service.clone()) {
+                                    None => {
+                                        println!("+  {notification_type}");
+                                        println!("   {unique_service_name} at {location}");
+                                    }
+                                    Some(previous) if previous != service => {
+                                        println!("!  {} -> {}", previous.service_type, notification_type);
+                                        println!("   {unique_service_name} at {} -> {}", previous.location, location);
+                                    },
+                                    Some(_) => (),
+                                }
                             }
-                        },
-                    e = netif.next() => {
-                        if let Some(Ok(event)) = e {
-                            ssdp.on_network_event(&event)?;
+                            Some(Notification::ByeBye{ notification_type, unique_service_name }) => {
+                                match known_services.remove_entry(&unique_service_name) {
+                                    None =>{
+                                        println!("+- {notification_type}");
+                                        println!("   {unique_service_name} at unknown");
+                                    },
+                                    Some((_, previous)) => {
+                                        if previous.service_type == notification_type {
+                                            println!(" - {}", previous.service_type);
+                                        } else {
+                                            println!("!- {} -> {}", previous.service_type, notification_type);
+                                        }
+                                        println!("   {unique_service_name} at {}", previous.location);
+                                    },
+                                }
+                            }
+                            None => {
+                                println!("SSDP listener closed");
+                                break
+                            }
+                        }
+                    },
+                    event = netif.next() => {
+                        match event {
+                            Some(event) => ssdp.on_network_event(&event?)?,
+                            None => {
+                                println!("Network interface monitor closed");
+                                break
+                            }
                         }
                     }
                 }
@@ -67,10 +123,13 @@ async fn main() -> Exit<()> {
             println!("advertising with uuid {}", uuid);
             ssdp.advertise(uuid.to_string(), test_service);
             loop {
-                let event = netif.next().await;
-                if let Some(event) = event {
-                    ssdp.on_network_event(&event?)?;
-                }
+                match netif.next().await {
+                    Some(event) => ssdp.on_network_event(&event?)?,
+                    None => {
+                        println!("Network inteface monitor closed");
+                        break;
+                    }
+                };
             }
         }
     }
