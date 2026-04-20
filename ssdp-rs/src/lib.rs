@@ -8,7 +8,7 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Message {
     /// NTS: ssdp:alive
-    Alive,
+    Alive(Notification),
 }
 
 impl Message {
@@ -20,10 +20,16 @@ impl Message {
         };
         let raw: RawNotification = lines.filter_map(|line| line.split_once(": ")).collect();
         if *raw.get("NTS")? == "ssdp:alive" {
-            return Some(Message::Alive);
+            let location = raw.get("Location").map(ToString::to_string);
+            return Some(Message::Alive(Notification { location }));
         }
         None
     }
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub struct Notification {
+    location: Option<String>,
 }
 
 /// `key: value` pairings, ideally from a NOTIFY * HTTP/1.1
@@ -64,6 +70,9 @@ name: my_bulb
     #[test]
     fn parse_alive() {
         let msg = Message::parse(ALIVE).unwrap();
-        assert_matches!(msg, Message::Alive);
+        let expected_notification = Notification {
+            location: Some("yeelight://192.168.1.239:55443".to_string()),
+        };
+        assert_matches!(msg, Message::Alive(notification) if notification == expected_notification);
     }
 }
