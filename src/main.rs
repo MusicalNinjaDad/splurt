@@ -101,9 +101,13 @@ async fn main() -> Exit<()> {
                             }
                         }
                     },
-                    e = netif.next() => {
-                        if let Some(Ok(event)) = e {
-                            ssdp.on_network_event(&event)?;
+                    event = netif.next() => {
+                        match event {
+                            Some(event) => ssdp.on_network_event(&event?)?,
+                            None => {
+                                println!("Network inteface monitor closed");
+                                break
+                            }
                         }
                     }
                 }
@@ -120,10 +124,13 @@ async fn main() -> Exit<()> {
             println!("advertising with uuid {}", uuid);
             ssdp.advertise(uuid.to_string(), test_service);
             loop {
-                let event = netif.next().await;
-                if let Some(event) = event {
-                    ssdp.on_network_event(&event?)?;
-                }
+                match netif.next().await {
+                    Some(event) => ssdp.on_network_event(&event?)?,
+                    None => {
+                        println!("Network inteface monitor closed");
+                        break;
+                    }
+                };
             }
         }
     }
