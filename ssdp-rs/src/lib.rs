@@ -18,7 +18,12 @@ impl Message {
         if lines.next()? != "NOTIFY * HTTP/1.1" {
             return None;
         };
-        let raw: RawNotification = lines.filter_map(|line| line.split_once(": ")).collect();
+        let raw: RawNotification = lines
+            .filter_map(|line| {
+                line.split_once(": ")
+                    .map(|(k, v)| (k.to_string(), v.to_string()))
+            })
+            .collect();
         if *raw.get("NTS")? == "ssdp:alive" {
             //TODO: flaky - capitalisation
             let location = raw.get("Location").map(ToString::to_string);
@@ -36,7 +41,7 @@ pub struct Notification {
 /// `key: value` pairings, ideally from a NOTIFY * HTTP/1.1
 ///
 /// look at [Message::parse] to see how to safely construct this yourself
-type RawNotification<'msg> = HashMap<&'msg str, &'msg str>;
+type RawNotification = HashMap<String, String>;
 
 #[cfg(test)]
 mod tests {
