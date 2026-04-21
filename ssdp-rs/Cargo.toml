@@ -13,6 +13,8 @@ license = "MIT"
 rust-version = "1.85.1"
 
 [dependencies]
+futures = "0.3.32"
+futures-net = "0.6.0"
 
 [build-dependencies]
 autocfg = { workspace = true }
