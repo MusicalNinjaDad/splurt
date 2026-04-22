@@ -1,7 +1,7 @@
 use std::{
     io,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
-    pin::{Pin, pin},
+    pin::Pin,
     task::{Context, Poll, ready},
 };
 
@@ -34,45 +34,45 @@ impl UdpListener {
         s.local_addr()
     }
 
-    /// Create a stream to receive messages into `buf`
-    pub fn incoming<'buf>(&mut self, buf: &'buf mut [u8]) -> Incoming<'_, 'buf> {
-        Incoming {
-            inner: self,
+    /// Listen on the bound socket. This consumes the [UdpListener] and returns a [Listen] which
+    /// implements [Stream] and places any messages in `buf`.
+    pub fn listen<'buf>(self, buf: &'buf mut [u8]) -> Listen<'buf> {
+        Listen {
+            io: self.io,
             buffer: buf,
         }
     }
 }
 
-//Separate struct to allow marking as must_use
 #[must_use = "streams do nothing unless polled"]
 #[derive(Debug)]
-/// Stream returned by [`UdpListener::incoming()`].
+/// Stream returned by [`UdpListener::listen()`].
 ///
-/// Calling .next().await on a listener creates a UdpStream connected to the source of the
-/// next data received
-pub struct Incoming<'listener, 'buf> {
-    inner: &'listener mut UdpListener,
+/// Calling .next().await on a Listen stores the next message in the relvant buffer and returns
+/// the [SocketAddr] of the sender.
+pub struct Listen<'buf> {
+    io: PollEvented<sys::net::UdpSocket>,
     buffer: &'buf mut [u8],
 }
 
-impl<'listener, 'buf> Stream for Incoming<'listener, 'buf> {
-    type Item = io::Result<SocketAddr>;
-
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        todo!("poll next")
-    }
-}
-
-impl AsyncReadReady for UdpListener {
+impl<'buf> AsyncReadReady for Listen<'buf> {
     type Ok = Ready;
 
     type Err = io::Error;
 
     fn poll_read_ready(
-        self: Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<Self::Ok, Self::Err>> {
-        todo!()
+        Pin::new(&mut self.io).poll_read_ready(cx)
+    }
+}
+
+impl<'buf> Stream for Listen<'buf> {
+    type Item = io::Result<SocketAddr>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        todo!("poll next")
     }
 }
 
