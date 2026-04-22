@@ -59,12 +59,14 @@ async fn udp() {
     // The port allocated can be queried via the TcpListener::local_addr method.
     let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
     let receiver = UdpListener::bind(&addr).expect("receiver");
-    let addr = receiver.local_addr().expect("bound port");
-    dbg!(addr);
+    let rec_addr = receiver.local_addr().expect("bound port");
+    dbg!(rec_addr);
 
-    let sender = UdpStream::connect(&addr).expect("sender");
-    let addr = sender.local_addr().expect("bound port");
-    dbg!(addr);
+    let sender = UdpStream::connect(&rec_addr).expect("sender");
+    let send_addr = sender.local_addr().expect("bound port");
+    dbg!(send_addr);
+    let connected_addr = sender.connected_to().expect("connected");
+    assert_eq!(connected_addr, rec_addr);
 
     // let mut received: [u8; 17] = [b'\x00'; 17];
     // let msg: &[u8; 17] = b"udp loopback test";

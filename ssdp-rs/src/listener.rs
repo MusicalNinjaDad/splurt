@@ -29,6 +29,7 @@ impl UdpListener {
 
 pub struct UdpStream {
     io: PollEvented<sys::net::UdpSocket>,
+    connected_to: Option<SocketAddr>,
 }
 
 impl UdpStream {
@@ -38,12 +39,19 @@ impl UdpStream {
         let s = sys::net::UdpSocket::bind(&bind_addr)?;
         s.connect(*addr)?;
         let io = PollEvented::new(s);
-        Ok(Self { io })
+        Ok(Self {
+            io,
+            connected_to: Some(*addr),
+        })
     }
 
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
         let io = &self.io;
         let s = io.get_ref();
         s.local_addr()
+    }
+
+    pub fn connected_to(&self) -> Option<SocketAddr> {
+        self.connected_to
     }
 }
