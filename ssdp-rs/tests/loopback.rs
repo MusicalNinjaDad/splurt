@@ -58,7 +58,7 @@ async fn udp() {
     // Binding with a port number of 0 will request that the OS assigns a port to this listener.
     // The port allocated can be queried via the TcpListener::local_addr method.
     let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
-    let receiver = UdpListener::bind(&addr).expect("receiver");
+    let mut receiver = UdpListener::bind(&addr).expect("receiver");
     let rec_addr = receiver.local_addr().expect("bound port");
     dbg!(rec_addr);
 
@@ -68,7 +68,7 @@ async fn udp() {
     let connected_addr = sender.connected_to().expect("connected");
     assert_eq!(connected_addr, rec_addr);
 
-    // let mut received: [u8; 17] = [b'\x00'; 17];
+    let mut received: [u8; 17] = [b'\x00'; 17];
     let msg: &[u8; 17] = b"udp loopback test";
 
     let send = async move {
@@ -78,26 +78,29 @@ async fn udp() {
         //     sender.close().await.expect("closing sender");
     };
 
-    send.await
+    let rec = async {
+        println!("initiating receiver");
+        if let Some(sent_by) = receiver.incoming(&mut received).next().await {
+            // println!("receiving ...");
+            // stream
+            //     .expect("valid stream")
+            //     .read_exact(&mut received)
+            //     .await
+            //     .expect("received something");
+            let sent_by = sent_by.expect("valid message");
+            println!(
+                "received: {} from {}",
+                String::from_utf8_lossy(&received),
+                sent_by
+            );
+        };
+    };
 
-    // let rec = async {
-    //     println!("initiating receiver");
-    //     if let Some(stream) = receiver.incoming().next().await {
-    //         println!("receiving ...");
-    //         stream
-    //             .expect("valid stream")
-    //             .read_exact(&mut received)
-    //             .await
-    //             .expect("received something");
-    //         println!("received: {}", String::from_utf8_lossy(&received));
-    //     };
-    // };
+    println!("ready to join");
+    futures::join!(rec, send);
 
-    // println!("ready to join");
-    // futures::join!(rec, send);
-
-    // assert_eq!(
-    //     String::from_utf8_lossy(&received),
-    //     String::from_utf8_lossy(msg)
-    // );
+    assert_eq!(
+        String::from_utf8_lossy(&received),
+        String::from_utf8_lossy(msg)
+    );
 }

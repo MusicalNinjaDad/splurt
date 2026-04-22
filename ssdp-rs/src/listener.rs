@@ -6,12 +6,13 @@ use std::{
 };
 
 use async_ready::AsyncWriteReady;
-use futures::AsyncWrite;
+use futures::{AsyncWrite, Stream};
 use futures_net::driver::{
     PollEvented,
     sys::{self, event::Ready},
 };
 
+#[derive(Debug)]
 pub struct UdpListener {
     io: PollEvented<sys::net::UdpSocket>,
 }
@@ -31,6 +32,35 @@ impl UdpListener {
         let io = &self.io;
         let s = io.get_ref();
         s.local_addr()
+    }
+
+    /// Create a stream to receive messages into `buf`
+    pub fn incoming<'buf>(&mut self, buf: &'buf mut [u8]) -> Incoming<'_, 'buf> {
+        Incoming {
+            inner: self,
+            buffer: buf,
+        }
+    }
+}
+
+//Separate struct to allow marking as must_use
+#[must_use = "streams do nothing unless polled"]
+#[derive(Debug)]
+/// Stream returned by [`UdpListener::incoming()`].
+///
+/// Calling .next().await on a listener creates a UdpStream connected to the source of the
+/// next data received
+pub struct Incoming<'listener, 'buf> {
+    inner: &'listener mut UdpListener,
+    buffer: &'buf mut [u8],
+}
+
+impl<'listener, 'buf> Stream for Incoming<'listener, 'buf> {
+    type Item = io::Result<SocketAddr>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.inner.io.get_ref();
+        todo!("poll next")
     }
 }
 
