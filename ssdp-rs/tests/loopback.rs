@@ -9,7 +9,7 @@ async fn tcp() {
     let addr: SocketAddr = SocketAddrV4::new(loopback, 9999).into();
     let mut receiver = TcpListener::bind(&addr).expect("receiver");
     let mut sender = TcpStream::connect(&addr).await.expect("sender");
-    let mut received: [u8; 17] = [0; 17];
+    let mut received: [u8; 17] = [b'\x00'; 17];
     let msg: &[u8; 17] = b"tcp loopback test";
     let send = async move {
         println!("sending {}", String::from_utf8_lossy(msg));
