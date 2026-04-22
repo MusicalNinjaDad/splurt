@@ -80,18 +80,19 @@ async fn udp() {
 
     let rec = async {
         println!("initiating receiver");
-        if let Some(sent_by) = receiver.listen(&mut received).next().await {
+        if let Some(Ok(r)) = receiver.recv_from(&received).await {
             // println!("receiving ...");
             // stream
             //     .expect("valid stream")
             //     .read_exact(&mut received)
             //     .await
             //     .expect("received something");
-            let sent_by = sent_by.expect("valid message");
+            let (bytes, sent_by) = r.expect("valid message");
             println!(
-                "received: {} from {}",
+                "received: {} from {} ({} bytes)",
                 String::from_utf8_lossy(&received),
-                sent_by
+                sent_by,
+                bytes
             );
         };
     };
