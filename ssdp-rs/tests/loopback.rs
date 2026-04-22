@@ -1,7 +1,7 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
 use futures::prelude::*;
-use futures_net::{TcpListener, TcpStream, runtime::Runtime};
+use futures_net::{TcpListener, TcpStream, UdpSocket, runtime::Runtime};
 use ssdp_rs::listener::UdpListener;
 
 #[futures_net::test]
@@ -62,7 +62,10 @@ async fn udp() {
     let addr = receiver.local_addr().expect("bound port");
     dbg!(addr);
 
-    // let mut sender = TcpStream::connect(&addr).await.expect("sender");
+    let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
+    let sender = UdpListener::bind(&addr).expect("sender");
+    let addr = sender.local_addr().expect("bound port");
+    dbg!(addr);
 
     // let mut received: [u8; 17] = [b'\x00'; 17];
     // let msg: &[u8; 17] = b"udp loopback test";
