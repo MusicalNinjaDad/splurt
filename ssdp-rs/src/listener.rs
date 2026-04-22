@@ -1,11 +1,11 @@
 use std::{
     io,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
-    pin::Pin,
+    pin::{Pin, pin},
     task::{Context, Poll, ready},
 };
 
-use async_ready::AsyncWriteReady;
+use async_ready::{AsyncReadReady, AsyncWriteReady};
 use futures::{AsyncWrite, Stream};
 use futures_net::driver::{
     PollEvented,
@@ -59,8 +59,20 @@ impl<'listener, 'buf> Stream for Incoming<'listener, 'buf> {
     type Item = io::Result<SocketAddr>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.inner.io.get_ref();
         todo!("poll next")
+    }
+}
+
+impl AsyncReadReady for UdpListener {
+    type Ok = Ready;
+
+    type Err = io::Error;
+
+    fn poll_read_ready(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Self::Ok, Self::Err>> {
+        todo!()
     }
 }
 
