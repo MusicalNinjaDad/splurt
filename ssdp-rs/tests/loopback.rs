@@ -62,21 +62,23 @@ async fn udp() {
     let rec_addr = receiver.local_addr().expect("bound port");
     dbg!(rec_addr);
 
-    let sender = UdpStream::connect(&rec_addr).expect("sender");
+    let mut sender = UdpStream::connect(&rec_addr).expect("sender");
     let send_addr = sender.local_addr().expect("bound port");
     dbg!(send_addr);
     let connected_addr = sender.connected_to().expect("connected");
     assert_eq!(connected_addr, rec_addr);
 
     // let mut received: [u8; 17] = [b'\x00'; 17];
-    // let msg: &[u8; 17] = b"udp loopback test";
+    let msg: &[u8; 17] = b"udp loopback test";
 
-    // let send = async move {
-    //     println!("sending {}", String::from_utf8_lossy(msg));
-    //     sender.write_all(msg).await.expect("send msg");
-    //     println!("closing sender");
-    //     sender.close().await.expect("closing sender");
-    // };
+    let send = async move {
+        println!("sending {}", String::from_utf8_lossy(msg));
+        sender.write_all(msg).await.expect("send msg");
+        //     println!("closing sender");
+        //     sender.close().await.expect("closing sender");
+    };
+
+    send.await
 
     // let rec = async {
     //     println!("initiating receiver");

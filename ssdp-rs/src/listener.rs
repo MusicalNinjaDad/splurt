@@ -1,9 +1,16 @@
 use std::{
     io,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    pin::Pin,
+    task::{Context, Poll, ready},
 };
 
-use futures_net::driver::{PollEvented, sys};
+use async_ready::AsyncWriteReady;
+use futures::AsyncWrite;
+use futures_net::driver::{
+    PollEvented,
+    sys::{self, event::Ready},
+};
 
 pub struct UdpListener {
     io: PollEvented<sys::net::UdpSocket>,
@@ -53,5 +60,60 @@ impl UdpStream {
 
     pub fn connected_to(&self) -> Option<SocketAddr> {
         self.connected_to
+    }
+
+    fn clear_write_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
+        let socket = Pin::new(&mut self.io);
+        socket.clear_write_ready(cx)
+    }
+}
+
+impl AsyncWriteReady for UdpStream {
+    type Ok = Ready;
+
+    type Err = io::Error;
+
+    fn poll_write_ready(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<Self::Ok, Self::Err>> {
+        self.io.poll_write_ready(cx)
+    }
+}
+
+#[expect(unused)]
+impl AsyncWrite for UdpStream {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        // Cannot use PollEvented directly, as UdpSocket !Write
+        ready!(self.as_mut().poll_write_ready(cx)?);
+
+        let socket = PollEvented::get_mut(&mut self.io);
+        let result = socket.send(buf);
+        if let Err(ref e) = result
+            && e.kind() == io::ErrorKind::WouldBlock
+        {
+            self.clear_write_ready(cx)?;
+            Poll::Pending
+        } else {
+            Poll::Ready(result)
+        }
+    }
+
+    fn poll_flush(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<io::Result<()>> {
+        todo!()
+    }
+
+    fn poll_close(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<io::Result<()>> {
+        todo!()
     }
 }
