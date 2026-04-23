@@ -73,7 +73,10 @@ impl AsyncWriteReady for UdpStream {
 ///   the calling thread.
 /// - [Self::poll_flush], will await write readiness indicating that all pending messages have been
 ///   sent, then return as a no-op (`UdpSockets` do not have an inherent `flush` method).
+/// - [Self::poll_close] will [Self::poll_flush] and then [drop] the [UdpStream] where std-lib
+///   implementations of `close` are simple no-ops.
 impl AsyncWrite for UdpStream {
+    /// Wait for write-readiness then `send` the contents of `buf` to the [Self::connect]ed recipient.
     fn poll_write(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -93,6 +96,7 @@ impl AsyncWrite for UdpStream {
         }
     }
 
+    /// Wait for write-readiness to ensure current pending message has been sent.
     fn poll_flush(
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
@@ -101,6 +105,11 @@ impl AsyncWrite for UdpStream {
         Poll::Ready(Ok(()))
     }
 
+    /// [Self::poll_flush] and then [drop] the [UdpStream].
+    /// 
+    /// #### Note
+    /// This differs from where `std::net::*` & `futures_net::*` implementations of `close` which
+    /// are simple no-ops for TCP and do not exist for UDP.
     fn poll_close(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
