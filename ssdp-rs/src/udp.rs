@@ -171,9 +171,7 @@ impl AsyncWrite for UdpStream {
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
-        let Some(self_socket) = self.connected_to() else {
-            return Poll::Ready(Ok(()));
-        };
+        let self_socket = self.local_addr()?;
         let socket = self.socket();
         socket.connect(self_socket);
         self.connected_to = None;
