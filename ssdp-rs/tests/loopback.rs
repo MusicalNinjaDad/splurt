@@ -74,6 +74,8 @@ async fn udp() {
     let send = async move {
         println!("sending {}", String::from_utf8_lossy(msg));
         sender.write_all(msg).await.expect("send msg");
+        println!("flushing sender");
+        sender.flush().await.expect("flushed sender");
         //     println!("closing sender");
         //     sender.close().await.expect("closing sender");
     };

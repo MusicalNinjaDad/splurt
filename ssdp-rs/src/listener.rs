@@ -65,13 +65,20 @@ impl AsyncWriteReady for UdpStream {
 }
 
 #[expect(unused)]
+// Cannot use calls to `PollEvented` directly, as UdpSocket !Write
+/// Allows usage of the [std::io::Write] API to [std::net::UdpSocket::send] asynchronously.
+/// In particular:
+/// - [Self::poll_write], unlike [std::io::Write::write], will automatically queue the
+///   current task for wakeup and return if the writer cannot take more data, rather than blocking
+///   the calling thread.
+/// - [Self::poll_flush], will await write readiness indicating that all pending messages have been
+///   sent, then return as a no-op (`UdpSockets` do not have an inherent `flush` method).
 impl AsyncWrite for UdpStream {
     fn poll_write(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
-        // Cannot use PollEvented directly, as UdpSocket !Write
         ready!(self.as_mut().poll_write_ready(cx)?);
 
         let socket = PollEvented::get_mut(&mut self.io);
@@ -87,10 +94,11 @@ impl AsyncWrite for UdpStream {
     }
 
     fn poll_flush(
-        self: std::pin::Pin<&mut Self>,
+        mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<io::Result<()>> {
-        todo!()
+        ready!(self.as_mut().poll_write_ready(cx)?);
+        Poll::Ready(Ok(()))
     }
 
     fn poll_close(
