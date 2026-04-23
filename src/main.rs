@@ -1,5 +1,6 @@
 #![cfg_attr(unstable_let_chains, feature(let_chains))]
 #![feature(never_type)]
+#![feature(try_blocks_heterogeneous)]
 #![feature(try_trait_v2)]
 #![feature(try_trait_v2_residual)]
 
@@ -41,8 +42,7 @@ impl KnownService {
     }
 }
 
-#[tokio::main(flavor = "current_thread")]
-async fn main() -> Exit<()> {
+fn main() -> Exit<()> {
     let splurt = Splurt::try_parse()?;
 
     match &splurt.command {
@@ -52,85 +52,107 @@ async fn main() -> Exit<()> {
             }
         }
         Command::Ssdp => {
-            let mut netif = cotton_netif::get_interfaces_async()?;
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("tokio runtime");
             let mut known_services = KnownServices::new();
-            let mut ssdp = AsyncService::new()?;
-            let mut stream = ssdp.subscribe("ssdp:all");
-            loop {
-                tokio::select! {
-                    notification = stream.next() => {
-                        match notification {
-                            Some(ref notification @ Notification::Alive {
-                                ref notification_type,
-                                ref unique_service_name,
-                                ref location,
-                            }) => {
-                                let service = KnownService::from_notification(notification).expect("This is an alive");
-                                match known_services.insert(unique_service_name.clone(), service.clone()) {
-                                    None => {
-                                        println!("+  {notification_type}");
-                                        println!("   {unique_service_name} at {location}");
-                                    }
-                                    Some(previous) if previous != service => {
-                                        println!("!  {} -> {}", previous.service_type, notification_type);
-                                        println!("   {unique_service_name} at {} -> {}", previous.location, location);
-                                    },
-                                    Some(_) => (),
-                                }
-                            }
-                            Some(Notification::ByeBye{ notification_type, unique_service_name }) => {
-                                match known_services.remove_entry(&unique_service_name) {
-                                    None =>{
-                                        println!("+- {notification_type}");
-                                        println!("   {unique_service_name} at unknown");
-                                    },
-                                    Some((_, previous)) => {
-                                        if previous.service_type == notification_type {
-                                            println!(" - {}", previous.service_type);
-                                        } else {
-                                            println!("!- {} -> {}", previous.service_type, notification_type);
+
+            let ssdp_loop = async {
+                try bikeshed Exit<()> {
+                    let mut netif = cotton_netif::get_interfaces_async()?;
+                    let mut ssdp = AsyncService::new()?;
+                    let mut stream = ssdp.subscribe("ssdp:all");
+                    loop {
+                        tokio::select! {
+                            notification = stream.next() => {
+                                match notification {
+                                    Some(ref notification @ Notification::Alive {
+                                        ref notification_type,
+                                        ref unique_service_name,
+                                        ref location,
+                                    }) => {
+                                        let service = KnownService::from_notification(notification).expect("This is an alive");
+                                        match known_services.insert(unique_service_name.clone(), service.clone()) {
+                                            None => {
+                                                println!("+  {notification_type}");
+                                                println!("   {unique_service_name} at {location}");
+                                            }
+                                            Some(previous) if previous != service => {
+                                                println!("!  {} -> {}", previous.service_type, notification_type);
+                                                println!("   {unique_service_name} at {} -> {}", previous.location, location);
+                                            },
+                                            Some(_) => (),
                                         }
-                                        println!("   {unique_service_name} at {}", previous.location);
-                                    },
+                                    }
+                                    Some(Notification::ByeBye{ notification_type, unique_service_name }) => {
+                                        match known_services.remove_entry(&unique_service_name) {
+                                            None =>{
+                                                println!("+- {notification_type}");
+                                                println!("   {unique_service_name} at unknown");
+                                            },
+                                            Some((_, previous)) => {
+                                                if previous.service_type == notification_type {
+                                                    println!(" - {}", previous.service_type);
+                                                } else {
+                                                    println!("!- {} -> {}", previous.service_type, notification_type);
+                                                }
+                                                println!("   {unique_service_name} at {}", previous.location);
+                                            },
+                                        }
+                                    }
+                                    None => {
+                                        println!("SSDP listener closed");
+                                        break
+                                    }
                                 }
-                            }
-                            None => {
-                                println!("SSDP listener closed");
-                                break
-                            }
-                        }
-                    },
-                    event = netif.next() => {
-                        match event {
-                            Some(event) => ssdp.on_network_event(&event?)?,
-                            None => {
-                                println!("Network interface monitor closed");
-                                break
+                            },
+                            event = netif.next() => {
+                                match event {
+                                    Some(event) => ssdp.on_network_event(&event?)?,
+                                    None => {
+                                        println!("Network interface monitor closed");
+                                        break
+                                    }
+                                }
                             }
                         }
                     }
                 }
-            }
+            };
+            rt.block_on(ssdp_loop)?;
         }
         Command::Test => {
-            let mut netif = cotton_netif::get_interfaces_async()?;
-            let mut ssdp = AsyncService::new()?;
             let uuid = Uuid::new_v4();
             let test_service = Advertisement {
                 notification_type: "test".to_string(),
                 location: "http://127.0.0.1:3333/test".to_string(),
             };
-            println!("advertising with uuid {}", uuid);
-            ssdp.advertise(uuid.to_string(), test_service);
-            loop {
-                match netif.next().await {
-                    Some(event) => ssdp.on_network_event(&event?)?,
-                    None => {
-                        println!("Network inteface monitor closed");
-                        break;
+
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("tokio runtime");
+
+            let keep_alive = async {
+                try bikeshed Exit<()> {
+                    let mut netif = cotton_netif::get_interfaces_async()?;
+                    let mut ssdp = AsyncService::new()?;
+                    println!("advertising with uuid {}", uuid);
+                    ssdp.advertise(uuid.to_string(), test_service);
+                    loop {
+                        match netif.next().await {
+                            Some(event) => ssdp.on_network_event(&event?)?,
+                            None => {
+                                println!("Network inteface monitor closed");
+                                break;
+                            }
+                        };
                     }
-                };
-            }
+                }
+            };
+
+            rt.block_on(keep_alive)?;
         }
     }
     Exit::Ok(())
