@@ -6,7 +6,7 @@ use std::{
 };
 
 use async_ready::AsyncWriteReady;
-use futures::AsyncWrite;
+use futures::{AsyncWrite, AsyncWriteExt};
 use futures_net::{
     UdpSocket,
     driver::{
@@ -176,6 +176,26 @@ impl AsyncWrite for UdpStream {
         socket.connect(self_socket);
         self.connected_to = None;
         Poll::Ready(Ok(()))
+    }
+}
+
+/// Shadow functions provided to override default documentation
+impl UdpStream {
+    /// Wait for write-readiness to ensure current pending message has been sent.
+    pub fn flush(&mut self) -> futures::io::Flush<'_, Self> {
+        <Self as AsyncWriteExt>::flush(self)
+    }
+
+    /// "Closes" the [UdpStream], removing the internally stored details of the connected
+    /// [SocketAddr] and connecting the underlying system level socket to itself.
+    /// Using the [UdpStream] while closed will result in a runtime error.
+    ///
+    /// #### Note:
+    /// This will NOT release the underlying [UdpSocket] backing the [UdpStream] for the OS to
+    /// reuse. That only occurs on `drop`.
+    /// The Stream can be re-connected to a new counterpart with [Self::connect]
+    pub fn close(&mut self) -> futures::io::Close<'_, Self> {
+        <Self as AsyncWriteExt>::close(self)
     }
 }
 
