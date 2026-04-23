@@ -73,8 +73,9 @@ impl AsyncWriteReady for UdpStream {
 ///   the calling thread.
 /// - [Self::poll_flush], will await write readiness indicating that all pending messages have been
 ///   sent, then return as a no-op (`UdpSockets` do not have an inherent `flush` method).
-/// - [Self::poll_close] will [Self::poll_flush] and then [drop] the [UdpStream] where std-lib
-///   implementations of `close` are simple no-ops.
+/// - [Self::poll_close] remove the internally stored details of the connected [SocketAddr] and
+///   connect the underlying system level socket to itself. Using the [UdpStream] again after
+///   closing is *undefined behaviour*. (std-lib implementations of `close` are simple no-ops).
 impl AsyncWrite for UdpStream {
     /// Wait for write-readiness then `send` the contents of `buf` to the [Self::connect]ed recipient.
     fn poll_write(
@@ -105,15 +106,17 @@ impl AsyncWrite for UdpStream {
         Poll::Ready(Ok(()))
     }
 
-    /// [Self::poll_flush] and then [drop] the [UdpStream].
-    /// 
-    /// #### Note
-    /// This differs from where `std::net::*` & `futures_net::*` implementations of `close` which
-    /// are simple no-ops for TCP and do not exist for UDP.
+    /// Hard closes the [UdpStream], removing the internally stored details of the connected
+    /// [SocketAddr] and connecting the underlying system level socket to itself.
+    /// Using the [UdpStream] again after closing and without reconnecting is *undefined behaviour*.
     fn poll_close(
-        self: std::pin::Pin<&mut Self>,
+        mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<io::Result<()>> {
-        todo!()
+    ) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
+        let self_socket = self.connected_to().expect("is connected");
+        let socket = PollEvented::get_mut(&mut self.io);
+        socket.connect(self_socket);
+        self.connected_to = None;
+        Poll::Ready(Ok(()))
     }
 }

@@ -76,8 +76,8 @@ async fn udp() {
         sender.write_all(msg).await.expect("send msg");
         println!("flushing sender");
         sender.flush().await.expect("flushed sender");
-        //     println!("closing sender");
-        //     sender.close().await.expect("closing sender");
+        println!("closing sender");
+        sender.close().await.expect("closing sender");
     };
 
     let rec = async {
