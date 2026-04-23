@@ -38,7 +38,7 @@ impl UdpStream {
         })
     }
 
-    /// Connect an existing UpdStream to a new counter-part address.
+    /// Connect an existing UpdStream to a new counterpart address.
     ///
     /// All `write`s will send to `addr` and only packets from `addr` will be provided by `read`.
     pub fn connect(&mut self, addr: &SocketAddr) -> io::Result<()> {
@@ -48,21 +48,42 @@ impl UdpStream {
         Ok(())
     }
 
+    /// Get the local address of this Stream
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
         let io = &self.io;
         let s = io.get_ref();
         s.local_addr()
     }
 
+    /// Get the IP-Address of the couterpart to which the Stream is connected.
+    ///
+    /// All `writes` will be sent to this address and `read`s will be filtered to only provide
+    /// packets from this address.
+    ///
+    /// If the `UdpStream` has been disconnected via `.close()`, this will return `None`.
+    ///
+    /// Prefer `.check_connected()?` if you need to validate that socket is connected before
+    /// continuing.
     pub fn connected_to(&self) -> Option<SocketAddr> {
         self.connected_to
     }
 
+    /// Returns an [io::Error] with [io::ErrorKind::NotConnected] if the connection has been
+    /// disconnected via `.close()`.
+    ///
+    /// Prefer `.connected_to()` if you simply wish to get the address of the connection.
+    ///
+    /// #### Note:
+    /// It is *undefined behaviour to attempt to use a UdpStream which is not connected to a
+    /// counterpart. All provided methods use `check_connected` where needed. See [Self::poll_write]
+    /// for an example if you are implementing your own function.
     pub fn check_connected(&self) -> io::Result<SocketAddr> {
         self.connected_to
             .ok_or(io::Error::from(io::ErrorKind::NotConnected))
     }
 
+    /// Needed to handle non-blocking errors in [futures::AsyncWrite].
+    /// See [futures_net::driver::PollEvented] for an explanation.
     fn clear_write_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
         let socket = Pin::new(&mut self.io);
         socket.clear_write_ready(cx)
