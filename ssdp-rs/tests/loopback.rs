@@ -62,7 +62,7 @@ async fn udp() {
     let rec_addr = receiver.local_addr().expect("bound port");
     dbg!(rec_addr);
 
-    let mut sender = UdpStream::connect(&rec_addr).expect("sender");
+    let mut sender = UdpStream::new(&rec_addr).expect("sender");
     let send_addr = sender.local_addr().expect("bound port");
     dbg!(send_addr);
     let connected_addr = sender.connected_to().expect("connected");
