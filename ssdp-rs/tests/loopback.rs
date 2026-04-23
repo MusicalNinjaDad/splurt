@@ -58,7 +58,7 @@ async fn udp() {
     // Binding with a port number of 0 will request that the OS assigns a port to this listener.
     // The port allocated can be queried via the TcpListener::local_addr method.
     let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
-    let receiver = UdpListener::bind(&addr).expect("receiver");
+    let mut receiver = UdpListener::bind(&addr).expect("receiver");
     let rec_addr = receiver.local_addr().expect("bound port");
     dbg!(rec_addr);
 
@@ -80,21 +80,16 @@ async fn udp() {
 
     let rec = async {
         println!("initiating receiver");
-        if let Some(Ok(r)) = receiver.recv_from(&received).await {
-            // println!("receiving ...");
-            // stream
-            //     .expect("valid stream")
-            //     .read_exact(&mut received)
-            //     .await
-            //     .expect("received something");
-            let (bytes, sent_by) = r.expect("valid message");
-            println!(
-                "received: {} from {} ({} bytes)",
-                String::from_utf8_lossy(&received),
-                sent_by,
-                bytes
-            );
-        };
+        let (bytes, sent_by) = receiver
+            .recv_from(&mut received)
+            .await
+            .expect("valid message");
+        println!(
+            "received: {} from {} ({} bytes)",
+            String::from_utf8_lossy(&received),
+            sent_by,
+            bytes
+        );
     };
 
     println!("ready to join");

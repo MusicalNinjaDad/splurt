@@ -5,76 +5,17 @@ use std::{
     task::{Context, Poll, ready},
 };
 
-use async_ready::{AsyncReadReady, AsyncWriteReady};
-use futures::{AsyncWrite, Stream};
-use futures_net::driver::{
-    PollEvented,
-    sys::{self, event::Ready},
+use async_ready::AsyncWriteReady;
+use futures::AsyncWrite;
+use futures_net::{
+    UdpSocket,
+    driver::{
+        PollEvented,
+        sys::{self, event::Ready},
+    },
 };
 
-#[derive(Debug)]
-pub struct UdpListener {
-    io: PollEvented<sys::net::UdpSocket>,
-}
-
-impl UdpListener {
-    /// Creates a UDP socket from the given address.
-    ///
-    /// Binding with a port number of 0 will request that the OS assigns a port to this listener.
-    /// The port allocated can be queried via the UdpListener::local_addr method.
-    pub fn bind(addr: &SocketAddr) -> io::Result<UdpListener> {
-        let s = sys::net::UdpSocket::bind(addr)?;
-        let io = PollEvented::new(s);
-        Ok(UdpListener { io })
-    }
-
-    pub fn local_addr(&self) -> io::Result<SocketAddr> {
-        let io = &self.io;
-        let s = io.get_ref();
-        s.local_addr()
-    }
-
-    /// Listen on the bound socket. This consumes the [UdpListener] and returns a [Listen] which
-    /// implements [Stream] and places any messages in `buf`.
-    pub fn listen<'buf>(self, buf: &'buf mut [u8]) -> Listen<'buf> {
-        Listen {
-            io: self.io,
-            buffer: buf,
-        }
-    }
-}
-
-#[must_use = "streams do nothing unless polled"]
-#[derive(Debug)]
-/// Stream returned by [`UdpListener::listen()`].
-///
-/// Calling .next().await on a Listen stores the next message in the relvant buffer and returns
-/// the [SocketAddr] of the sender.
-pub struct Listen<'buf> {
-    io: PollEvented<sys::net::UdpSocket>,
-    buffer: &'buf mut [u8],
-}
-
-impl<'buf> AsyncReadReady for Listen<'buf> {
-    type Ok = Ready;
-
-    type Err = io::Error;
-
-    fn poll_read_ready(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<Self::Ok, Self::Err>> {
-        Pin::new(&mut self.io).poll_read_ready(cx)
-    }
-}
-
-impl<'buf> Stream for Listen<'buf> {
-    type Item = io::Result<SocketAddr>;
-
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        todo!("poll next")
-    }
-}
+pub type UdpListener = UdpSocket;
 
 pub struct UdpStream {
     io: PollEvented<sys::net::UdpSocket>,
