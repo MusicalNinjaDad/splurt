@@ -23,6 +23,9 @@ pub struct UdpStream {
 }
 
 impl UdpStream {
+    /// Create a new UpdStream on an OS-assigned port on `loopback` which is connected to `addr`.
+    ///
+    /// All `write`s will send to `addr` and only packets from `addr` will be provided by `read`.
     pub fn new(addr: &SocketAddr) -> io::Result<Self> {
         let loopback = Ipv4Addr::new(127, 0, 0, 1);
         let bind_addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
@@ -33,6 +36,16 @@ impl UdpStream {
             io,
             connected_to: Some(*addr),
         })
+    }
+
+    /// Connect an existing UpdStream to a new counter-part address.
+    ///
+    /// All `write`s will send to `addr` and only packets from `addr` will be provided by `read`.
+    pub fn connect(&mut self, addr: &SocketAddr) -> io::Result<()> {
+        let socket = self.io.get_mut();
+        socket.connect(*addr)?;
+        self.connected_to = Some(*addr);
+        Ok(())
     }
 
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
@@ -177,9 +190,17 @@ mod tests {
         let connected = UdpSocket::bind(&addr).expect("other side");
         let rec_addr = connected.local_addr().expect("bound port");
         let mut sender = UdpStream::new(&rec_addr).expect("sender");
-        let sender_addr = sender.local_addr().expect("sender is bound");
+        assert_matches!(sender.connected_to(), Some(addr) if addr == rec_addr);
 
         sender.close().await.expect("closing sender");
-        // let _ = UdpSocket::bind(&sender_addr).expect("new sender reuses old socket");
+        let connected = UdpSocket::bind(&addr).expect("other side");
+        let new_rec_addr = connected.local_addr().expect("bound port");
+        assert_ne!(new_rec_addr, rec_addr);
+        let _ = sender.connect(&new_rec_addr);
+        assert_matches!(sender.connected_to(), Some(a) if a == new_rec_addr, "should be connected to {new_rec_addr}");
+        sender
+            .write_all(b"foo")
+            .await
+            .expect("can write after reconnect");
     }
 }
