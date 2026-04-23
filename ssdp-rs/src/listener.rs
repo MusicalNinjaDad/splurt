@@ -18,6 +18,10 @@ use futures_net::{
 pub type UdpListener = UdpSocket;
 
 pub struct UdpStream {
+    /// The underlying, evented Socket.
+    ///
+    /// Note: `futures_net::UdpSocket` does NOT implement [futures_net::driver::sys::event::Evented]
+    /// and is NOT the same type as stored here.
     io: PollEvented<sys::net::UdpSocket>,
     connected_to: Option<SocketAddr>,
 }
@@ -82,6 +86,15 @@ impl UdpStream {
             .ok_or(io::Error::from(io::ErrorKind::NotConnected))
     }
 
+    /// Provides access to the underlying Socket.
+    ///
+    /// #### Note
+    /// `futures_net::UdpSocket` does NOT implement [futures_net::driver::sys::event::Evented]
+    /// and is NOT the same type as returned here.
+    pub fn socket(&mut self) -> &mut sys::net::UdpSocket {
+        PollEvented::get_mut(&mut self.io)
+    }
+
     /// Needed to handle non-blocking errors in [futures::AsyncWrite].
     /// See [futures_net::driver::PollEvented] for an explanation.
     fn clear_write_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
@@ -125,7 +138,7 @@ impl AsyncWrite for UdpStream {
         self.check_connected()?;
         ready!(self.as_mut().poll_write_ready(cx)?);
 
-        let socket = PollEvented::get_mut(&mut self.io);
+        let socket = self.socket();
         let result = socket.send(buf);
         if let Err(ref e) = result
             && e.kind() == io::ErrorKind::WouldBlock
@@ -159,7 +172,7 @@ impl AsyncWrite for UdpStream {
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
         let self_socket = self.connected_to().expect("is connected");
-        let socket = PollEvented::get_mut(&mut self.io);
+        let socket = self.socket();
         socket.connect(self_socket);
         self.connected_to = None;
         Poll::Ready(Ok(()))
