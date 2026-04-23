@@ -4,7 +4,13 @@
 #![feature(try_trait_v2)]
 #![feature(try_trait_v2_residual)]
 
-use std::{collections::HashMap, fmt::Debug, io, process::Termination as _T};
+use std::{
+    collections::HashMap,
+    fmt::Debug,
+    io,
+    net::{Ipv4Addr, SocketAddrV4},
+    process::Termination as _T,
+};
 
 use clap::Parser;
 use cotton_netif::get_interfaces;
@@ -13,6 +19,8 @@ use exit_safely::Termination;
 use futures_util::StreamExt;
 use try_v2::{Try, Try_ConvertResult};
 use uuid::Uuid;
+
+use ssdp_rs::udp::UdpStream;
 
 mod cli;
 use cli::*;
@@ -46,6 +54,22 @@ fn main() -> Exit<()> {
     let splurt = Splurt::try_parse()?;
 
     match &splurt.command {
+        Command::Listen => {
+            let pool = futures::executor::LocalPool::new();
+            #[expect(unused)]
+            let spawn = pool.spawner();
+
+            let multicast = Ipv4Addr::new(239, 255, 255, 250);
+            let multicast = SocketAddrV4::new(multicast, 1900).into();
+            #[expect(unused_mut)]
+            let mut listener = UdpStream::new(&multicast).expect("sender");
+            let send_addr = listener.local_addr().expect("bound port");
+            println!("listening on {:?}", send_addr);
+
+            #[expect(unused)]
+            let mut incoming = [b'\x00'; 1024];
+        }
+
         Command::Interfaces => {
             for e in get_interfaces()? {
                 println!("{:?}", e);

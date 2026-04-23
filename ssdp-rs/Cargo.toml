@@ -1,5 +1,5 @@
 [package]
-name = "ssdp-rs"
+name = "ssdp_rs"
 version = "0.0.1"
 edition = "2024"
 readme = "README.md"
@@ -13,9 +13,9 @@ license = "MIT"
 rust-version = "1.85.1"
 
 [dependencies]
-async-ready = "3.0.0"
-futures = "0.3.32"
-futures-net = "0.6.0"
+async-ready = { workspace = true }
+futures = { workspace = true }
+futures-net = { workspace = true }
 
 [build-dependencies]
 autocfg = { workspace = true }
