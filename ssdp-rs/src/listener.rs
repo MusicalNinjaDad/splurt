@@ -127,3 +127,42 @@ impl AsyncWrite for UdpStream {
         Poll::Ready(Ok(()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use futures::AsyncWriteExt;
+    use futures_net::runtime::Runtime;
+
+    #[cfg(assert_matches_in_root)]
+    use std::assert_matches;
+
+    #[cfg(assert_matches_in_module)]
+    use std::assert_matches::assert_matches;
+
+    #[futures_net::test]
+    async fn not_connected_flush() {
+        let loopback = Ipv4Addr::new(127, 0, 0, 1);
+        let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
+        let connected = UdpSocket::bind(&addr).expect("other side");
+        let rec_addr = connected.local_addr().expect("bound port");
+        let mut sender = UdpStream::connect(&rec_addr).expect("sender");
+
+        sender.close().await.expect("closing sender");
+        let flush = sender.flush().await;
+        assert_matches!(flush, Err(e) if e.kind() == io::ErrorKind::NotConnected);
+    }
+
+    #[futures_net::test]
+    async fn not_connected_write() {
+        let loopback = Ipv4Addr::new(127, 0, 0, 1);
+        let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
+        let connected = UdpSocket::bind(&addr).expect("other side");
+        let rec_addr = connected.local_addr().expect("bound port");
+        let mut sender = UdpStream::connect(&rec_addr).expect("sender");
+
+        sender.close().await.expect("closing sender");
+        let write_all = sender.write_all(b"foo").await;
+        assert_matches!(write_all, Err(e) if e.kind() == io::ErrorKind::NotConnected);
+    }
+}
