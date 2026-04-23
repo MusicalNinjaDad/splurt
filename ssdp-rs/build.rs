@@ -4,6 +4,7 @@ use autocfg::AutoCfg;
 
 fn main() -> Result<(), BuildError> {
     let ac = autocfg::new();
+    ac.emit_unstable_feature("let_chains");
     ac.emit_unstable_feature("assert_matches");
     AssertMatchesLocation::emit_possibilities();
     if let Some(location) = ac.assert_matches_location() {
