@@ -45,6 +45,11 @@ impl UdpStream {
         self.connected_to
     }
 
+    pub fn check_connected(&self) -> io::Result<SocketAddr> {
+        self.connected_to
+            .ok_or(io::Error::from(io::ErrorKind::NotConnected))
+    }
+
     fn clear_write_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
         let socket = Pin::new(&mut self.io);
         socket.clear_write_ready(cx)
@@ -75,7 +80,7 @@ impl AsyncWriteReady for UdpStream {
 ///   sent, then return as a no-op (`UdpSockets` do not have an inherent `flush` method).
 /// - [Self::poll_close] remove the internally stored details of the connected [SocketAddr] and
 ///   connect the underlying system level socket to itself. Using the [UdpStream] again after
-///   closing is *undefined behaviour*. (std-lib implementations of `close` are simple no-ops).
+///   closing will result in an error. (std-lib implementations of `close` are simple no-ops).
 impl AsyncWrite for UdpStream {
     /// Wait for write-readiness then `send` the contents of `buf` to the [Self::connect]ed recipient.
     fn poll_write(
@@ -83,6 +88,7 @@ impl AsyncWrite for UdpStream {
         cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
+        self.check_connected()?;
         ready!(self.as_mut().poll_write_ready(cx)?);
 
         let socket = PollEvented::get_mut(&mut self.io);
@@ -102,13 +108,14 @@ impl AsyncWrite for UdpStream {
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<io::Result<()>> {
+        self.check_connected()?;
         ready!(self.as_mut().poll_write_ready(cx)?);
         Poll::Ready(Ok(()))
     }
 
     /// Hard closes the [UdpStream], removing the internally stored details of the connected
     /// [SocketAddr] and connecting the underlying system level socket to itself.
-    /// Using the [UdpStream] again after closing and without reconnecting is *undefined behaviour*.
+    /// Using the [UdpStream] again after closing will result in an error.
     fn poll_close(
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
