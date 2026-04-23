@@ -171,7 +171,9 @@ impl AsyncWrite for UdpStream {
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
-        let self_socket = self.connected_to().expect("is connected");
+        let Some(self_socket) = self.connected_to() else {
+            return Poll::Ready(Ok(()));
+        };
         let socket = self.socket();
         socket.connect(self_socket);
         self.connected_to = None;
@@ -256,5 +258,17 @@ mod tests {
             .write_all(b"foo")
             .await
             .expect("can write after reconnect");
+    }
+
+    #[futures_net::test]
+    async fn double_close() {
+        let loopback = Ipv4Addr::new(127, 0, 0, 1);
+        let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
+        let connected = UdpSocket::bind(&addr).expect("other side");
+        let rec_addr = connected.local_addr().expect("bound port");
+        let mut sender = UdpStream::new(&rec_addr).expect("sender");
+        sender.close().await.expect("close 1");
+        sender.close().await.expect("close 2");
+        assert!(!sender.connected_to().is_some());
     }
 }
