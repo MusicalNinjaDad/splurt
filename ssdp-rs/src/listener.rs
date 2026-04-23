@@ -113,9 +113,13 @@ impl AsyncWrite for UdpStream {
         Poll::Ready(Ok(()))
     }
 
-    /// Hard closes the [UdpStream], removing the internally stored details of the connected
+    /// Closes the [UdpStream], removing the internally stored details of the connected
     /// [SocketAddr] and connecting the underlying system level socket to itself.
-    /// Using the [UdpStream] again after closing will result in an error.
+    /// Using the [UdpStream] while closed will result in an error.
+    /// 
+    /// #### Note:
+    /// This will NOT release the underlying [UdpSocket] backing the [UdpStream] for the OS to
+    /// reuse. The Stream can be re-connected to a new partner with [Self::connect]
     fn poll_close(
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
@@ -165,4 +169,18 @@ mod tests {
         let write_all = sender.write_all(b"foo").await;
         assert_matches!(write_all, Err(e) if e.kind() == io::ErrorKind::NotConnected);
     }
+
+    #[futures_net::test]
+    async fn reuse_socket() {
+        let loopback = Ipv4Addr::new(127, 0, 0, 1);
+        let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
+        let connected = UdpSocket::bind(&addr).expect("other side");
+        let rec_addr = connected.local_addr().expect("bound port");
+        let mut sender = UdpStream::connect(&rec_addr).expect("sender");
+        let sender_addr = sender.local_addr().expect("sender is bound");
+
+        sender.close().await.expect("closing sender");
+        let _ = UdpSocket::bind(&sender_addr).expect("new sender reuses old socket");
+    }
+
 }
