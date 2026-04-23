@@ -2,7 +2,7 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
 use futures::prelude::*;
 use futures_net::{TcpListener, TcpStream, runtime::Runtime};
-use ssdp_rs::listener::{UdpListener, UdpStream};
+use ssdp_rs::udp::{UdpListener, UdpStream};
 
 #[futures_net::test]
 async fn tcp() {
