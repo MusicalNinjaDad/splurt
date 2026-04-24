@@ -4,6 +4,7 @@ use autocfg::AutoCfg;
 
 fn main() -> Result<(), BuildError> {
     let ac = autocfg::new();
+    ac.emit_unstable_feature("bool_to_result");
     ac.emit_unstable_feature("let_chains");
     ac.emit_unstable_feature("assert_matches");
     AssertMatchesLocation::emit_possibilities();
@@ -94,9 +95,11 @@ trait Nightly {
 impl Nightly for AutoCfg {
     fn emit_unstable_feature(&self, feature: &'static str) {
         let cfg = format!("unstable_{feature}");
+        // #![allow(unused)] is required to avoid this failing for `cargo clippy -- -D warnings`
         let code = format!(
             r#"
         #![deny(stable_features)]
+        #![allow(unused)]
         #![feature({feature})]
         "#
         );
