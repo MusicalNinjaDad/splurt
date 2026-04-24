@@ -116,7 +116,6 @@ impl AsyncWriteReady for UdpStream {
     }
 }
 
-#[expect(unused)]
 // Cannot use calls to `PollEvented` directly, as UdpSocket !Write
 /// Allows usage of the [std::io::Write] API to [std::net::UdpSocket::send] asynchronously.
 /// In particular:
@@ -160,20 +159,21 @@ impl AsyncWrite for UdpStream {
         Poll::Ready(Ok(()))
     }
 
-    /// Closes the [UdpStream], removing the internally stored details of the connected
+    /// SOFT-closes the [UdpStream], removing the internally stored details of the connected
     /// [SocketAddr] and connecting the underlying system level socket to itself.
     /// Using the [UdpStream] while closed will result in an error.
     ///
     /// #### Note:
-    /// This will NOT release the underlying [UdpSocket] backing the [UdpStream] for the OS to
-    /// reuse. The Stream can be re-connected to a new partner with [Self::connect]
+    /// - Call [Self::flush] first if you want to ensure that any waiting packets are sent
+    /// - This will NOT release the underlying [UdpSocket] backing the [UdpStream] for the OS to
+    ///   reuse. The Stream can be re-connected to a new partner with [Self::connect]
     fn poll_close(
         mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
+        _cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
         let self_socket = self.local_addr()?;
         let socket = self.socket();
-        socket.connect(self_socket);
+        socket.connect(self_socket)?;
         self.connected_to = None;
         Poll::Ready(Ok(()))
     }
