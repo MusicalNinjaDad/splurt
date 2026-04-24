@@ -34,6 +34,11 @@ pub struct UdpListener {
 }
 
 impl UdpListener {
+    /// Create a new [UdpListener] by binding it to a given [SocketAddr].
+    ///
+    /// The listener is guaranteed to be constructed to be non-blocking and have non-exclusive
+    /// access to the bound address; if either of these system calls fails to take effect an
+    /// [io::ErrorKind::Unsupported] will be returned.
     pub fn bind(addr: SocketAddr) -> io::Result<Self> {
         let s2 = socket2::Socket::new(Domain::IPV4, Type::DGRAM, None)?;
         let addr = addr.into();
@@ -67,16 +72,15 @@ impl UdpListener {
     /// Provides access to the underlying Socket.
     ///
     /// #### Note
-    /// `futures_net::UdpSocket` does NOT implement [futures_net::driver::sys::event::Evented]
-    /// and is NOT the same type as returned here.
+    /// `futures_net::UdpSocket` is NOT the same type as returned here.
     pub fn socket(&mut self) -> &mut sys::net::UdpSocket {
         PollEvented::get_mut(&mut self.io)
     }
 
     /// Receives data from the IO interface once `await`ed.
     ///
-    /// Returns the number of bytes read and the target from whence the data came on successful
-    /// `await`, or an `io::Error` on unsuccessful `await`.
+    /// Awaiting returns the number of bytes read and the target from whence the data as an
+    /// `io::Result<(usize, SocketAddr)>`
     pub fn recv_from<'listener, 'buf>(
         &'listener mut self,
         buf: &'buf mut [u8],
@@ -86,7 +90,26 @@ impl UdpListener {
             listener: self,
         }
     }
+}
 
+/// The future returned by `UdpListener::recv_from`
+#[derive(Debug)]
+pub struct RecvFrom<'listener, 'buf> {
+    listener: &'listener mut UdpListener,
+    buf: &'buf mut [u8],
+}
+
+impl<'listener, 'buf> Future for RecvFrom<'listener, 'buf> {
+    type Output = io::Result<(usize, SocketAddr)>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let RecvFrom { listener, buf } = &mut *self;
+        Pin::new(&mut **listener).poll_recv_from(cx, buf)
+    }
+}
+
+/// Private functions for handling readiness to read.
+impl UdpListener {
     /// Receives data from the IO interface if it is ready to read.
     ///
     /// If successful, returns the number of bytes read and the target from whence the data came.
@@ -123,22 +146,6 @@ impl UdpListener {
     /// See [futures_net::driver::PollEvented] for an explanation.
     fn clear_read_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
         self.pinned_io().clear_read_ready(cx)
-    }
-}
-
-/// The future returned by `UdpListener::recv_from`
-#[derive(Debug)]
-pub struct RecvFrom<'listener, 'buf> {
-    listener: &'listener mut UdpListener,
-    buf: &'buf mut [u8],
-}
-
-impl<'listener, 'buf> Future for RecvFrom<'listener, 'buf> {
-    type Output = io::Result<(usize, SocketAddr)>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let RecvFrom { listener, buf } = &mut *self;
-        Pin::new(&mut **listener).poll_recv_from(cx, buf)
     }
 }
 
