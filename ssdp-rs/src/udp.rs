@@ -88,6 +88,10 @@ impl UdpListener {
         let io = &mut listener.io;
         Pin::new(&mut *io)
     }
+
+    fn clear_read_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
+        self.pinned_io().clear_read_ready(cx)
+    }
 }
 
 /// The future returned by `UdpListener::recv_from`
