@@ -16,6 +16,7 @@ rust-version = "1.85.1"
 async-ready = "3.0.0"
 futures = "0.3.32"
 futures-net = "0.6.0"
+socket2 = { version = "0.6.3", features = ["all"] }
 
 [build-dependencies]
 autocfg = { workspace = true }

@@ -2,6 +2,7 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
 use futures::prelude::*;
 use futures_net::{TcpListener, TcpStream, runtime::Runtime};
+#[expect(unused_imports)]
 use ssdp_rs::udp::{UdpListener, UdpStream};
 
 #[futures_net::test]
@@ -58,7 +59,9 @@ async fn udp() {
     // Binding with a port number of 0 will request that the OS assigns a port to this listener.
     // The port allocated can be queried via the TcpListener::local_addr method.
     let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
-    let mut receiver = UdpListener::bind(&addr).expect("receiver");
+    
+    // TODO revert this to use UdpListener
+    let mut receiver = futures_net::UdpSocket::bind(&addr).expect("receiver");
     let rec_addr = receiver.local_addr().expect("bound port");
     dbg!(rec_addr);
 
