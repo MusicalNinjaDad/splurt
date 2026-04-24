@@ -35,11 +35,16 @@ pub struct UdpListener {
 
 impl UdpListener {
     pub fn bind(addr: SocketAddr) -> io::Result<Self> {
-        let s2 = socket2::Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))?;
+        let s2 = socket2::Socket::new(Domain::IPV4, Type::DGRAM, None)?;
         let addr = addr.into();
-        s2.bind(&addr)?;
         s2.set_nonblocking(true)?;
         assert!(s2.nonblocking()?);
+        // this will still block if a UdpStream actively begins listening on this address, thereby
+        // claiming exclusive interest in all received data.
+        // see https://man7.org/linux/man-pages/man7/socket.7.html#:~:text=SO_REUSEADDR
+        s2.set_reuse_address(true)?;
+        assert!(s2.reuse_address()?);
+        s2.bind(&addr)?;
         let sstd: std::net::UdpSocket = s2.into();
         let io = PollEvented::new(sys::net::UdpSocket::from_socket(sstd)?);
         Ok(Self { io })
