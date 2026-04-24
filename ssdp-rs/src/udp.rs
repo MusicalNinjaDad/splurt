@@ -5,17 +5,162 @@ use std::{
     task::{Context, Poll, ready},
 };
 
-use async_ready::AsyncWriteReady;
+use async_ready::{AsyncReadReady, AsyncWriteReady};
 use futures::{AsyncWrite, AsyncWriteExt};
-use futures_net::{
-    UdpSocket,
-    driver::{
-        PollEvented,
-        sys::{self, event::Ready},
-    },
+use futures_net::driver::{
+    PollEvented,
+    sys::{self, event::Ready},
 };
+use socket2::{Domain, Type};
 
-pub type UdpListener = UdpSocket;
+//TODO: Open a ticket with futures_net re non-blocking UdpSocket
+#[derive(Debug)]
+/// A non-blocking async UdpSocket semantically designed as a listener.
+///
+/// #### Note
+/// This does NOT have exclusive access to the bound port. If you want to guarantee that no other
+/// processes bind to the same socket use a [UdpStream], which will exclusively claim the port.
+pub struct UdpListener {
+    /// The underlying, evented Socket.
+    ///
+    /// #### Note
+    /// - [`futures_net::UdpSocket`] does NOT implement [futures_net::driver::sys::event::Evented]
+    ///   and is NOT the same type as stored here.
+    /// - [`futures_net::driver::sys::net::UdpSocket`] is not actually non-blocking, despite the
+    ///   documentation.
+    /// - Neither [std::sys::net::UdpSocket], nor [net2::UdpBuilder] expose`set_nonblocking()` so
+    ///   we need use [socket2::Socket] while building the listener.
+    io: PollEvented<sys::net::UdpSocket>,
+}
+
+impl UdpListener {
+    /// Create a new [UdpListener] by binding it to a given [SocketAddr].
+    ///
+    /// The listener is guaranteed to be constructed to be non-blocking and have non-exclusive
+    /// access to the bound address; if either of these system calls fails to take effect an
+    /// [io::ErrorKind::Unsupported] will be returned.
+    pub fn bind(addr: SocketAddr) -> io::Result<Self> {
+        let s2 = socket2::Socket::new(Domain::IPV4, Type::DGRAM, None)?;
+        let addr = addr.into();
+        s2.set_nonblocking(true)?;
+        s2.nonblocking()?
+            .ok_or(io::Error::from(io::ErrorKind::Unsupported))?;
+
+        // NOTE for consideration if/when implementing conversion to a UdpStream
+        // =====================================================================
+        // This would still another process from re-binding to the same address & port if converted
+        // to a UdpStream which actively begins listening on this address, thereby claiming
+        // exclusive interest in all received data.
+        // see https://man7.org/linux/man-pages/man7/socket.7.html#:~:text=SO_REUSEADDR
+        s2.set_reuse_address(true)?;
+        s2.reuse_address()?
+            .ok_or(io::Error::from(io::ErrorKind::Unsupported))?;
+
+        s2.bind(&addr)?;
+        let sstd: std::net::UdpSocket = s2.into();
+        let io = PollEvented::new(sys::net::UdpSocket::from_socket(sstd)?);
+        Ok(Self { io })
+    }
+
+    /// Get the local address of this listener
+    pub fn local_addr(&self) -> io::Result<SocketAddr> {
+        let io = &self.io;
+        let s = io.get_ref();
+        s.local_addr()
+    }
+
+    /// Provides access to the underlying Socket.
+    ///
+    /// #### Note
+    /// `futures_net::UdpSocket` is NOT the same type as returned here.
+    pub fn socket(&mut self) -> &mut sys::net::UdpSocket {
+        PollEvented::get_mut(&mut self.io)
+    }
+
+    /// Receives data from the IO interface once `await`ed.
+    ///
+    /// Awaiting returns the number of bytes read and the target from whence the data as an
+    /// `io::Result<(usize, SocketAddr)>`
+    pub fn recv_from<'listener, 'buf>(
+        &'listener mut self,
+        buf: &'buf mut [u8],
+    ) -> RecvFrom<'listener, 'buf> {
+        RecvFrom {
+            buf,
+            listener: self,
+        }
+    }
+}
+
+/// The future returned by `UdpListener::recv_from`
+#[derive(Debug)]
+pub struct RecvFrom<'listener, 'buf> {
+    listener: &'listener mut UdpListener,
+    buf: &'buf mut [u8],
+}
+
+impl<'listener, 'buf> Future for RecvFrom<'listener, 'buf> {
+    type Output = io::Result<(usize, SocketAddr)>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let RecvFrom { listener, buf } = &mut *self;
+        Pin::new(&mut **listener).poll_recv_from(cx, buf)
+    }
+}
+
+/// Private functions for handling readiness to read.
+impl UdpListener {
+    /// Receives data from the IO interface if it is ready to read.
+    ///
+    /// If successful, returns the number of bytes read and the target from whence the data came.
+    fn poll_recv_from(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<Result<(usize, std::net::SocketAddr), io::Error>> {
+        let listener = &mut *self;
+        ready!(listener.poll_read_ready_unpin(cx)?);
+
+        let socket = listener.socket();
+        let result = socket.recv_from(buf);
+
+        if let Err(ref e) = result
+            && e.kind() == io::ErrorKind::WouldBlock
+        {
+            self.clear_read_ready(cx)?;
+            Poll::Pending
+        } else {
+            Poll::Ready(result)
+        }
+    }
+
+    /// Converts a pinned `&mut UdpListener` to a pinned &mut of the underlying pollevented socket
+    /// allowing for calls to traits and functions implemented by [PollEvented]
+    fn pinned_io(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>> {
+        let listener = self.get_mut();
+        let io = &mut listener.io;
+        Pin::new(&mut *io)
+    }
+
+    /// Needed to handle non-blocking errors in [futures::AsyncRead].
+    /// See [futures_net::driver::PollEvented] for an explanation.
+    fn clear_read_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
+        self.pinned_io().clear_read_ready(cx)
+    }
+}
+
+impl AsyncReadReady for UdpListener {
+    type Ok = Ready;
+
+    type Err = io::Error;
+
+    fn poll_read_ready(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Self::Ok, Self::Err>> {
+        self.pinned_io().poll_read_ready(cx)
+    }
+}
 
 pub struct UdpStream {
     /// The underlying, evented Socket.
@@ -203,7 +348,7 @@ impl UdpStream {
 mod tests {
     use super::*;
     use futures::AsyncWriteExt;
-    use futures_net::runtime::Runtime;
+    use futures_net::{UdpSocket, runtime::Runtime};
 
     #[cfg(assert_matches_in_root)]
     use std::assert_matches;
@@ -268,5 +413,14 @@ mod tests {
         sender.close().await.expect("close 1");
         sender.close().await.expect("close 2");
         assert!(!sender.connected_to().is_some());
+    }
+
+    #[futures_net::test]
+    async fn non_blocking() {
+        let loopback = Ipv4Addr::new(127, 0, 0, 1);
+        let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
+        let first = UdpListener::bind(addr).expect("first connection");
+        let addr = first.local_addr().expect("bound port");
+        let _second = UdpListener::bind(addr).expect("second connection");
     }
 }
