@@ -63,8 +63,7 @@ fn main() -> Exit<()> {
 
             println!("will join multicast on interface {interface}");
 
-            let loopback = Ipv4Addr::new(127, 0, 0, 1);
-            let listen_addr = SocketAddrV4::new(loopback, 0).into();
+            let listen_addr = SocketAddrV4::new(interface, 1900).into();
             let mut listener = UdpListener::bind(&listen_addr).expect("sender");
             listener.join_multicast_v4(&multicast, &interface)?;
 
@@ -203,12 +202,20 @@ fn main() -> Exit<()> {
 }
 
 // Adapted from https://github.com/jakobhellermann/ssdp-client/blob/main/src/search.rs
+#[cfg(not(windows))]
 fn get_bind_addr() -> Result<SocketAddr, std::io::Error> {
+    Ok(([0, 0, 0, 0], 0).into())
+}
+
+#[cfg(windows)]
+async fn get_bind_addr() -> Result<SocketAddr, std::io::Error> {
     // Windows 10 is multihomed so that the address that is used for the broadcast send is not guaranteed to be your local ip address, it can be any of the virtual interfaces instead.
     // Thanks to @dheijl for figuring this out <3 (https://github.com/jakobhellermann/ssdp-client/issues/3#issuecomment-687098826)
+    let any: SocketAddr = ([0, 0, 0, 0], 0).into();
+    let socket = UdpSocket::bind(any).await?;
     let googledns: SocketAddr = ([8, 8, 8, 8], 80).into();
-    let stream = UdpStream::new(&googledns)?;
-    let bind_addr = stream.local_addr()?;
+    socket.connect(googledns).await?;
+    let bind_addr = socket.local_addr()?;
 
     Ok(bind_addr)
 }
