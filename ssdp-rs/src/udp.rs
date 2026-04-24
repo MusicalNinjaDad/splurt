@@ -5,7 +5,6 @@ use std::{
     task::{Context, Poll, ready},
 };
 
-use async_datagram::AsyncDatagram;
 use async_ready::{AsyncReadReady, AsyncWriteReady};
 use futures::{AsyncWrite, AsyncWriteExt};
 use futures_net::driver::{
@@ -75,7 +74,7 @@ impl UdpListener {
     }
 
     /// Receives data from the IO interface once `await`ed.
-    /// 
+    ///
     /// Returns the number of bytes read and the target from whence the data came on successful
     /// `await`, or an `io::Error` on unsuccessful `await`.
     pub fn recv_from<'listener, 'buf>(
@@ -85,6 +84,30 @@ impl UdpListener {
         RecvFrom {
             buf,
             listener: self,
+        }
+    }
+
+    /// Receives data from the IO interface if it is ready to read.
+    ///
+    /// If successful, returns the number of bytes read and the target from whence the data came.
+    fn poll_recv_from(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<Result<(usize, std::net::SocketAddr), io::Error>> {
+        let listener = &mut *self;
+        ready!(listener.poll_read_ready_unpin(cx)?);
+
+        let socket = listener.socket();
+        let result = socket.recv_from(buf);
+
+        if let Err(ref e) = result
+            && e.kind() == io::ErrorKind::WouldBlock
+        {
+            self.clear_read_ready(cx)?;
+            Poll::Pending
+        } else {
+            Poll::Ready(result)
         }
     }
 
@@ -116,45 +139,6 @@ impl<'listener, 'buf> Future for RecvFrom<'listener, 'buf> {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let RecvFrom { listener, buf } = &mut *self;
         Pin::new(&mut **listener).poll_recv_from(cx, buf)
-    }
-}
-
-impl AsyncDatagram for UdpListener {
-    type Sender = std::net::SocketAddr;
-
-    type Receiver = std::net::SocketAddr;
-
-    type Err = io::Error;
-
-    #[expect(unused_variables)]
-    fn poll_send_to(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-        receiver: &Self::Receiver,
-    ) -> Poll<Result<usize, Self::Err>> {
-        todo!("poll send to")
-    }
-
-    fn poll_recv_from(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<Result<(usize, Self::Sender), Self::Err>> {
-        let listener = &mut *self;
-        ready!(listener.poll_read_ready_unpin(cx)?);
-
-        let socket = listener.socket();
-        let result = socket.recv_from(buf);
-
-        if let Err(ref e) = result
-            && e.kind() == io::ErrorKind::WouldBlock
-        {
-            self.clear_read_ready(cx)?;
-            Poll::Pending
-        } else {
-            Poll::Ready(result)
-        }
     }
 }
 
