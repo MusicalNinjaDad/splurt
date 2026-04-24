@@ -8,7 +8,7 @@ use std::{
     collections::HashMap,
     fmt::Debug,
     io,
-    net::{Ipv4Addr, SocketAddrV4},
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
     process::Termination as _T,
 };
 
@@ -20,7 +20,7 @@ use futures_util::StreamExt;
 use try_v2::{Try, Try_ConvertResult};
 use uuid::Uuid;
 
-use ssdp_rs::udp::UdpStream;
+use ssdp_rs::udp::{UdpListener, UdpStream};
 
 mod cli;
 use cli::*;
@@ -55,19 +55,39 @@ fn main() -> Exit<()> {
 
     match &splurt.command {
         Command::Listen => {
-            let pool = futures::executor::LocalPool::new();
-            #[expect(unused)]
-            let spawn = pool.spawner();
-
             let multicast = Ipv4Addr::new(239, 255, 255, 250);
-            let multicast = SocketAddrV4::new(multicast, 1900).into();
-            #[expect(unused_mut)]
-            let mut listener = UdpStream::new(&multicast).expect("sender");
+
+            let std::net::IpAddr::V4(interface) = get_bind_addr()?.ip() else {
+                todo!()
+            };
+
+            println!("will join multicast on interface {interface}");
+
+            let loopback = Ipv4Addr::new(127, 0, 0, 1);
+            let listen_addr = SocketAddrV4::new(loopback, 0).into();
+            let mut listener = UdpListener::bind(&listen_addr).expect("sender");
+            listener.join_multicast_v4(&multicast, &interface)?;
+
             let send_addr = listener.local_addr().expect("bound port");
             println!("listening on {:?}", send_addr);
 
-            #[expect(unused)]
-            let mut incoming = [b'\x00'; 1024];
+            let listen_loop = async move {
+                let mut incoming = [b'\x00'; 1024];
+                try bikeshed Exit<()> {
+                    loop {
+                        println!("listening ...");
+                        let (bytes, sent_by) = listener.recv_from(&mut incoming).await?;
+                        println!(
+                            "received: {} from {} ({} bytes)",
+                            String::from_utf8_lossy(&incoming),
+                            sent_by,
+                            bytes
+                        );
+                    }
+                }
+            };
+
+            futures::executor::block_on(listen_loop)?;
         }
 
         Command::Interfaces => {
@@ -182,6 +202,17 @@ fn main() -> Exit<()> {
     Exit::Ok(())
 }
 
+// Adapted from https://github.com/jakobhellermann/ssdp-client/blob/main/src/search.rs
+fn get_bind_addr() -> Result<SocketAddr, std::io::Error> {
+    // Windows 10 is multihomed so that the address that is used for the broadcast send is not guaranteed to be your local ip address, it can be any of the virtual interfaces instead.
+    // Thanks to @dheijl for figuring this out <3 (https://github.com/jakobhellermann/ssdp-client/issues/3#issuecomment-687098826)
+    let googledns: SocketAddr = ([8, 8, 8, 8], 80).into();
+    let stream = UdpStream::new(&googledns)?;
+    let bind_addr = stream.local_addr()?;
+
+    Ok(bind_addr)
+}
+
 #[derive(Debug, Termination, Try, Try_ConvertResult, PartialEq, PartialOrd, Eq, Ord)]
 #[repr(u8)]
 #[must_use]
@@ -206,6 +237,12 @@ impl<T: _T> From<io::Error> for Exit<T> {
 
 impl<T: _T> From<cotton_ssdp::udp::Error> for Exit<T> {
     fn from(e: cotton_ssdp::udp::Error) -> Self {
+        Self::Error(e.to_string())
+    }
+}
+
+impl<T: _T> From<futures_util::task::SpawnError> for Exit<T> {
+    fn from(e: futures_util::task::SpawnError) -> Self {
         Self::Error(e.to_string())
     }
 }
