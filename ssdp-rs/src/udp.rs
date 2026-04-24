@@ -64,6 +64,15 @@ impl UdpListener {
         s.local_addr()
     }
 
+    /// Provides access to the underlying Socket.
+    ///
+    /// #### Note
+    /// `futures_net::UdpSocket` does NOT implement [futures_net::driver::sys::event::Evented]
+    /// and is NOT the same type as returned here.
+    pub fn socket(&mut self) -> &mut sys::net::UdpSocket {
+        PollEvented::get_mut(&mut self.io)
+    }
+
     pub fn recv_from<'listener, 'buf>(
         &'listener mut self,
         buf: &'buf mut [u8],
@@ -72,6 +81,12 @@ impl UdpListener {
             buf,
             listener: self,
         }
+    }
+
+    fn pinned_io(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>> {
+        let listener = self.get_mut();
+        let io = &mut listener.io;
+        Pin::new(&mut *io)
     }
 }
 
@@ -111,10 +126,14 @@ impl AsyncDatagram for UdpListener {
     fn poll_recv_from(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-        _buf: &mut [u8],
+        buf: &mut [u8],
     ) -> Poll<Result<(usize, Self::Sender), Self::Err>> {
         let listener = self.get_mut();
         ready!(listener.poll_read_ready_unpin(cx)?);
+
+        let socket = listener.socket();
+        let result = socket.recv_from(buf);
+
         todo!("poll recv from")
     }
 }
@@ -128,10 +147,7 @@ impl AsyncReadReady for UdpListener {
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<Self::Ok, Self::Err>> {
-        let listener = self.get_mut();
-        let io = &mut listener.io;
-        let pinned_io = Pin::new(&mut *io);
-        pinned_io.poll_read_ready(cx)
+        self.pinned_io().poll_read_ready(cx)
     }
 }
 
