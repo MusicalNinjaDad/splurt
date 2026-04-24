@@ -95,9 +95,11 @@ trait Nightly {
 impl Nightly for AutoCfg {
     fn emit_unstable_feature(&self, feature: &'static str) {
         let cfg = format!("unstable_{feature}");
+        // #![allow(unused)] is required to avoid this failing for `cargo clippy -- -D warnings`
         let code = format!(
             r#"
         #![deny(stable_features)]
+        #![allow(unused)]
         #![feature({feature})]
         "#
         );
