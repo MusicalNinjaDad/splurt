@@ -269,4 +269,13 @@ mod tests {
         sender.close().await.expect("close 2");
         assert!(!sender.connected_to().is_some());
     }
+
+    #[futures_net::test]
+    async fn non_blocking() {
+        let loopback = Ipv4Addr::new(127, 0, 0, 1);
+        let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
+        let first = UdpListener::bind(&addr).expect("first connection");
+        let addr = first.local_addr().expect("bound port");
+        let _second = UdpListener::bind(&addr).expect("second connection");
+    }
 }
