@@ -5,6 +5,7 @@ use std::{
     task::{Context, Poll, ready},
 };
 
+use async_datagram::AsyncDatagram;
 use async_ready::AsyncWriteReady;
 use futures::{AsyncWrite, AsyncWriteExt};
 use futures_net::driver::{
@@ -62,9 +63,59 @@ impl UdpListener {
         let s = io.get_ref();
         s.local_addr()
     }
+
+    pub fn recv_from<'listener, 'buf>(
+        &'listener mut self,
+        buf: &'buf mut [u8],
+    ) -> RecvFrom<'listener, 'buf> {
+        RecvFrom {
+            buf,
+            listener: self,
+        }
+    }
 }
 
-// TODO impl AsyncDatagram (crate async-datagram) for UdpListener
+/// The future returned by `UdpListener::recv_from`
+#[derive(Debug)]
+pub struct RecvFrom<'listener, 'buf> {
+    listener: &'listener mut UdpListener,
+    buf: &'buf mut [u8],
+}
+
+impl<'listener, 'buf> Future for RecvFrom<'listener, 'buf> {
+    type Output = io::Result<(usize, SocketAddr)>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let RecvFrom { listener, buf } = &mut *self;
+        Pin::new(&mut **listener).poll_recv_from(cx, buf)
+    }
+}
+
+impl AsyncDatagram for UdpListener {
+    type Sender = std::net::SocketAddr;
+
+    type Receiver = std::net::SocketAddr;
+
+    type Err = io::Error;
+
+    #[expect(unused_variables)]
+    fn poll_send_to(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+        receiver: &Self::Receiver,
+    ) -> Poll<Result<usize, Self::Err>> {
+        todo!("poll send to")
+    }
+
+    fn poll_recv_from(
+        self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        _buf: &mut [u8],
+    ) -> Poll<Result<(usize, Self::Sender), Self::Err>> {
+        todo!("poll recv from")
+    }
+}
 
 pub struct UdpStream {
     /// The underlying, evented Socket.
