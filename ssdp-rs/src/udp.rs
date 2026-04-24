@@ -128,17 +128,24 @@ impl AsyncDatagram for UdpListener {
     }
 
     fn poll_recv_from(
-        self: Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
         buf: &mut [u8],
     ) -> Poll<Result<(usize, Self::Sender), Self::Err>> {
-        let listener = self.get_mut();
+        let listener = &mut *self;
         ready!(listener.poll_read_ready_unpin(cx)?);
 
         let socket = listener.socket();
         let result = socket.recv_from(buf);
 
-        todo!("poll recv from")
+        if let Err(ref e) = result
+            && e.kind() == io::ErrorKind::WouldBlock
+        {
+            self.clear_read_ready(cx)?;
+            Poll::Pending
+        } else {
+            Poll::Ready(result)
+        }
     }
 }
 
