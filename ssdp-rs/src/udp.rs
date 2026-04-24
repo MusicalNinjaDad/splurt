@@ -6,7 +6,7 @@ use std::{
 };
 
 use async_datagram::AsyncDatagram;
-use async_ready::AsyncWriteReady;
+use async_ready::{AsyncReadReady, AsyncWriteReady};
 use futures::{AsyncWrite, AsyncWriteExt};
 use futures_net::driver::{
     PollEvented,
@@ -109,12 +109,29 @@ impl AsyncDatagram for UdpListener {
     }
 
     fn poll_recv_from(
-        mut self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
         _buf: &mut [u8],
     ) -> Poll<Result<(usize, Self::Sender), Self::Err>> {
         let listener = self.get_mut();
+        ready!(listener.poll_read_ready_unpin(cx)?);
         todo!("poll recv from")
+    }
+}
+
+impl AsyncReadReady for UdpListener {
+    type Ok = Ready;
+
+    type Err = io::Error;
+
+    fn poll_read_ready(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Self::Ok, Self::Err>> {
+        let listener = self.get_mut();
+        let io = &mut listener.io;
+        let pinned_io = Pin::new(&mut *io);
+        pinned_io.poll_read_ready(cx)
     }
 }
 
