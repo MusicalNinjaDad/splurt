@@ -58,6 +58,7 @@ impl UdpListener {
         Ok(Self { io })
     }
 
+    /// Get the local address of this listener
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
         let io = &self.io;
         let s = io.get_ref();
@@ -73,6 +74,10 @@ impl UdpListener {
         PollEvented::get_mut(&mut self.io)
     }
 
+    /// Receives data from the IO interface once `await`ed.
+    /// 
+    /// Returns the number of bytes read and the target from whence the data came on successful
+    /// `await`, or an `io::Error` on unsuccessful `await`.
     pub fn recv_from<'listener, 'buf>(
         &'listener mut self,
         buf: &'buf mut [u8],
@@ -83,12 +88,16 @@ impl UdpListener {
         }
     }
 
+    /// Converts a pinned `&mut UdpListener` to a pinned &mut of the underlying pollevented socket
+    /// allowing for calls to traits and functions implemented by [PollEvented]
     fn pinned_io(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>> {
         let listener = self.get_mut();
         let io = &mut listener.io;
         Pin::new(&mut *io)
     }
 
+    /// Needed to handle non-blocking errors in [futures::AsyncRead].
+    /// See [futures_net::driver::PollEvented] for an explanation.
     fn clear_read_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
         self.pinned_io().clear_read_ready(cx)
     }
