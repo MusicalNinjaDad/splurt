@@ -15,14 +15,12 @@
 //! # });
 //!
 //! // get the results
-//! # futures::executor::block_on(
-//! async {
-//!     loop {
-//!         let answer = searcher.next().await;
-//!         // do something with answer
-//!     }
+//! # futures::executor::block_on( async {
+//! loop {
+//!     let answer = searcher.next().await;
+//!     // do something with answer
 //! }
-//! # );
+//! # });
 //! # Ok(())
 //! # }
 //! ```
