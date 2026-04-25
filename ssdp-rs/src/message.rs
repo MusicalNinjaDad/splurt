@@ -1,9 +1,11 @@
-//! UPnP Messages as per UPnP Device Architecture 2.0 (revision 2020-04-17)
+//! UPnP Messages as per [UPnP Device Architecture 2.0 (revision 2020-04-17)][spec]
 //!
 //! Message generation is strict to standard.
 //!
 //! Message parsing is lenient - I've have yet to see a single well-formed spec-conform UPnP
 //! message flying around on my network.
+//!
+//! [spec]: https://openconnectivity.org/upnp-specs/UPnP-arch-DeviceArchitecture-v2.0-20200417.pdf
 
 use std::{collections::HashMap, fmt::Display};
 
