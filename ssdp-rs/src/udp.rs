@@ -31,6 +31,9 @@ pub struct UdpStream {
     /// - Neither [std::sys::net::UdpSocket], nor [net2::UdpBuilder] expose`set_nonblocking()` so
     ///   we need use [socket2::Socket] while building the listener.
     io: PollEvented<sys::net::UdpSocket>,
+    /// Owned buffer - maximum data length for a UDP Datagram
+    /// see https://en.wikipedia.org/wiki/User_Datagram_Protocol#UDP_datagram_structure
+    buf: [u8; 65507] = [b'\x00'; 65507],
 }
 
 impl UdpStream {
@@ -59,7 +62,7 @@ impl UdpStream {
         s2.bind(&addr)?;
         let sstd: std::net::UdpSocket = s2.into();
         let io = PollEvented::new(sys::net::UdpSocket::from_socket(sstd)?);
-        Ok(Self { io })
+        Ok(Self { io, .. })
     }
 
     /// Get the local address of this listener

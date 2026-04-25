@@ -5,6 +5,7 @@ use autocfg::AutoCfg;
 fn main() -> Result<(), BuildError> {
     let ac = autocfg::new();
     ac.emit_unstable_feature("bool_to_result");
+    ac.emit_unstable_feature("default_field_values");
     ac.emit_unstable_feature("let_chains");
     ac.emit_unstable_feature("assert_matches");
     AssertMatchesLocation::emit_possibilities();
