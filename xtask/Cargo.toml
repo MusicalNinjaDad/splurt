@@ -5,9 +5,9 @@ edition = "2024"
 publish = false
 
 [dependencies]
+clap = { workspace = true }
 exit_safely = { workspace = true }
 try_v2 = { workspace = true }
-clap = { workspace = true }
 
 [dev-dependencies]
 dircpy = "0.3.20"
