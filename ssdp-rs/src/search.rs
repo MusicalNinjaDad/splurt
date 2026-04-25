@@ -5,7 +5,7 @@
 //! use ssdp_rs::search::Searcher;
 //!
 //! // Create a new searcher
-//! let searcher = Searcher::new();
+//! let searcher = Searcher::new("splurt", "0.0.1", "splurt ssdp message repeater");
 //!
 //! // run a search - can call next().await on the result
 //! // let some_sort_of_iterable_or_stream = searcher.search().await;
@@ -16,17 +16,38 @@ use std::{
     net::{Ipv4Addr, SocketAddrV4},
 };
 
+use uuid::Uuid;
+
 use crate::udp::UdpStream;
 
+#[derive(Debug)]
 pub struct Searcher {
     stream: UdpStream,
+    mx: u8,
+    os: String,
+    os_version: String,
+    product_name: String,
+    product_version: String,
+    friendly_name: String,
+    uuid: Uuid,
 }
 
 impl Searcher {
-    pub fn new() -> io::Result<Self> {
+    pub fn new(product_name: &str, product_version: &str, friendly_name: &str) -> io::Result<Self> {
         let addr = SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 1900).into();
+        let uuid = Uuid::new_v4();
+        let os_info = osinfo::get();
+        let os = os_info.get_name();
+        let os_version = os_info.get_version().to_string();
         Ok(Searcher {
             stream: UdpStream::bind(addr)?,
+            mx: 5,
+            os,
+            os_version,
+            product_name: product_name.to_string(),
+            product_version: product_version.into(),
+            friendly_name: friendly_name.to_string(),
+            uuid,
         })
     }
 }
