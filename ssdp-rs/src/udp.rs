@@ -115,8 +115,8 @@ impl<'stream> Future for Next<'stream> {
     type Output = Option<io::Result<([u8; 65507], SocketAddr)>>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let datagram = &mut *self;
-        let stream = &mut *datagram.stream;
+        let this = &mut *self;
+        let stream = &mut *this.stream;
         ready!(stream.poll_read_ready_unpin(cx)?);
 
         let socket = stream.socket();
