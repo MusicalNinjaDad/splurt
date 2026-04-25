@@ -107,6 +107,11 @@ impl UdpStream {
     /// Sends data from the UDP socket once `await`ed
     ///
     /// Awaiting returns an `io::Result<usize>` confirming the number of bytes sent.
+    ///
+    /// #### Note
+    /// - While this function will accept multiple addresses, currently data is only sent to the
+    ///   first one (TODO)
+    /// - If an empty list of addresses the error will be of kind `io::ErrorKind::InvalidInput`
     pub fn push<'s, 'b, A: ToSocketAddrs + Unpin>(
         &'s mut self,
         buf: &'b [u8],
