@@ -13,7 +13,16 @@
 //! # futures::executor::block_on( async {
 //! searcher.search().await.expect("search executed");
 //! # });
-//! // let some_sort_of_iterable_or_stream = searcher.search().await;
+//! 
+//! // get the results
+//! # futures::executor::block_on(
+//! async {
+//!     loop {
+//!         let answer = searcher.next().await;
+//!         // do something with answer
+//!     }
+//! }
+//! # );
 //! # Ok(())
 //! # }
 //! ```
@@ -84,6 +93,23 @@ impl Searcher {
             searcher: stream,
             msg,
         }
+    }
+
+    pub fn next<'s>(&'s mut self) -> Next<'s> {
+        todo!("next")
+    }
+}
+
+/// The future returned by [Searcher::next]
+pub struct Next<'searcher> {
+    searcher: &'searcher mut Searcher,
+}
+
+impl<'searcher> Future for Next<'searcher> {
+    type Output = Option<io::Result<(String, SocketAddr)>>;
+
+    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
+        todo!()
     }
 }
 
