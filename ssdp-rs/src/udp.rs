@@ -134,6 +134,7 @@ impl<'stream, 'buf, A: ToSocketAddrs + Unpin> Future for Push<'stream, 'buf, A> 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = &mut *self;
         let stream = &mut *this.stream;
+        ready!(stream.poll_write_ready_unpin(cx)?);
         todo!("poll Push")
     }
 }
@@ -239,6 +240,19 @@ impl AsyncReadReady for UdpStream {
         cx: &mut Context<'_>,
     ) -> Poll<Result<Self::Ok, Self::Err>> {
         self.pinned_io().poll_read_ready(cx)
+    }
+}
+
+impl AsyncWriteReady for UdpStream {
+    type Ok = Ready;
+
+    type Err = io::Error;
+
+    fn poll_write_ready(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+      ) -> Poll<Result<Self::Ok, Self::Err>> {
+        self.pinned_io().poll_write_ready(cx)
     }
 }
 
