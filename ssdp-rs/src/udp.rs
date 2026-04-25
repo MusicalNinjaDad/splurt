@@ -1,6 +1,6 @@
 use std::{
-    io,
-    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    io::{self, Read},
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs},
     pin::Pin,
     task::{Context, Poll, ready},
 };
@@ -102,6 +102,39 @@ impl UdpStream {
     /// on an Iterator / Stream
     pub fn next<'s>(&'s mut self) -> Next<'s> {
         Next { stream: self }
+    }
+
+    /// Sends data from the UDP socket once `await`ed
+    ///
+    /// Awaiting returns an `io::Result<usize>` confirming the number of bytes sent.
+    pub fn push<'s, 'b, A: ToSocketAddrs + Unpin>(
+        &'s mut self,
+        buf: &'b [u8],
+        addr: A,
+    ) -> Push<'s, 'b, A> {
+        Push {
+            stream: self,
+            buf,
+            addr,
+        }
+    }
+}
+
+/// The future returned by [UdpStream::push]
+#[derive(Debug)]
+pub struct Push<'stream, 'buf, A: ToSocketAddrs + Unpin> {
+    stream: &'stream mut UdpStream,
+    buf: &'buf [u8],
+    addr: A,
+}
+
+impl<'stream, 'buf, A: ToSocketAddrs + Unpin> Future for Push<'stream, 'buf, A> {
+    type Output = io::Result<usize>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = &mut *self;
+        let stream = &mut *this.stream;
+        todo!("poll Push")
     }
 }
 
