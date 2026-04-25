@@ -97,18 +97,18 @@ impl UdpStream {
     /// whence the data came as an `Option<io::Result<([u8; 65507], SocketAddr)>>`
     ///
     /// TODO: Is this going to be fused?
-    pub fn next<'s>(&'s mut self) -> DataGram<'s> {
-        DataGram { stream: self }
+    pub fn next<'s>(&'s mut self) -> Next<'s> {
+        Next { stream: self }
     }
 }
 
 /// The future returned by [UdpStream::next]
 #[derive(Debug)]
-pub struct DataGram<'stream> {
+pub struct Next<'stream> {
     stream: &'stream mut UdpStream,
 }
 
-impl<'stream> Future for DataGram<'stream> {
+impl<'stream> Future for Next<'stream> {
     type Output = Option<io::Result<([u8; 65507], SocketAddr)>>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
