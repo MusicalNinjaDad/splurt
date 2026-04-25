@@ -5,6 +5,5 @@
 //! A runtime-agnostic (known to work with tokio, futures-rs and futures-net executors) async ssdp
 //! library. Including improved async UDP primitives: UDPListener & UDPStream.
 
-
 pub mod message;
 pub mod udp;
