@@ -14,30 +14,13 @@ pub enum Message {
     Search(MSearch),
 }
 
-/// Formats Message as per OCF spec (2015)
+/// Formats Message as per OCF specification (2015)
 impl Display for Message {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Message::Alive(_notification) => todo!(),
-            Message::Search(MSearch {
-                mx,
-                user_agent,
-                friendly_name,
-                uuid,
-            }) => {
-                writeln!(f, "M-SEARCH * HTTP/1.1")?;
-                writeln!(f, "HOST: 239.255.255.250:1900")?;
-                writeln!(f, r#"MAN: "ssdp:discover""#)?;
-                writeln!(f, "MX: {}", mx)?;
-                writeln!(f, "ST: ssdp:all")?;
-                if let Some(user_agent) = user_agent {
-                    writeln!(f, "USER-AGENT: {}", user_agent)?;
-                }
-                writeln!(f, "CPFN.UPNP.ORG: {}", friendly_name)?;
-                if let Some(uuid) = uuid {
-                    writeln!(f, "CPUUID.UPNP.ORG: {}", uuid)?;
-                }
-                writeln!(f)
+            Message::Search(msearch) => {
+                write!(f, "{msearch}")
             }
         }
     }
@@ -51,6 +34,36 @@ pub struct MSearch {
     uuid: Option<Uuid>,
 }
 
+/// Entire valid M-SEARCH message including initial method line,
+/// as per OCF specification (2015) section 1.3.2
+///
+/// #### Note:
+/// I've rarely actually seen a well-formed spec-conform M-SEARCH flying around my network
+/// but there's nothing wrong with actually being fully valid!
+impl Display for MSearch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            mx,
+            user_agent,
+            friendly_name,
+            uuid,
+        } = self;
+        writeln!(f, "M-SEARCH * HTTP/1.1")?;
+        writeln!(f, "HOST: 239.255.255.250:1900")?;
+        writeln!(f, r#"MAN: "ssdp:discover""#)?;
+        writeln!(f, "MX: {}", mx)?;
+        writeln!(f, "ST: ssdp:all")?;
+        if let Some(user_agent) = user_agent {
+            writeln!(f, "USER-AGENT: {}", user_agent)?;
+        }
+        writeln!(f, "CPFN.UPNP.ORG: {}", friendly_name)?;
+        if let Some(uuid) = uuid {
+            writeln!(f, "CPUUID.UPNP.ORG: {}", uuid)?;
+        }
+        writeln!(f)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct UserAgent {
     os: String,
@@ -59,7 +72,8 @@ struct UserAgent {
     product_version: Version,
 }
 
-/// As required by OCF spec (2015) for the *value*, does NOT include a header key
+/// Formatted as per OCF specification (2015) section 1.3.2 for the `USER-AGENT` *value*,
+/// does NOT include the header key
 impl Display for UserAgent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self {
