@@ -9,7 +9,6 @@
 
 use std::{collections::HashMap, fmt::Display};
 
-use semver::Version;
 use uuid::Uuid;
 
 /// A valid & parsed ssdp message
@@ -76,9 +75,9 @@ impl Display for MSearch {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct UserAgent {
     os: String,
-    os_version: Version,
+    os_version: String,
     product_name: String,
-    product_version: Version,
+    product_version: String,
 }
 
 /// Formatted as per OCF specification (2020) section 1.3.2 for the `USER-AGENT` *value*,
@@ -126,17 +125,17 @@ impl Message {
     pub fn new_search(
         mx: u8,
         os: &str,
-        os_version: Version,
+        os_version: &str,
         product_name: &str,
-        product_version: Version,
+        product_version: &str,
         friendly_name: &str,
         uuid: Uuid,
     ) -> Self {
         let user_agent = UserAgent {
             os: os.to_string(),
-            os_version,
+            os_version: os_version.to_string(),
             product_name: product_name.to_string(),
-            product_version,
+            product_version: product_version.to_string(),
         };
         Message::Search(MSearch {
             mx,
@@ -160,7 +159,6 @@ type RawHeader = HashMap<String, String>;
 
 #[cfg(test)]
 mod tests {
-    use semver::Version;
     use uuid::uuid;
 
     use super::*;
@@ -241,9 +239,9 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003
 "#;
         let mx = 5;
         let os = "linux";
-        let os_version = Version::parse("6.6.87").expect("os_version");
+        let os_version = "6.6.87";
         let product_name = "splurt";
-        let product_version = Version::parse("0.0.1").expect("product_version");
+        let product_version = "0.0.1";
         let friendly_name = "splurt SSDP repeater";
         let uuid = uuid!("2fac1234-31f8-11b4-a222-08002b34c003");
         let msg = Message::new_search(
