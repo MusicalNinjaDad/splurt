@@ -96,7 +96,10 @@ impl UdpStream {
     /// Awaiting returns an array of bytes containing the message received and the target from
     /// whence the data came as an `Option<io::Result<([u8; 65507], SocketAddr)>>`
     ///
-    /// TODO: Is this going to be fused?
+    /// #### Note
+    /// There are no clear situations which could lead to this returning `None`. Wrapping the
+    /// returned data in an `Option` is done purely to maintain a consistent API with expectations
+    /// on an Iterator / Stream
     pub fn next<'s>(&'s mut self) -> Next<'s> {
         Next { stream: self }
     }
