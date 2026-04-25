@@ -20,9 +20,10 @@
 
 use std::{
     io,
-    net::{Ipv4Addr, SocketAddrV4},
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
 };
 
+use futures::FutureExt;
 use uuid::Uuid;
 
 use crate::{message::Message, udp::UdpStream};
@@ -96,9 +97,14 @@ impl<'searcher> Future for Search<'searcher> {
     type Output = io::Result<()>;
 
     fn poll(
-        self: std::pin::Pin<&mut Self>,
+        mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
-        todo!("poll search")
+        let this = &mut *self;
+        let stream = &mut *this.searcher;
+        let msg = this.msg.as_bytes();
+        let ssdp_multicast = Ipv4Addr::new(239, 25, 255, 25);
+        let ssdp_multicast = SocketAddr::new(ssdp_multicast.into(), 1900);
+        stream.push(msg, ssdp_multicast).poll_unpin(cx).map_ok(|_| ())
     }
 }
