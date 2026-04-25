@@ -93,7 +93,7 @@ impl UdpStream {
 
     /// Receives data from the IO interface once `await`ed.
     ///
-    /// Awaiting returns the a slice of bytes containing the message received and the target from
+    /// Awaiting returns an array of bytes containing the message received and the target from
     /// whence the data came as an `Option<io::Result<([u8; 65507], SocketAddr)>>`
     ///
     /// TODO: Is this going to be fused?
@@ -122,8 +122,7 @@ impl<'stream> Future for DataGram<'stream> {
         // see https://en.wikipedia.org/wiki/User_Datagram_Protocol#UDP_datagram_structure
         let mut buf: [u8; 65507] = [b'\x00'; 65507];
 
-        let result = socket.recv_from(&mut buf);
-        let result = result.map(|(_, addr)| (buf, addr));
+        let result = socket.recv_from(&mut buf).map(|(_, addr)| (buf, addr));
 
         if let Err(ref e) = result
             && e.kind() == io::ErrorKind::WouldBlock
