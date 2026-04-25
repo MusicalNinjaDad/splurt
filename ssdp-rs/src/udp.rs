@@ -31,9 +31,6 @@ pub struct UdpStream {
     /// - Neither [std::sys::net::UdpSocket], nor [net2::UdpBuilder] expose`set_nonblocking()` so
     ///   we need use [socket2::Socket] while building the listener.
     io: PollEvented<sys::net::UdpSocket>,
-    /// Owned buffer - maximum data length for a UDP Datagram
-    /// see https://en.wikipedia.org/wiki/User_Datagram_Protocol#UDP_datagram_structure
-    buf: [u8; 65507] = [b'\x00'; 65507],
 }
 
 impl UdpStream {
@@ -91,6 +88,51 @@ impl UdpStream {
         RecvFrom {
             buf,
             listener: self,
+        }
+    }
+
+    /// Receives data from the IO interface once `await`ed.
+    ///
+    /// Awaiting returns the a slice of bytes containing the message received and the target from
+    /// whence the data came as an `Option<io::Result<([u8; 65507], SocketAddr)>>`
+    ///
+    /// TODO: Is this going to be fused?
+    pub fn next<'s>(&'s mut self) -> DataGram<'s> {
+        DataGram { stream: self }
+    }
+}
+
+/// The future returned by [UdpStream::next]
+#[derive(Debug)]
+pub struct DataGram<'stream> {
+    stream: &'stream mut UdpStream,
+}
+
+impl<'stream> Future for DataGram<'stream> {
+    type Output = Option<io::Result<([u8; 65507], SocketAddr)>>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let datagram = &mut *self;
+        let stream = &mut *datagram.stream;
+        ready!(stream.poll_read_ready_unpin(cx)?);
+
+        let socket = stream.socket();
+
+        // Maximum data length for a UDP Datagram
+        // see https://en.wikipedia.org/wiki/User_Datagram_Protocol#UDP_datagram_structure
+        let mut buf: [u8; 65507] = [b'\x00'; 65507];
+
+        let result = socket.recv_from(&mut buf);
+        let result = result.map(|(_, addr)| (buf, addr));
+
+        if let Err(ref e) = result
+            && e.kind() == io::ErrorKind::WouldBlock
+        {
+            let pinned = Pin::new(&mut *stream);
+            pinned.clear_read_ready(cx)?;
+            Poll::Pending
+        } else {
+            Poll::Ready(Some(result))
         }
     }
 }
