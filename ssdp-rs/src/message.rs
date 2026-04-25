@@ -44,6 +44,9 @@ type RawHeader = HashMap<String, String>;
 
 #[cfg(test)]
 mod tests {
+    use semver::Version;
+    use uuid::uuid;
+
     use super::*;
 
     #[cfg(assert_matches_in_root)]
@@ -106,5 +109,25 @@ name: my_bulb
             header: alive_header,
         };
         assert_matches!(msg, Message::Alive(notification) if notification == expected_notification);
+    }
+
+    #[test]
+    fn generate_search() {
+        let expected = r#"M-SEARCH * HTTP/1.1
+HOST: 239.255.255.250:1900
+MAN: "ssdp:discover"
+MX: 5
+ST: ssdp:all
+USER-AGENT: linux/6.6.87 UPnP/2.0 splurt/0.0.1
+CPFN.UPNP.ORG: splurt SSDP repeater
+CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003
+"#;
+        let mx = 5;
+        let os = "linux";
+        let os_version = Version::parse("6.6.87");
+        let user_agent = "splurt";
+        let user_agent_version = Version::parse("0.0.1");
+        let friendly_name = "splurt SSDP repeater";
+        let uuid = uuid!("2fac1234-31f8-11b4-a222-08002b34c003");
     }
 }
