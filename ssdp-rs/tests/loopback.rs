@@ -134,4 +134,28 @@ async fn next_to_read() {
         println!("closing sender");
         sender.close().await.expect("closing sender");
     };
+
+    let rec = async {
+        println!("initiating receiver");
+        let (msg, sent_by) = receiver
+            .next()
+            .await
+            .expect("a message")
+            .expect("a valid message");
+        println!(
+            "received: {} from {} ({} bytes)",
+            String::from_utf8_lossy(&msg),
+            sent_by,
+            msg.len()
+        );
+        received = msg[..17].try_into().expect("17 bytes in msg");
+    };
+
+    println!("ready to join");
+    futures::join!(rec, send);
+
+    assert_eq!(
+        String::from_utf8_lossy(&received),
+        String::from_utf8_lossy(msg)
+    );
 }
