@@ -15,12 +15,12 @@ use socket2::{Domain, Type};
 
 //TODO: Open a ticket with futures_net re non-blocking UdpSocket
 #[derive(Debug)]
-/// A non-blocking async UdpSocket semantically designed as a listener.
+/// A non-blocking async UdpSocket with ability to `recv_from` via `next` and `send_to` via `push`.
 ///
 /// #### Note
 /// This does NOT have exclusive access to the bound port. If you want to guarantee that no other
-/// processes bind to the same socket use a [UdpStream], which will exclusively claim the port.
-pub struct UdpListener {
+/// processes bind to the same socket use a [UdpConnectedStream], which will exclusively claim the port.
+pub struct UdpStream {
     /// The underlying, evented Socket.
     ///
     /// #### Note
@@ -33,7 +33,7 @@ pub struct UdpListener {
     io: PollEvented<sys::net::UdpSocket>,
 }
 
-impl UdpListener {
+impl UdpStream {
     /// Create a new [UdpListener] by binding it to a given [SocketAddr].
     ///
     /// The listener is guaranteed to be constructed to be non-blocking and have non-exclusive
@@ -95,7 +95,7 @@ impl UdpListener {
 /// The future returned by `UdpListener::recv_from`
 #[derive(Debug)]
 pub struct RecvFrom<'listener, 'buf> {
-    listener: &'listener mut UdpListener,
+    listener: &'listener mut UdpStream,
     buf: &'buf mut [u8],
 }
 
@@ -109,7 +109,7 @@ impl<'listener, 'buf> Future for RecvFrom<'listener, 'buf> {
 }
 
 /// Private functions for handling readiness to read.
-impl UdpListener {
+impl UdpStream {
     /// Receives data from the IO interface if it is ready to read.
     ///
     /// If successful, returns the number of bytes read and the target from whence the data came.
@@ -149,7 +149,7 @@ impl UdpListener {
     }
 }
 
-impl AsyncReadReady for UdpListener {
+impl AsyncReadReady for UdpStream {
     type Ok = Ready;
 
     type Err = io::Error;
@@ -419,8 +419,8 @@ mod tests {
     async fn non_blocking() {
         let loopback = Ipv4Addr::new(127, 0, 0, 1);
         let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
-        let first = UdpListener::bind(addr).expect("first connection");
+        let first = UdpStream::bind(addr).expect("first connection");
         let addr = first.local_addr().expect("bound port");
-        let _second = UdpListener::bind(addr).expect("second connection");
+        let _second = UdpStream::bind(addr).expect("second connection");
     }
 }
