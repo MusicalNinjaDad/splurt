@@ -59,7 +59,7 @@ impl UdpStream {
         s2.bind(&addr)?;
         let sstd: std::net::UdpSocket = s2.into();
         let io = PollEvented::new(sys::net::UdpSocket::from_socket(sstd)?);
-        Ok(Self { io, .. })
+        Ok(Self { io })
     }
 
     /// Get the local address of this listener
