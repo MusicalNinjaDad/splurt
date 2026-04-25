@@ -1,6 +1,6 @@
 use std::{
     io,
-    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs},
     pin::Pin,
     task::{Context, Poll, ready},
 };
@@ -15,12 +15,12 @@ use socket2::{Domain, Type};
 
 //TODO: Open a ticket with futures_net re non-blocking UdpSocket
 #[derive(Debug)]
-/// A non-blocking async UdpSocket semantically designed as a listener.
+/// A non-blocking async UdpSocket with ability to `recv_from` via `next` and `send_to` via `push`.
 ///
 /// #### Note
 /// This does NOT have exclusive access to the bound port. If you want to guarantee that no other
-/// processes bind to the same socket use a [UdpStream], which will exclusively claim the port.
-pub struct UdpListener {
+/// processes bind to the same socket use a [UdpConnectedStream], which will exclusively claim the port.
+pub struct UdpStream {
     /// The underlying, evented Socket.
     ///
     /// #### Note
@@ -33,8 +33,8 @@ pub struct UdpListener {
     io: PollEvented<sys::net::UdpSocket>,
 }
 
-impl UdpListener {
-    /// Create a new [UdpListener] by binding it to a given [SocketAddr].
+impl UdpStream {
+    /// Create a new [UdpStream] by binding it to a given [SocketAddr].
     ///
     /// The listener is guaranteed to be constructed to be non-blocking and have non-exclusive
     /// access to the bound address; if either of these system calls fails to take effect an
@@ -90,12 +90,123 @@ impl UdpListener {
             listener: self,
         }
     }
+
+    /// Receives data from the IO interface once `await`ed.
+    ///
+    /// Awaiting returns an array of bytes containing the message received, the message length
+    /// and the target from whence the data came as an
+    /// `Option<io::Result<([u8; 65507], usize, SocketAddr)>>`
+    ///
+    /// #### Note
+    /// - The message buffer is sized to the max practical size of a UDP Datagram. All bytes after
+    ///   the actual message will be NULL so it can be directly converted to a String, for example
+    ///   without first slicing. Other data manipulation should take into account the actual length.
+    /// - There are no clear situations which could lead to this returning `None`. Wrapping the
+    ///   returned data in an `Option` is done purely to maintain a consistent API with expectations
+    ///   on an Iterator / Stream
+    pub fn next<'s>(&'s mut self) -> Next<'s> {
+        Next { stream: self }
+    }
+
+    /// Sends data from the UDP socket once `await`ed
+    ///
+    /// Awaiting returns an `io::Result<usize>` confirming the number of bytes sent.
+    ///
+    /// #### Note
+    /// - While this function will accept multiple addresses, currently data is only sent to the
+    ///   first one (TODO)
+    /// - If an empty list of addresses the error will be of kind `io::ErrorKind::InvalidInput`
+    pub fn push<'s, 'b, A: ToSocketAddrs + Unpin>(
+        &'s mut self,
+        buf: &'b [u8],
+        addr: A,
+    ) -> Push<'s, 'b, A> {
+        Push {
+            stream: self,
+            buf,
+            addr,
+        }
+    }
 }
 
-/// The future returned by `UdpListener::recv_from`
+/// The future returned by [UdpStream::push]
+#[derive(Debug)]
+pub struct Push<'stream, 'buf, A: ToSocketAddrs + Unpin> {
+    stream: &'stream mut UdpStream,
+    buf: &'buf [u8],
+    addr: A,
+}
+
+impl<'stream, 'buf, A: ToSocketAddrs + Unpin> Future for Push<'stream, 'buf, A> {
+    type Output = io::Result<usize>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = &mut *self;
+        let stream = &mut *this.stream;
+        ready!(stream.poll_write_ready_unpin(cx)?);
+
+        let socket = stream.socket();
+
+        let addr = this
+            .addr
+            .to_socket_addrs()?
+            .next()
+            .ok_or(io::Error::from(io::ErrorKind::InvalidInput))?;
+
+        let result = socket.send_to(this.buf, &addr);
+
+        if let Err(ref e) = result
+            && e.kind() == io::ErrorKind::WouldBlock
+        {
+            let pinned = Pin::new(&mut *stream);
+            pinned.clear_write_ready(cx)?;
+            Poll::Pending
+        } else {
+            Poll::Ready(result)
+        }
+    }
+}
+
+/// The future returned by [UdpStream::next]
+#[derive(Debug)]
+pub struct Next<'stream> {
+    stream: &'stream mut UdpStream,
+}
+
+impl<'stream> Future for Next<'stream> {
+    type Output = Option<io::Result<([u8; 65507], usize, SocketAddr)>>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = &mut *self;
+        let stream = &mut *this.stream;
+        ready!(stream.poll_read_ready_unpin(cx)?);
+
+        let socket = stream.socket();
+
+        // Maximum data length for a UDP Datagram
+        // see https://en.wikipedia.org/wiki/User_Datagram_Protocol#UDP_datagram_structure
+        let mut buf: [u8; 65507] = [b'\x00'; 65507];
+
+        let result = socket
+            .recv_from(&mut buf)
+            .map(|(len, addr)| (buf, len, addr));
+
+        if let Err(ref e) = result
+            && e.kind() == io::ErrorKind::WouldBlock
+        {
+            let pinned = Pin::new(&mut *stream);
+            pinned.clear_read_ready(cx)?;
+            Poll::Pending
+        } else {
+            Poll::Ready(Some(result))
+        }
+    }
+}
+
+/// The future returned by `UdpStream::recv_from`
 #[derive(Debug)]
 pub struct RecvFrom<'listener, 'buf> {
-    listener: &'listener mut UdpListener,
+    listener: &'listener mut UdpStream,
     buf: &'buf mut [u8],
 }
 
@@ -109,7 +220,7 @@ impl<'listener, 'buf> Future for RecvFrom<'listener, 'buf> {
 }
 
 /// Private functions for handling readiness to read.
-impl UdpListener {
+impl UdpStream {
     /// Receives data from the IO interface if it is ready to read.
     ///
     /// If successful, returns the number of bytes read and the target from whence the data came.
@@ -134,7 +245,7 @@ impl UdpListener {
         }
     }
 
-    /// Converts a pinned `&mut UdpListener` to a pinned &mut of the underlying pollevented socket
+    /// Converts a pinned `&mut UdpStream` to a pinned &mut of the underlying pollevented socket
     /// allowing for calls to traits and functions implemented by [PollEvented]
     fn pinned_io(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>> {
         let listener = self.get_mut();
@@ -147,9 +258,16 @@ impl UdpListener {
     fn clear_read_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
         self.pinned_io().clear_read_ready(cx)
     }
+
+    /// Needed to handle non-blocking errors in [futures::AsyncWrite].
+    /// See [futures_net::driver::PollEvented] for an explanation.
+    fn clear_write_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
+        let socket = Pin::new(&mut self.io);
+        socket.clear_write_ready(cx)
+    }
 }
 
-impl AsyncReadReady for UdpListener {
+impl AsyncReadReady for UdpStream {
     type Ok = Ready;
 
     type Err = io::Error;
@@ -162,7 +280,20 @@ impl AsyncReadReady for UdpListener {
     }
 }
 
-pub struct UdpStream {
+impl AsyncWriteReady for UdpStream {
+    type Ok = Ready;
+
+    type Err = io::Error;
+
+    fn poll_write_ready(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Self::Ok, Self::Err>> {
+        self.pinned_io().poll_write_ready(cx)
+    }
+}
+
+pub struct UdpConnectedStream {
     /// The underlying, evented Socket.
     ///
     /// Note: `futures_net::UdpSocket` does NOT implement [futures_net::driver::sys::event::Evented]
@@ -171,7 +302,7 @@ pub struct UdpStream {
     connected_to: Option<SocketAddr>,
 }
 
-impl UdpStream {
+impl UdpConnectedStream {
     /// Create a new UpdStream on an OS-assigned port on `loopback` which is connected to `addr`.
     ///
     /// All `write`s will send to `addr` and only packets from `addr` will be provided by `read`.
@@ -248,7 +379,7 @@ impl UdpStream {
     }
 }
 
-impl AsyncWriteReady for UdpStream {
+impl AsyncWriteReady for UdpConnectedStream {
     type Ok = Ready;
 
     type Err = io::Error;
@@ -272,7 +403,7 @@ impl AsyncWriteReady for UdpStream {
 /// - [Self::poll_close] remove the internally stored details of the connected [SocketAddr] and
 ///   connect the underlying system level socket to itself. Using the [UdpStream] again after
 ///   closing will result in an error. (std-lib implementations of `close` are simple no-ops).
-impl AsyncWrite for UdpStream {
+impl AsyncWrite for UdpConnectedStream {
     /// Wait for write-readiness then `send` the contents of `buf` to the [Self::connect]ed recipient.
     fn poll_write(
         mut self: Pin<&mut Self>,
@@ -325,7 +456,7 @@ impl AsyncWrite for UdpStream {
 }
 
 /// Shadow functions provided to override default documentation
-impl UdpStream {
+impl UdpConnectedStream {
     /// Wait for write-readiness to ensure current pending message has been sent.
     pub fn flush(&mut self) -> futures::io::Flush<'_, Self> {
         <Self as AsyncWriteExt>::flush(self)
@@ -362,7 +493,7 @@ mod tests {
         let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
         let connected = UdpSocket::bind(&addr).expect("other side");
         let rec_addr = connected.local_addr().expect("bound port");
-        let mut sender = UdpStream::new(&rec_addr).expect("sender");
+        let mut sender = UdpConnectedStream::new(&rec_addr).expect("sender");
 
         sender.close().await.expect("closing sender");
         let flush = sender.flush().await;
@@ -375,7 +506,7 @@ mod tests {
         let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
         let connected = UdpSocket::bind(&addr).expect("other side");
         let rec_addr = connected.local_addr().expect("bound port");
-        let mut sender = UdpStream::new(&rec_addr).expect("sender");
+        let mut sender = UdpConnectedStream::new(&rec_addr).expect("sender");
 
         sender.close().await.expect("closing sender");
         let write_all = sender.write_all(b"foo").await;
@@ -388,7 +519,7 @@ mod tests {
         let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
         let connected = UdpSocket::bind(&addr).expect("other side");
         let rec_addr = connected.local_addr().expect("bound port");
-        let mut sender = UdpStream::new(&rec_addr).expect("sender");
+        let mut sender = UdpConnectedStream::new(&rec_addr).expect("sender");
         assert_matches!(sender.connected_to(), Some(addr) if addr == rec_addr);
 
         sender.close().await.expect("closing sender");
@@ -409,7 +540,7 @@ mod tests {
         let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
         let connected = UdpSocket::bind(&addr).expect("other side");
         let rec_addr = connected.local_addr().expect("bound port");
-        let mut sender = UdpStream::new(&rec_addr).expect("sender");
+        let mut sender = UdpConnectedStream::new(&rec_addr).expect("sender");
         sender.close().await.expect("close 1");
         sender.close().await.expect("close 2");
         assert!(!sender.connected_to().is_some());
@@ -419,8 +550,8 @@ mod tests {
     async fn non_blocking() {
         let loopback = Ipv4Addr::new(127, 0, 0, 1);
         let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
-        let first = UdpListener::bind(addr).expect("first connection");
+        let first = UdpStream::bind(addr).expect("first connection");
         let addr = first.local_addr().expect("bound port");
-        let _second = UdpListener::bind(addr).expect("second connection");
+        let _second = UdpStream::bind(addr).expect("second connection");
     }
 }
