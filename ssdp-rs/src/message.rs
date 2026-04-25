@@ -1,3 +1,10 @@
+//! UPnP Messages as per UPnP Device Architecture 2.0 (revision 2020-04-17)
+//! 
+//! Message generation is strict to standard.
+//! 
+//! Message parsing is lenient - I've have yet to see a single well-formed spec-conform UPnP
+//! message flying around on my network.
+
 use std::{collections::HashMap, fmt::Display};
 
 use semver::Version;
@@ -14,7 +21,7 @@ pub enum Message {
     Search(MSearch),
 }
 
-/// Formats Message as per OCF specification (2015)
+/// Formats Message as per OCF specification (2020)
 impl Display for Message {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -35,7 +42,7 @@ pub struct MSearch {
 }
 
 /// Entire valid M-SEARCH message including initial method line,
-/// as per OCF specification (2015) section 1.3.2
+/// as per OCF specification (2020) section 1.3.2
 ///
 /// #### Note:
 /// I've rarely actually seen a well-formed spec-conform M-SEARCH flying around my network
@@ -72,7 +79,7 @@ struct UserAgent {
     product_version: Version,
 }
 
-/// Formatted as per OCF specification (2015) section 1.3.2 for the `USER-AGENT` *value*,
+/// Formatted as per OCF specification (2020) section 1.3.2 for the `USER-AGENT` *value*,
 /// does NOT include the header key
 impl Display for UserAgent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
