@@ -8,7 +8,7 @@ use std::{
     collections::HashMap,
     fmt::Debug,
     io,
-    net::{SocketAddr, SocketAddrV4},
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
     process::Termination as _T,
 };
 
@@ -55,7 +55,7 @@ fn main() -> Exit<()> {
 
     match &splurt.command {
         Command::Listen => {
-            // let multicast = Ipv4Addr::new(239, 255, 255, 250);
+            let multicast = Ipv4Addr::new(239, 255, 255, 250);
 
             let std::net::IpAddr::V4(interface) = get_bind_addr()?.ip() else {
                 todo!()
@@ -65,7 +65,9 @@ fn main() -> Exit<()> {
 
             let listen_addr = SocketAddrV4::new(interface, 1900).into();
             let mut listener = UdpListener::bind(listen_addr).expect("sender");
-            // listener.join_multicast_v4(&multicast, &interface)?;
+            listener
+                .socket()
+                .join_multicast_v4(&multicast, &interface)?;
 
             let send_addr = listener.local_addr().expect("bound port");
             println!("listening on {:?}", send_addr);
