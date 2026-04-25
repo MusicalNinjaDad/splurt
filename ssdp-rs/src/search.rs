@@ -1,7 +1,7 @@
 //! An SSDP searcher, that sends M-SEARCH and receives NOTIFY responses
 //!
 //! ## Example usage
-//! ```
+//! ```no_run no reply possible
 //! # use std::io;
 //! use ssdp_rs::search::Searcher;
 //!
@@ -13,7 +13,7 @@
 //! # futures::executor::block_on( async {
 //! searcher.search().await.expect("search executed");
 //! # });
-//! 
+//!
 //! // get the results
 //! # futures::executor::block_on(
 //! async {
@@ -30,9 +30,10 @@
 use std::{
     io,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    task::Poll,
 };
 
-use futures::FutureExt;
+use futures::{FutureExt, ready};
 use uuid::Uuid;
 
 use crate::{message::Message, udp::UdpStream};
@@ -96,7 +97,7 @@ impl Searcher {
     }
 
     pub fn next<'s>(&'s mut self) -> Next<'s> {
-        todo!("next")
+        Next { searcher: self }
     }
 }
 
@@ -108,8 +109,22 @@ pub struct Next<'searcher> {
 impl<'searcher> Future for Next<'searcher> {
     type Output = Option<io::Result<(String, SocketAddr)>>;
 
-    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
-        todo!()
+    fn poll(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        let this = &mut *self;
+        let searcher = &mut *this.searcher;
+        let stream = &mut searcher.stream;
+        let reply = ready!(stream.next().poll_unpin(cx));
+        match reply {
+            Some(reply) => {
+                let (reply, _, sender) = reply?;
+                let reply = String::from_utf8_lossy(&reply).to_string();
+                Poll::Ready(Some(Ok((reply, sender))))
+            }
+            None => Poll::Ready(None),
+        }
     }
 }
 
