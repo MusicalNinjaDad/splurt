@@ -1,4 +1,7 @@
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::{
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    str::FromStr,
+};
 
 use futures::prelude::*;
 use futures_net::{TcpListener, TcpStream, runtime::Runtime};
@@ -180,6 +183,8 @@ async fn push_to_send() {
     let mut received: [u8; 17] = [b'\x00'; 17];
     let msg: &[u8; 17] = b"udp loopback test";
 
+    let mut outer_sent_by = SocketAddr::from_str("8.8.8.8:80").expect("valid addr");
+
     let send = async move {
         println!("sending {}", String::from_utf8_lossy(msg));
         sender.push(msg, rec_addr).await.expect("send msg");
@@ -199,6 +204,7 @@ async fn push_to_send() {
             len
         );
         received = msg[..len].try_into().expect("17 bytes in msg");
+        outer_sent_by = sent_by;
     };
 
     println!("ready to join");
@@ -208,4 +214,6 @@ async fn push_to_send() {
         String::from_utf8_lossy(&received),
         String::from_utf8_lossy(msg)
     );
+
+    assert_eq!(outer_sent_by, send_addr)
 }
