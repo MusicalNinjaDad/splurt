@@ -57,7 +57,7 @@ pub fn test(root: &Path) -> Spawned {
 /// optionally performing a release build (default is cargo's default profile)
 ///
 /// #### Build target (TODO: take a specific target & other cargo args)
-/// - For a given `glicb`: `x86_64-unknown-linux-gnu`
+/// - For a given `glibc`: `x86_64-unknown-linux-gnu`
 /// - Otherwise: cargo default target
 pub fn build(root: &Path, glibc: &Option<String>, release: &bool) -> Spawned {
     let (builder, target) = match glibc {
