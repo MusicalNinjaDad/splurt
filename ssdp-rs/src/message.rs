@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
+
+use semver::Version;
+use uuid::Uuid;
 
 /// A valid & parsed ssdp message
 ///
@@ -7,6 +10,69 @@ use std::collections::HashMap;
 pub enum Message {
     /// NTS: ssdp:alive
     Alive(Notification),
+    /// MAN: ssdp:discover
+    Search(MSearch),
+}
+
+/// Formats Message as per SSDP specifications
+impl Display for Message {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Message::Alive(_notification) => todo!(),
+            Message::Search(MSearch {
+                mx,
+                user_agent,
+                friendly_name,
+                uuid,
+            }) => {
+                writeln!(f, "M-SEARCH * HTTP/1.1")?;
+                writeln!(f, "HOST: 239.255.255.250:1900")?;
+                writeln!(f, r#"MAN: "ssdp:discover""#)?;
+                writeln!(f, "MX: {}", mx)?;
+                writeln!(f, "ST: ssdp:all")?;
+                if let Some(user_agent) = user_agent {
+                    writeln!(f, "USER-AGENT: {}", user_agent)?;
+                }
+                writeln!(f, "CPFN.UPNP.ORG: {}", friendly_name)?;
+                if let Some(uuid) = uuid {
+                    writeln!(f, "CPUUID.UPNP.ORG: {}", uuid)?;
+                }
+                writeln!(f)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct MSearch {
+    mx: u8,
+    user_agent: Option<UserAgent>,
+    friendly_name: String,
+    uuid: Option<Uuid>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct UserAgent {
+    os: String,
+    os_version: Version,
+    product_name: String,
+    product_version: Version,
+}
+
+/// As required by SSDP spec for the *value*, does NOT include a header key
+impl Display for UserAgent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            os,
+            os_version,
+            product_name,
+            product_version,
+        } = self;
+        write!(
+            f,
+            "{os}/{os_version} UPnP/2.0 {product_name}/{product_version}"
+        )
+    }
 }
 
 impl Message {
@@ -28,6 +94,30 @@ impl Message {
             return Some(Message::Alive(Notification { location, header }));
         }
         None
+    }
+
+    /// Construct a new M-SEARCH message
+    pub fn new_search(
+        mx: u8,
+        os: &str,
+        os_version: Version,
+        product_name: &str,
+        product_version: Version,
+        friendly_name: &str,
+        uuid: Uuid,
+    ) -> Self {
+        let user_agent = UserAgent {
+            os: os.to_string(),
+            os_version,
+            product_name: product_name.to_string(),
+            product_version,
+        };
+        Message::Search(MSearch {
+            mx,
+            user_agent: Some(user_agent),
+            friendly_name: friendly_name.to_string(),
+            uuid: Some(uuid),
+        })
     }
 }
 
@@ -121,13 +211,25 @@ ST: ssdp:all
 USER-AGENT: linux/6.6.87 UPnP/2.0 splurt/0.0.1
 CPFN.UPNP.ORG: splurt SSDP repeater
 CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003
+
 "#;
         let mx = 5;
         let os = "linux";
-        let os_version = Version::parse("6.6.87");
-        let user_agent = "splurt";
-        let user_agent_version = Version::parse("0.0.1");
+        let os_version = Version::parse("6.6.87").expect("os_version");
+        let product_name = "splurt";
+        let product_version = Version::parse("0.0.1").expect("product_version");
         let friendly_name = "splurt SSDP repeater";
         let uuid = uuid!("2fac1234-31f8-11b4-a222-08002b34c003");
+        let msg = Message::new_search(
+            mx,
+            os,
+            os_version,
+            product_name,
+            product_version,
+            friendly_name,
+            uuid,
+        );
+        let msg_text = msg.to_string();
+        assert_eq!(msg_text, expected);
     }
 }
