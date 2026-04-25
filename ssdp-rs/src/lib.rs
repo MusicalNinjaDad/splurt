@@ -3,4 +3,5 @@
 #![cfg_attr(unstable_let_chains, feature(let_chains))]
 
 pub mod message;
+pub mod search;
 pub mod udp;
