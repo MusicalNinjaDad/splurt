@@ -137,7 +137,7 @@ async fn next_to_read() {
 
     let rec = async {
         println!("initiating receiver");
-        let (msg, sent_by) = receiver
+        let (msg, len, sent_by) = receiver
             .next()
             .await
             .expect("a message")
@@ -146,9 +146,9 @@ async fn next_to_read() {
             "received: {} from {} ({} bytes)",
             String::from_utf8_lossy(&msg),
             sent_by,
-            msg.len()
+            len
         );
-        received = msg[..17].try_into().expect("17 bytes in msg");
+        received = msg[..len].try_into().expect("17 bytes in msg");
     };
 
     println!("ready to join");
@@ -187,7 +187,7 @@ async fn push_to_send() {
 
     let rec = async {
         println!("initiating receiver");
-        let (msg, sent_by) = receiver
+        let (msg, len, sent_by) = receiver
             .next()
             .await
             .expect("a message")
@@ -196,9 +196,9 @@ async fn push_to_send() {
             "received: {} from {} ({} bytes)",
             String::from_utf8_lossy(&msg),
             sent_by,
-            msg.len()
+            len
         );
-        received = msg[..17].try_into().expect("17 bytes in msg");
+        received = msg[..len].try_into().expect("17 bytes in msg");
     };
 
     println!("ready to join");

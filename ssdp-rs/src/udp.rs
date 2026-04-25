@@ -93,13 +93,17 @@ impl UdpStream {
 
     /// Receives data from the IO interface once `await`ed.
     ///
-    /// Awaiting returns an array of bytes containing the message received and the target from
-    /// whence the data came as an `Option<io::Result<([u8; 65507], SocketAddr)>>`
+    /// Awaiting returns an array of bytes containing the message received, the message length
+    /// and the target from whence the data came as an
+    /// `Option<io::Result<([u8; 65507], usize, SocketAddr)>>`
     ///
     /// #### Note
-    /// There are no clear situations which could lead to this returning `None`. Wrapping the
-    /// returned data in an `Option` is done purely to maintain a consistent API with expectations
-    /// on an Iterator / Stream
+    /// - The message buffer is sized to the max practical size of a UDP Datagram. All bytes after
+    ///   the actual message will be NULL so it can be directly converted to a String, for example
+    ///   without first slicing. Other data manipulation should take into account the actual length.
+    /// - There are no clear situations which could lead to this returning `None`. Wrapping the
+    ///   returned data in an `Option` is done purely to maintain a consistent API with expectations
+    ///   on an Iterator / Stream
     pub fn next<'s>(&'s mut self) -> Next<'s> {
         Next { stream: self }
     }
@@ -170,7 +174,7 @@ pub struct Next<'stream> {
 }
 
 impl<'stream> Future for Next<'stream> {
-    type Output = Option<io::Result<([u8; 65507], SocketAddr)>>;
+    type Output = Option<io::Result<([u8; 65507], usize, SocketAddr)>>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = &mut *self;
@@ -183,7 +187,9 @@ impl<'stream> Future for Next<'stream> {
         // see https://en.wikipedia.org/wiki/User_Datagram_Protocol#UDP_datagram_structure
         let mut buf: [u8; 65507] = [b'\x00'; 65507];
 
-        let result = socket.recv_from(&mut buf).map(|(_, addr)| (buf, addr));
+        let result = socket
+            .recv_from(&mut buf)
+            .map(|(len, addr)| (buf, len, addr));
 
         if let Err(ref e) = result
             && e.kind() == io::ErrorKind::WouldBlock
