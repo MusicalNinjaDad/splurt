@@ -159,3 +159,54 @@ async fn next_to_read() {
         String::from_utf8_lossy(msg)
     );
 }
+
+
+#[futures_net::test]
+async fn push_to_send() {
+    let loopback = Ipv4Addr::new(127, 0, 0, 1);
+
+    // https://doc.rust-lang.org/std/net/struct.TcpListener.html#method.bind
+    // Binding with a port number of 0 will request that the OS assigns a port to this listener.
+    // The port allocated can be queried via the TcpListener::local_addr method.
+    let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
+
+    let mut receiver = UdpStream::bind(addr).expect("receiver");
+    let rec_addr = receiver.local_addr().expect("bound port");
+    dbg!(rec_addr);
+
+    let mut sender = UdpStream::bind(addr).expect("sender");
+    let send_addr = sender.local_addr().expect("bound port");
+    dbg!(send_addr);
+
+    let mut received: [u8; 17] = [b'\x00'; 17];
+    let msg: &[u8; 17] = b"udp loopback test";
+
+    let send = async move {
+        println!("sending {}", String::from_utf8_lossy(msg));
+        sender.push(msg, rec_addr).await.expect("send msg");
+    };
+
+    let rec = async {
+        println!("initiating receiver");
+        let (msg, sent_by) = receiver
+            .next()
+            .await
+            .expect("a message")
+            .expect("a valid message");
+        println!(
+            "received: {} from {} ({} bytes)",
+            String::from_utf8_lossy(&msg),
+            sent_by,
+            msg.len()
+        );
+        received = msg[..17].try_into().expect("17 bytes in msg");
+    };
+
+    println!("ready to join");
+    futures::join!(rec, send);
+
+    assert_eq!(
+        String::from_utf8_lossy(&received),
+        String::from_utf8_lossy(msg)
+    );
+}
