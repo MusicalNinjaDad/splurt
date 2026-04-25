@@ -14,7 +14,7 @@ pub enum Message {
     Search(MSearch),
 }
 
-/// Formats Message as per SSDP specifications
+/// Formats Message as per OCF spec (2015)
 impl Display for Message {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -59,7 +59,7 @@ struct UserAgent {
     product_version: Version,
 }
 
-/// As required by SSDP spec for the *value*, does NOT include a header key
+/// As required by OCF spec (2015) for the *value*, does NOT include a header key
 impl Display for UserAgent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self {
