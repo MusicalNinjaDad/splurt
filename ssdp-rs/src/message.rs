@@ -1,7 +1,7 @@
 //! UPnP Messages as per UPnP Device Architecture 2.0 (revision 2020-04-17)
-//! 
+//!
 //! Message generation is strict to standard.
-//! 
+//!
 //! Message parsing is lenient - I've have yet to see a single well-formed spec-conform UPnP
 //! message flying around on my network.
 
