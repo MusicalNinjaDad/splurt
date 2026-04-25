@@ -1,5 +1,5 @@
 use std::{
-    io::{self, Read},
+    io,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs},
     pin::Pin,
     task::{Context, Poll, ready},
@@ -135,7 +135,26 @@ impl<'stream, 'buf, A: ToSocketAddrs + Unpin> Future for Push<'stream, 'buf, A> 
         let this = &mut *self;
         let stream = &mut *this.stream;
         ready!(stream.poll_write_ready_unpin(cx)?);
-        todo!("poll Push")
+
+        let socket = stream.socket();
+
+        let addr = this
+            .addr
+            .to_socket_addrs()?
+            .next()
+            .ok_or(io::Error::from(io::ErrorKind::InvalidInput))?;
+
+        let result = socket.send_to(this.buf, &addr);
+
+        if let Err(ref e) = result
+            && e.kind() == io::ErrorKind::WouldBlock
+        {
+            let pinned = Pin::new(&mut *stream);
+            pinned.clear_write_ready(cx)?;
+            Poll::Pending
+        } else {
+            Poll::Ready(result)
+        }
     }
 }
 
@@ -228,6 +247,13 @@ impl UdpStream {
     fn clear_read_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
         self.pinned_io().clear_read_ready(cx)
     }
+
+    /// Needed to handle non-blocking errors in [futures::AsyncWrite].
+    /// See [futures_net::driver::PollEvented] for an explanation.
+    fn clear_write_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
+        let socket = Pin::new(&mut self.io);
+        socket.clear_write_ready(cx)
+    }
 }
 
 impl AsyncReadReady for UdpStream {
@@ -251,7 +277,7 @@ impl AsyncWriteReady for UdpStream {
     fn poll_write_ready(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-      ) -> Poll<Result<Self::Ok, Self::Err>> {
+    ) -> Poll<Result<Self::Ok, Self::Err>> {
         self.pinned_io().poll_write_ready(cx)
     }
 }

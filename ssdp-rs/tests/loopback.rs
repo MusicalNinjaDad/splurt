@@ -160,7 +160,6 @@ async fn next_to_read() {
     );
 }
 
-
 #[futures_net::test]
 async fn push_to_send() {
     let loopback = Ipv4Addr::new(127, 0, 0, 1);
