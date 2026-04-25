@@ -46,7 +46,7 @@ fn main() -> Exit<()> {
         }
         Command::Build { glibc, release } => {
             let build = build(root, glibc, release);
-            Exit::from(vec![build])
+            Exit::from(build)
         }
     }
 }

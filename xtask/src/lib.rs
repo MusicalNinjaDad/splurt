@@ -142,6 +142,12 @@ impl From<Vec<Spawned>> for Exit<()> {
     }
 }
 
+impl From<Spawned> for Exit<()> {
+    fn from(spawn: Spawned) -> Self {
+        spawn.wait().into()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::process::Command;
