@@ -117,7 +117,10 @@ impl Message {
         None
     }
 
-    /// Construct a new M-SEARCH message
+    /// Construct a new M-SEARCH message.
+    ///
+    /// While details of the user agent are technically optional we are going to include them
+    /// in our searches.
     pub fn new_search(
         mx: u8,
         os: &str,
