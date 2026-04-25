@@ -25,7 +25,7 @@ use std::{
 
 use uuid::Uuid;
 
-use crate::udp::UdpStream;
+use crate::{message::Message, udp::UdpStream};
 
 #[derive(Debug)]
 pub struct Searcher {
@@ -59,19 +59,46 @@ impl Searcher {
     }
 
     pub fn search<'s>(&'s mut self) -> Search<'s> {
-        Search { searcher: self }
+        let Searcher {
+            stream,
+            mx,
+            os,
+            os_version,
+            product_name,
+            product_version,
+            friendly_name,
+            uuid,
+        } = self;
+        let msg = Message::new_search(
+            *mx,
+            os,
+            os_version,
+            product_name,
+            product_version,
+            friendly_name,
+            *uuid,
+        )
+        .to_string();
+        Search {
+            searcher: stream,
+            msg,
+        }
     }
 }
 
 /// The future returned by [Searcher::search]
 pub struct Search<'searcher> {
-    searcher: &'searcher mut Searcher,
+    searcher: &'searcher mut UdpStream,
+    msg: String,
 }
 
 impl<'searcher> Future for Search<'searcher> {
     type Output = io::Result<()>;
 
-    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
+    fn poll(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
         todo!("poll search")
     }
 }
