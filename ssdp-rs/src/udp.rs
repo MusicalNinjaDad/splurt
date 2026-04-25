@@ -162,7 +162,7 @@ impl AsyncReadReady for UdpListener {
     }
 }
 
-pub struct UdpStream {
+pub struct UdpConnectedStream {
     /// The underlying, evented Socket.
     ///
     /// Note: `futures_net::UdpSocket` does NOT implement [futures_net::driver::sys::event::Evented]
@@ -171,7 +171,7 @@ pub struct UdpStream {
     connected_to: Option<SocketAddr>,
 }
 
-impl UdpStream {
+impl UdpConnectedStream {
     /// Create a new UpdStream on an OS-assigned port on `loopback` which is connected to `addr`.
     ///
     /// All `write`s will send to `addr` and only packets from `addr` will be provided by `read`.
@@ -248,7 +248,7 @@ impl UdpStream {
     }
 }
 
-impl AsyncWriteReady for UdpStream {
+impl AsyncWriteReady for UdpConnectedStream {
     type Ok = Ready;
 
     type Err = io::Error;
@@ -272,7 +272,7 @@ impl AsyncWriteReady for UdpStream {
 /// - [Self::poll_close] remove the internally stored details of the connected [SocketAddr] and
 ///   connect the underlying system level socket to itself. Using the [UdpStream] again after
 ///   closing will result in an error. (std-lib implementations of `close` are simple no-ops).
-impl AsyncWrite for UdpStream {
+impl AsyncWrite for UdpConnectedStream {
     /// Wait for write-readiness then `send` the contents of `buf` to the [Self::connect]ed recipient.
     fn poll_write(
         mut self: Pin<&mut Self>,
@@ -325,7 +325,7 @@ impl AsyncWrite for UdpStream {
 }
 
 /// Shadow functions provided to override default documentation
-impl UdpStream {
+impl UdpConnectedStream {
     /// Wait for write-readiness to ensure current pending message has been sent.
     pub fn flush(&mut self) -> futures::io::Flush<'_, Self> {
         <Self as AsyncWriteExt>::flush(self)
@@ -362,7 +362,7 @@ mod tests {
         let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
         let connected = UdpSocket::bind(&addr).expect("other side");
         let rec_addr = connected.local_addr().expect("bound port");
-        let mut sender = UdpStream::new(&rec_addr).expect("sender");
+        let mut sender = UdpConnectedStream::new(&rec_addr).expect("sender");
 
         sender.close().await.expect("closing sender");
         let flush = sender.flush().await;
@@ -375,7 +375,7 @@ mod tests {
         let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
         let connected = UdpSocket::bind(&addr).expect("other side");
         let rec_addr = connected.local_addr().expect("bound port");
-        let mut sender = UdpStream::new(&rec_addr).expect("sender");
+        let mut sender = UdpConnectedStream::new(&rec_addr).expect("sender");
 
         sender.close().await.expect("closing sender");
         let write_all = sender.write_all(b"foo").await;
@@ -388,7 +388,7 @@ mod tests {
         let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
         let connected = UdpSocket::bind(&addr).expect("other side");
         let rec_addr = connected.local_addr().expect("bound port");
-        let mut sender = UdpStream::new(&rec_addr).expect("sender");
+        let mut sender = UdpConnectedStream::new(&rec_addr).expect("sender");
         assert_matches!(sender.connected_to(), Some(addr) if addr == rec_addr);
 
         sender.close().await.expect("closing sender");
@@ -409,7 +409,7 @@ mod tests {
         let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
         let connected = UdpSocket::bind(&addr).expect("other side");
         let rec_addr = connected.local_addr().expect("bound port");
-        let mut sender = UdpStream::new(&rec_addr).expect("sender");
+        let mut sender = UdpConnectedStream::new(&rec_addr).expect("sender");
         sender.close().await.expect("close 1");
         sender.close().await.expect("close 2");
         assert!(!sender.connected_to().is_some());
