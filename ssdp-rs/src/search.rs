@@ -7,11 +7,11 @@
 //!
 //! # fn main() -> io::Result<()> {
 //! // Create a new searcher
-//! let searcher = Searcher::new("splurt", "0.0.1", "splurt ssdp message repeater")?;
+//! let mut searcher = Searcher::new("splurt", "0.0.1", "splurt ssdp message repeater")?;
 //!
 //! // run a search - can call next().await on the result
 //! futures::executor::block_on( async {
-//!     let some_sort_of_iterable_or_stream = searcher.search().await;
+//!     searcher.search().await.expect("search executed");
 //! });
 //! // let some_sort_of_iterable_or_stream = searcher.search().await;
 //! # Ok(())
@@ -58,16 +58,18 @@ impl Searcher {
         })
     }
 
-    pub fn search(&self) -> Search {
-        todo!("search")
+    pub fn search<'s>(&'s mut self) -> Search<'s> {
+        Search { searcher: self }
     }
 }
 
 /// The future returned by [Searcher::search]
-pub struct Search;
+pub struct Search<'searcher> {
+    searcher: &'searcher mut Searcher,
+}
 
-impl Future for Search {
-    type Output = ();
+impl<'searcher> Future for Search<'searcher> {
+    type Output = io::Result<()>;
 
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
         todo!("poll search")
