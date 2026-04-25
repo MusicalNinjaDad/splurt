@@ -34,7 +34,7 @@ pub struct UdpStream {
 }
 
 impl UdpStream {
-    /// Create a new [UdpListener] by binding it to a given [SocketAddr].
+    /// Create a new [UdpStream] by binding it to a given [SocketAddr].
     ///
     /// The listener is guaranteed to be constructed to be non-blocking and have non-exclusive
     /// access to the bound address; if either of these system calls fails to take effect an
@@ -197,7 +197,7 @@ impl<'stream> Future for Next<'stream> {
     }
 }
 
-/// The future returned by `UdpListener::recv_from`
+/// The future returned by `UdpStream::recv_from`
 #[derive(Debug)]
 pub struct RecvFrom<'listener, 'buf> {
     listener: &'listener mut UdpStream,
@@ -239,7 +239,7 @@ impl UdpStream {
         }
     }
 
-    /// Converts a pinned `&mut UdpListener` to a pinned &mut of the underlying pollevented socket
+    /// Converts a pinned `&mut UdpStream` to a pinned &mut of the underlying pollevented socket
     /// allowing for calls to traits and functions implemented by [PollEvented]
     fn pinned_io(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>> {
         let listener = self.get_mut();
