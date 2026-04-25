@@ -10,9 +10,9 @@
 //! let mut searcher = Searcher::new("splurt", "0.0.1", "splurt ssdp message repeater")?;
 //!
 //! // run a search - can call next().await on the result
-//! futures::executor::block_on( async {
-//!     searcher.search().await.expect("search executed");
-//! });
+//! # futures::executor::block_on( async {
+//! searcher.search().await.expect("search executed");
+//! # });
 //! // let some_sort_of_iterable_or_stream = searcher.search().await;
 //! # Ok(())
 //! # }
@@ -105,6 +105,9 @@ impl<'searcher> Future for Search<'searcher> {
         let msg = this.msg.as_bytes();
         let ssdp_multicast = Ipv4Addr::new(239, 25, 255, 25);
         let ssdp_multicast = SocketAddr::new(ssdp_multicast.into(), 1900);
-        stream.push(msg, ssdp_multicast).poll_unpin(cx).map_ok(|_| ())
+        stream
+            .push(msg, ssdp_multicast)
+            .poll_unpin(cx)
+            .map_ok(|_| ())
     }
 }
