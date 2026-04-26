@@ -64,6 +64,13 @@ impl<const SIZE: usize> UdpStream<SIZE> {
         Ok(Self { io })
     }
 
+    // // TODO: #22 Add bind_exclusive constructor & update struct docs for UdpStream
+    // pub fn bind_exclusive(addr: SocketAddr) -> io::Result<Self>
+    // pub fn is_exclusive(&self) -> Option<SocketAddr>
+    // pub fn check_exclusive(&self) -> io::Result<SocketAddr>
+    // pub fn is_non_exclusive(&self) -> Option<SocketAddr>
+    // pub fn check_non_exclusive(&self) -> io::Result<SocketAddr>
+
     /// Get the local address of this listener
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
         let io = &self.io;
