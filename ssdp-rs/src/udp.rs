@@ -115,12 +115,20 @@ impl<const BUF_SIZE: usize> UdpStream<BUF_SIZE> {
     ///
     /// Awaiting returns an array of bytes containing the message received, the message length
     /// and the target from whence the data came as an
-    /// `Option<io::Result<([u8; 65507], usize, SocketAddr)>>`
+    /// `Option<io::Result<([u8; BUF_SIZE], usize, SocketAddr)>>`
     ///
     /// #### Note
-    /// - The message buffer is sized to the max practical size of a UDP Datagram. All bytes after
-    ///   the actual message will be NULL so it can be directly converted to a String, for example
-    ///   without first slicing. Other data manipulation should take into account the actual length.
+    /// 
+    /// - Messages received via [UdpStream::next] will be provided as an array of bytes of length
+    ///   `BUF_SIZE`. This is a generic const to allow avoid us having to allocate a 65k buffer on each
+    ///   call to next in order to cover the max possible UDP datagram size.
+    /// - It is your responsibility to ensure that `BUF_SIZE` is large enough to hold the largest UDP
+    ///   datagram your protocol expects; if it is smaller than the incoming datagram size, the datagram
+    ///   will be truncated in the output from `next`. You cannot rely on the returned `bytes_read` value
+    ///   to indicate truncation as this will also be set to the buffer length, not the full size of the
+    ///   truncated message (this is the underlying behaviour of the libc call `recv_from`).
+    /// - All bytes after the actual message will be NULL so it can be directly converted to a String,
+    ///   for example, without first slicing. Other data manipulation should take into account the actual length.
     /// - There are no clear situations which could lead to this returning `None`. Wrapping the
     ///   returned data in an `Option` is done purely to maintain a consistent API with expectations
     ///   on an Iterator / Stream
