@@ -49,11 +49,11 @@ impl<const SIZE: usize> UdpStream<SIZE> {
         s2.nonblocking()?
             .ok_or(io::Error::from(io::ErrorKind::Unsupported))?;
 
-        // NOTE for consideration if/when implementing conversion to a UdpStream
-        // =====================================================================
-        // This would stop another process from re-binding to the same address & port if converted
-        // to a UdpStream which actively begins listening on this address, thereby claiming
-        // exclusive interest in all received data.
+        // NOTE for consideration if/when implementing conversion to a UdpConnectedStream
+        // ==============================================================================
+        // This would stop another process from re-binding to the same address *& port* if
+        // converted to a UdpConnectedStream which actively begins listening on this address,
+        // thereby claiming exclusive interest in all received data.
         // see https://man7.org/linux/man-pages/man7/socket.7.html#:~:text=SO_REUSEADDR
         s2.set_reuse_address(true)?;
         s2.reuse_address()?
