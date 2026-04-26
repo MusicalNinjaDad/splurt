@@ -6,4 +6,5 @@
 //! library. Including improved async UDP primitives: UDPListener & UDPStream.
 
 pub mod message;
+pub mod search;
 pub mod udp;

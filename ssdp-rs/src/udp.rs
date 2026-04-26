@@ -1,6 +1,6 @@
 use std::{
     io,
-    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs},
     pin::Pin,
     task::{Context, Poll, ready},
 };
@@ -15,12 +15,24 @@ use socket2::{Domain, Type};
 
 //TODO: Open a ticket with futures_net re non-blocking UdpSocket
 #[derive(Debug)]
-/// A non-blocking async UdpSocket semantically designed as a listener.
+/// A non-blocking async UdpSocket with ability to `recv_from` via `next` and `send_to` via `push`.
+///
+/// #### BUF_SIZE
+/// Messages received via [UdpStream::next] will be provided as an array of bytes of length
+/// `BUF_SIZE`. This is a generic const to allow avoid us having to allocate a 65k buffer on each
+/// call to next in order to cover the max possible UDP datagram size.
+///
+/// It is your responsibility to ensure that `BUF_SIZE` is large enough to hold the largest UDP
+/// datagram your protocol expects; if it is smaller than the incoming datagram size, the datagram
+/// will be truncated in the output from `next`. You cannot rely on the returned `bytes_read` value
+/// to indicate truncation as this will also be set to the buffer length, not the full size of the
+/// truncated message (this is the underlying behaviour of the libc call `recv_from`).
 ///
 /// #### Note
-/// This does NOT have exclusive access to the bound port. If you want to guarantee that no other
-/// processes bind to the same socket use a [UdpStream], which will exclusively claim the port.
-pub struct UdpListener {
+/// - This does NOT have exclusive access to the bound port. If you want to guarantee that
+///   no other processes bind to the same socket use a [UdpConnectedStream], which will exclusively
+///   claim the port (or vote thumbs up on issue #22 TODO: implement `bind_exclusive` etc.)
+pub struct UdpStream<const BUF_SIZE: usize> {
     /// The underlying, evented Socket.
     ///
     /// #### Note
@@ -28,13 +40,14 @@ pub struct UdpListener {
     ///   and is NOT the same type as stored here.
     /// - [`futures_net::driver::sys::net::UdpSocket`] is not actually non-blocking, despite the
     ///   documentation.
-    /// - Neither [std::sys::net::UdpSocket], nor [net2::UdpBuilder] expose`set_nonblocking()` so
-    ///   we need use [socket2::Socket] while building the listener.
+    /// - Neither [std::sys::net::UdpSocket], nor [net2::UdpBuilder] expose `set_nonblocking()` so
+    ///   we need use [socket2::Socket] while building the listener but are unable to change
+    ///   blocking or exclusivity after construction.
     io: PollEvented<sys::net::UdpSocket>,
 }
 
-impl UdpListener {
-    /// Create a new [UdpListener] by binding it to a given [SocketAddr].
+impl<const BUF_SIZE: usize> UdpStream<BUF_SIZE> {
+    /// Create a new [UdpStream] by binding it to a given [SocketAddr].
     ///
     /// The listener is guaranteed to be constructed to be non-blocking and have non-exclusive
     /// access to the bound address; if either of these system calls fails to take effect an
@@ -46,11 +59,11 @@ impl UdpListener {
         s2.nonblocking()?
             .ok_or(io::Error::from(io::ErrorKind::Unsupported))?;
 
-        // NOTE for consideration if/when implementing conversion to a UdpStream
-        // =====================================================================
-        // This would still another process from re-binding to the same address & port if converted
-        // to a UdpStream which actively begins listening on this address, thereby claiming
-        // exclusive interest in all received data.
+        // NOTE for consideration if/when implementing conversion to a UdpConnectedStream
+        // ==============================================================================
+        // This would stop another process from re-binding to the same address *& port* if
+        // converted to a UdpConnectedStream which actively begins listening on this address,
+        // thereby claiming exclusive interest in all received data.
         // see https://man7.org/linux/man-pages/man7/socket.7.html#:~:text=SO_REUSEADDR
         s2.set_reuse_address(true)?;
         s2.reuse_address()?
@@ -61,6 +74,13 @@ impl UdpListener {
         let io = PollEvented::new(sys::net::UdpSocket::from_socket(sstd)?);
         Ok(Self { io })
     }
+
+    // // TODO: #22 Add bind_exclusive constructor & update struct docs for UdpStream
+    // pub fn bind_exclusive(addr: SocketAddr) -> io::Result<Self>
+    // pub fn is_exclusive(&self) -> Option<SocketAddr>
+    // pub fn check_exclusive(&self) -> io::Result<SocketAddr>
+    // pub fn is_non_exclusive(&self) -> Option<SocketAddr>
+    // pub fn check_non_exclusive(&self) -> io::Result<SocketAddr>
 
     /// Get the local address of this listener
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
@@ -84,22 +104,143 @@ impl UdpListener {
     pub fn recv_from<'listener, 'buf>(
         &'listener mut self,
         buf: &'buf mut [u8],
-    ) -> RecvFrom<'listener, 'buf> {
+    ) -> RecvFrom<'listener, 'buf, BUF_SIZE> {
         RecvFrom {
             buf,
             listener: self,
         }
     }
+
+    /// Receives data from the IO interface once `await`ed.
+    ///
+    /// Awaiting returns an array of bytes containing the message received, the message length
+    /// and the target from whence the data came as an
+    /// `Option<io::Result<([u8; BUF_SIZE], usize, SocketAddr)>>`
+    ///
+    /// #### Note
+    ///
+    /// - Messages received via [UdpStream::next] will be provided as an array of bytes of length
+    ///   `BUF_SIZE`. This is a generic const to allow avoid us having to allocate a 65k buffer on each
+    ///   call to next in order to cover the max possible UDP datagram size.
+    /// - It is your responsibility to ensure that `BUF_SIZE` is large enough to hold the largest UDP
+    ///   datagram your protocol expects; if it is smaller than the incoming datagram size, the datagram
+    ///   will be truncated in the output from `next`. You cannot rely on the returned `bytes_read` value
+    ///   to indicate truncation as this will also be set to the buffer length, not the full size of the
+    ///   truncated message (this is the underlying behaviour of the libc call `recv_from`).
+    /// - All bytes after the actual message will be NULL so it can be directly converted to a String,
+    ///   for example, without first slicing. Other data manipulation should take into account the actual length.
+    /// - There are no clear situations which could lead to this returning `None`. Wrapping the
+    ///   returned data in an `Option` is done purely to maintain a consistent API with expectations
+    ///   on an Iterator / Stream
+    pub fn next<'s>(&'s mut self) -> Next<'s, BUF_SIZE> {
+        Next { stream: self }
+    }
+
+    /// Sends data from the UDP socket once `await`ed
+    ///
+    /// Awaiting returns an `io::Result<usize>` confirming the number of bytes sent.
+    ///
+    /// #### Note
+    /// - While this function will accept multiple addresses, currently data is only sent to the
+    ///   first one (TODO)
+    /// - If an empty list of addresses the error will be of kind `io::ErrorKind::InvalidInput`
+    pub fn push<'s, 'b, A: ToSocketAddrs + Unpin>(
+        &'s mut self,
+        buf: &'b [u8],
+        addr: A,
+    ) -> Push<'s, 'b, A, BUF_SIZE> {
+        Push {
+            stream: self,
+            buf,
+            addr,
+        }
+    }
 }
 
-/// The future returned by `UdpListener::recv_from`
+/// The future returned by [UdpStream::push]
 #[derive(Debug)]
-pub struct RecvFrom<'listener, 'buf> {
-    listener: &'listener mut UdpListener,
+pub struct Push<'stream, 'buf, A: ToSocketAddrs + Unpin, const _BUF_SIZE: usize> {
+    stream: &'stream mut UdpStream<_BUF_SIZE>,
+    buf: &'buf [u8],
+    addr: A,
+}
+
+impl<'stream, 'buf, A: ToSocketAddrs + Unpin, const _BS: usize> Future
+    for Push<'stream, 'buf, A, _BS>
+{
+    type Output = io::Result<usize>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = &mut *self;
+        let stream = &mut *this.stream;
+        ready!(stream.poll_write_ready_unpin(cx)?);
+
+        let socket = stream.socket();
+
+        let addr = this
+            .addr
+            .to_socket_addrs()?
+            .next()
+            .ok_or(io::Error::from(io::ErrorKind::InvalidInput))?;
+
+        let result = socket.send_to(this.buf, &addr);
+
+        if let Err(ref e) = result
+            && e.kind() == io::ErrorKind::WouldBlock
+        {
+            let pinned = Pin::new(&mut *stream);
+            pinned.clear_write_ready(cx)?;
+            Poll::Pending
+        } else {
+            Poll::Ready(result)
+        }
+    }
+}
+
+/// The future returned by [UdpStream::next]
+#[derive(Debug)]
+pub struct Next<'stream, const BUF_SIZE: usize> {
+    stream: &'stream mut UdpStream<BUF_SIZE>,
+}
+
+impl<'stream, const BUF_SIZE: usize> Future for Next<'stream, BUF_SIZE> {
+    type Output = Option<io::Result<([u8; BUF_SIZE], usize, SocketAddr)>>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = &mut *self;
+        let stream = &mut *this.stream;
+        ready!(stream.poll_read_ready_unpin(cx)?);
+
+        let socket = stream.socket();
+
+        // Maximum data length for a UDP Datagram
+        // see https://en.wikipedia.org/wiki/User_Datagram_Protocol#UDP_datagram_structure
+        let mut buf: [u8; BUF_SIZE] = [b'\x00'; BUF_SIZE];
+
+        let result = socket
+            .recv_from(&mut buf)
+            .map(|(len, addr)| (buf, len, addr));
+
+        if let Err(ref e) = result
+            && e.kind() == io::ErrorKind::WouldBlock
+        {
+            let pinned = Pin::new(&mut *stream);
+            pinned.clear_read_ready(cx)?;
+            Poll::Pending
+        } else {
+            Poll::Ready(Some(result))
+        }
+    }
+}
+
+/// The future returned by `UdpStream::recv_from`
+#[derive(Debug)]
+pub struct RecvFrom<'listener, 'buf, const _BUF_SIZE: usize> {
+    listener: &'listener mut UdpStream<_BUF_SIZE>,
     buf: &'buf mut [u8],
 }
 
-impl<'listener, 'buf> Future for RecvFrom<'listener, 'buf> {
+impl<'listener, 'buf, const _BS: usize> Future for RecvFrom<'listener, 'buf, _BS> {
     type Output = io::Result<(usize, SocketAddr)>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -109,7 +250,7 @@ impl<'listener, 'buf> Future for RecvFrom<'listener, 'buf> {
 }
 
 /// Private functions for handling readiness to read.
-impl UdpListener {
+impl<const BUF_SIZE: usize> UdpStream<BUF_SIZE> {
     /// Receives data from the IO interface if it is ready to read.
     ///
     /// If successful, returns the number of bytes read and the target from whence the data came.
@@ -134,7 +275,7 @@ impl UdpListener {
         }
     }
 
-    /// Converts a pinned `&mut UdpListener` to a pinned &mut of the underlying pollevented socket
+    /// Converts a pinned `&mut UdpStream` to a pinned &mut of the underlying pollevented socket
     /// allowing for calls to traits and functions implemented by [PollEvented]
     fn pinned_io(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>> {
         let listener = self.get_mut();
@@ -147,9 +288,16 @@ impl UdpListener {
     fn clear_read_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
         self.pinned_io().clear_read_ready(cx)
     }
+
+    /// Needed to handle non-blocking errors in [futures::AsyncWrite].
+    /// See [futures_net::driver::PollEvented] for an explanation.
+    fn clear_write_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
+        let socket = Pin::new(&mut self.io);
+        socket.clear_write_ready(cx)
+    }
 }
 
-impl AsyncReadReady for UdpListener {
+impl<const _BUF_SIZE: usize> AsyncReadReady for UdpStream<_BUF_SIZE> {
     type Ok = Ready;
 
     type Err = io::Error;
@@ -162,7 +310,20 @@ impl AsyncReadReady for UdpListener {
     }
 }
 
-pub struct UdpStream {
+impl<const _BUF_SIZE: usize> AsyncWriteReady for UdpStream<_BUF_SIZE> {
+    type Ok = Ready;
+
+    type Err = io::Error;
+
+    fn poll_write_ready(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Self::Ok, Self::Err>> {
+        self.pinned_io().poll_write_ready(cx)
+    }
+}
+
+pub struct UdpConnectedStream {
     /// The underlying, evented Socket.
     ///
     /// Note: `futures_net::UdpSocket` does NOT implement [futures_net::driver::sys::event::Evented]
@@ -171,7 +332,7 @@ pub struct UdpStream {
     connected_to: Option<SocketAddr>,
 }
 
-impl UdpStream {
+impl UdpConnectedStream {
     /// Create a new UpdStream on an OS-assigned port on `loopback` which is connected to `addr`.
     ///
     /// All `write`s will send to `addr` and only packets from `addr` will be provided by `read`.
@@ -248,7 +409,7 @@ impl UdpStream {
     }
 }
 
-impl AsyncWriteReady for UdpStream {
+impl AsyncWriteReady for UdpConnectedStream {
     type Ok = Ready;
 
     type Err = io::Error;
@@ -272,7 +433,7 @@ impl AsyncWriteReady for UdpStream {
 /// - [Self::poll_close] remove the internally stored details of the connected [SocketAddr] and
 ///   connect the underlying system level socket to itself. Using the [UdpStream] again after
 ///   closing will result in an error. (std-lib implementations of `close` are simple no-ops).
-impl AsyncWrite for UdpStream {
+impl AsyncWrite for UdpConnectedStream {
     /// Wait for write-readiness then `send` the contents of `buf` to the [Self::connect]ed recipient.
     fn poll_write(
         mut self: Pin<&mut Self>,
@@ -325,7 +486,7 @@ impl AsyncWrite for UdpStream {
 }
 
 /// Shadow functions provided to override default documentation
-impl UdpStream {
+impl UdpConnectedStream {
     /// Wait for write-readiness to ensure current pending message has been sent.
     pub fn flush(&mut self) -> futures::io::Flush<'_, Self> {
         <Self as AsyncWriteExt>::flush(self)
@@ -362,7 +523,7 @@ mod tests {
         let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
         let connected = UdpSocket::bind(&addr).expect("other side");
         let rec_addr = connected.local_addr().expect("bound port");
-        let mut sender = UdpStream::new(&rec_addr).expect("sender");
+        let mut sender = UdpConnectedStream::new(&rec_addr).expect("sender");
 
         sender.close().await.expect("closing sender");
         let flush = sender.flush().await;
@@ -375,7 +536,7 @@ mod tests {
         let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
         let connected = UdpSocket::bind(&addr).expect("other side");
         let rec_addr = connected.local_addr().expect("bound port");
-        let mut sender = UdpStream::new(&rec_addr).expect("sender");
+        let mut sender = UdpConnectedStream::new(&rec_addr).expect("sender");
 
         sender.close().await.expect("closing sender");
         let write_all = sender.write_all(b"foo").await;
@@ -388,7 +549,7 @@ mod tests {
         let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
         let connected = UdpSocket::bind(&addr).expect("other side");
         let rec_addr = connected.local_addr().expect("bound port");
-        let mut sender = UdpStream::new(&rec_addr).expect("sender");
+        let mut sender = UdpConnectedStream::new(&rec_addr).expect("sender");
         assert_matches!(sender.connected_to(), Some(addr) if addr == rec_addr);
 
         sender.close().await.expect("closing sender");
@@ -409,7 +570,7 @@ mod tests {
         let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
         let connected = UdpSocket::bind(&addr).expect("other side");
         let rec_addr = connected.local_addr().expect("bound port");
-        let mut sender = UdpStream::new(&rec_addr).expect("sender");
+        let mut sender = UdpConnectedStream::new(&rec_addr).expect("sender");
         sender.close().await.expect("close 1");
         sender.close().await.expect("close 2");
         assert!(!sender.connected_to().is_some());
@@ -419,8 +580,36 @@ mod tests {
     async fn non_blocking() {
         let loopback = Ipv4Addr::new(127, 0, 0, 1);
         let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
-        let first = UdpListener::bind(addr).expect("first connection");
+        let first = UdpStream::<32>::bind(addr).expect("first connection");
         let addr = first.local_addr().expect("bound port");
-        let _second = UdpListener::bind(addr).expect("second connection");
+        let _second = UdpStream::<32>::bind(addr).expect("second connection");
+    }
+
+    #[futures_net::test]
+    async fn truncated_next() {
+        let loopback = Ipv4Addr::new(127, 0, 0, 1);
+        let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
+        let mut receiver = UdpStream::<8>::bind(addr).expect("receiver");
+        let rec_addr = receiver.local_addr().expect("bound port");
+
+        let mut sender = UdpStream::<8>::bind(addr).expect("sender");
+        let original_msg = b"udp loopback test";
+
+        let send = async move {
+            sender.push(original_msg, rec_addr).await.expect("send msg");
+        };
+
+        let rec = async {
+            let (msg, len, _sent_by) = receiver
+                .next()
+                .await
+                .expect("a message")
+                .expect("a valid message");
+            // bytes read is limited to buf size - as per libc call recv_from
+            assert_eq!(len, 8);
+            assert_eq!(msg, original_msg[..8]);
+        };
+
+        futures::join!(rec, send);
     }
 }
