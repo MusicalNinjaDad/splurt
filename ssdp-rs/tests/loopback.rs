@@ -62,7 +62,7 @@ async fn udp() {
     // The port allocated can be queried via the TcpListener::local_addr method.
     let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
 
-    let mut receiver = UdpStream::bind(addr).expect("receiver");
+    let mut receiver = UdpStream::<32>::bind(addr).expect("receiver");
     let rec_addr = receiver.local_addr().expect("bound port");
     dbg!(rec_addr);
 
@@ -116,7 +116,7 @@ async fn next_to_read() {
     // The port allocated can be queried via the TcpListener::local_addr method.
     let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
 
-    let mut receiver = UdpStream::bind(addr).expect("receiver");
+    let mut receiver = UdpStream::<32>::bind(addr).expect("receiver");
     let rec_addr = receiver.local_addr().expect("bound port");
     dbg!(rec_addr);
 
@@ -172,11 +172,11 @@ async fn push_to_send() {
     // The port allocated can be queried via the TcpListener::local_addr method.
     let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
 
-    let mut receiver = UdpStream::bind(addr).expect("receiver");
+    let mut receiver = UdpStream::<32>::bind(addr).expect("receiver");
     let rec_addr = receiver.local_addr().expect("bound port");
     dbg!(rec_addr);
 
-    let mut sender = UdpStream::bind(addr).expect("sender");
+    let mut sender = UdpStream::<32>::bind(addr).expect("sender");
     let send_addr = sender.local_addr().expect("bound port");
     dbg!(send_addr);
 

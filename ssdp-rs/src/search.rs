@@ -38,7 +38,7 @@ use crate::{message::Message, udp::UdpStream};
 
 #[derive(Debug)]
 pub struct Searcher {
-    stream: UdpStream,
+    stream: UdpStream<512>,
     mx: u8,
     os: String,
     os_version: String,
@@ -128,7 +128,7 @@ impl<'searcher> Future for Next<'searcher> {
 
 /// The future returned by [Searcher::search]
 pub struct Search<'searcher> {
-    searcher: &'searcher mut UdpStream,
+    searcher: &'searcher mut UdpStream<512>,
     msg: String,
 }
 
