@@ -22,7 +22,7 @@ use socket2::{Domain, Type};
 /// #### Note
 /// This does NOT have exclusive access to the bound port. If you want to guarantee that no other
 /// processes bind to the same socket use a [UdpConnectedStream], which will exclusively claim the port.
-pub struct UdpStream<const SIZE: usize> {
+pub struct UdpStream<const BUF_SIZE: usize> {
     /// The underlying, evented Socket.
     ///
     /// #### Note
@@ -36,7 +36,7 @@ pub struct UdpStream<const SIZE: usize> {
     io: PollEvented<sys::net::UdpSocket>,
 }
 
-impl<const SIZE: usize> UdpStream<SIZE> {
+impl<const BUF_SIZE: usize> UdpStream<BUF_SIZE> {
     /// Create a new [UdpStream] by binding it to a given [SocketAddr].
     ///
     /// The listener is guaranteed to be constructed to be non-blocking and have non-exclusive
@@ -94,7 +94,7 @@ impl<const SIZE: usize> UdpStream<SIZE> {
     pub fn recv_from<'listener, 'buf>(
         &'listener mut self,
         buf: &'buf mut [u8],
-    ) -> RecvFrom<'listener, 'buf, SIZE> {
+    ) -> RecvFrom<'listener, 'buf, BUF_SIZE> {
         RecvFrom {
             buf,
             listener: self,
@@ -114,7 +114,7 @@ impl<const SIZE: usize> UdpStream<SIZE> {
     /// - There are no clear situations which could lead to this returning `None`. Wrapping the
     ///   returned data in an `Option` is done purely to maintain a consistent API with expectations
     ///   on an Iterator / Stream
-    pub fn next<'s>(&'s mut self) -> Next<'s, SIZE> {
+    pub fn next<'s>(&'s mut self) -> Next<'s, BUF_SIZE> {
         Next { stream: self }
     }
 
@@ -130,7 +130,7 @@ impl<const SIZE: usize> UdpStream<SIZE> {
         &'s mut self,
         buf: &'b [u8],
         addr: A,
-    ) -> Push<'s, 'b, A, SIZE> {
+    ) -> Push<'s, 'b, A, BUF_SIZE> {
         Push {
             stream: self,
             buf,
@@ -141,14 +141,14 @@ impl<const SIZE: usize> UdpStream<SIZE> {
 
 /// The future returned by [UdpStream::push]
 #[derive(Debug)]
-pub struct Push<'stream, 'buf, A: ToSocketAddrs + Unpin, const SIZE: usize> {
-    stream: &'stream mut UdpStream<SIZE>,
+pub struct Push<'stream, 'buf, A: ToSocketAddrs + Unpin, const _BUF_SIZE: usize> {
+    stream: &'stream mut UdpStream<_BUF_SIZE>,
     buf: &'buf [u8],
     addr: A,
 }
 
-impl<'stream, 'buf, A: ToSocketAddrs + Unpin, const SIZE: usize> Future
-    for Push<'stream, 'buf, A, SIZE>
+impl<'stream, 'buf, A: ToSocketAddrs + Unpin, const _BS: usize> Future
+    for Push<'stream, 'buf, A, _BS>
 {
     type Output = io::Result<usize>;
 
@@ -181,12 +181,12 @@ impl<'stream, 'buf, A: ToSocketAddrs + Unpin, const SIZE: usize> Future
 
 /// The future returned by [UdpStream::next]
 #[derive(Debug)]
-pub struct Next<'stream, const SIZE: usize> {
-    stream: &'stream mut UdpStream<SIZE>,
+pub struct Next<'stream, const BUF_SIZE: usize> {
+    stream: &'stream mut UdpStream<BUF_SIZE>,
 }
 
-impl<'stream, const SIZE: usize> Future for Next<'stream, SIZE> {
-    type Output = Option<io::Result<([u8; SIZE], usize, SocketAddr)>>;
+impl<'stream, const BUF_SIZE: usize> Future for Next<'stream, BUF_SIZE> {
+    type Output = Option<io::Result<([u8; BUF_SIZE], usize, SocketAddr)>>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = &mut *self;
@@ -197,7 +197,7 @@ impl<'stream, const SIZE: usize> Future for Next<'stream, SIZE> {
 
         // Maximum data length for a UDP Datagram
         // see https://en.wikipedia.org/wiki/User_Datagram_Protocol#UDP_datagram_structure
-        let mut buf: [u8; SIZE] = [b'\x00'; SIZE];
+        let mut buf: [u8; BUF_SIZE] = [b'\x00'; BUF_SIZE];
 
         let result = socket
             .recv_from(&mut buf)
@@ -217,12 +217,12 @@ impl<'stream, const SIZE: usize> Future for Next<'stream, SIZE> {
 
 /// The future returned by `UdpStream::recv_from`
 #[derive(Debug)]
-pub struct RecvFrom<'listener, 'buf, const SIZE: usize> {
-    listener: &'listener mut UdpStream<SIZE>,
+pub struct RecvFrom<'listener, 'buf, const _BUF_SIZE: usize> {
+    listener: &'listener mut UdpStream<_BUF_SIZE>,
     buf: &'buf mut [u8],
 }
 
-impl<'listener, 'buf, const SIZE: usize> Future for RecvFrom<'listener, 'buf, SIZE> {
+impl<'listener, 'buf, const _BS: usize> Future for RecvFrom<'listener, 'buf, _BS> {
     type Output = io::Result<(usize, SocketAddr)>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -232,7 +232,7 @@ impl<'listener, 'buf, const SIZE: usize> Future for RecvFrom<'listener, 'buf, SI
 }
 
 /// Private functions for handling readiness to read.
-impl<const SIZE: usize> UdpStream<SIZE> {
+impl<const BUF_SIZE: usize> UdpStream<BUF_SIZE> {
     /// Receives data from the IO interface if it is ready to read.
     ///
     /// If successful, returns the number of bytes read and the target from whence the data came.
@@ -279,7 +279,7 @@ impl<const SIZE: usize> UdpStream<SIZE> {
     }
 }
 
-impl<const SIZE: usize> AsyncReadReady for UdpStream<SIZE> {
+impl<const _BUF_SIZE: usize> AsyncReadReady for UdpStream<_BUF_SIZE> {
     type Ok = Ready;
 
     type Err = io::Error;
@@ -292,7 +292,7 @@ impl<const SIZE: usize> AsyncReadReady for UdpStream<SIZE> {
     }
 }
 
-impl<const SIZE: usize> AsyncWriteReady for UdpStream<SIZE> {
+impl<const _BUF_SIZE: usize> AsyncWriteReady for UdpStream<_BUF_SIZE> {
     type Ok = Ready;
 
     type Err = io::Error;
