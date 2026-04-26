@@ -20,8 +20,9 @@ use socket2::{Domain, Type};
 /// Messages received via [UdpStream::next] will be provided as an array of bytes of length `SIZE`.
 ///
 /// #### Note
-/// This does NOT have exclusive access to the bound port. If you want to guarantee that no other
-/// processes bind to the same socket use a [UdpConnectedStream], which will exclusively claim the port.
+/// - This does NOT have exclusive access to the bound port. If you want to guarantee that
+///   no other processes bind to the same socket use a [UdpConnectedStream], which will exclusively
+///   claim the port (or vote thumbs up on issue #22 TODO: implement `bind_exclusive` etc.)
 pub struct UdpStream<const BUF_SIZE: usize> {
     /// The underlying, evented Socket.
     ///
