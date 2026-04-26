@@ -118,7 +118,7 @@ impl<const BUF_SIZE: usize> UdpStream<BUF_SIZE> {
     /// `Option<io::Result<([u8; BUF_SIZE], usize, SocketAddr)>>`
     ///
     /// #### Note
-    /// 
+    ///
     /// - Messages received via [UdpStream::next] will be provided as an array of bytes of length
     ///   `BUF_SIZE`. This is a generic const to allow avoid us having to allocate a 65k buffer on each
     ///   call to next in order to cover the max possible UDP datagram size.
