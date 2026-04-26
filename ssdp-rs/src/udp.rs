@@ -30,8 +30,9 @@ pub struct UdpStream<const SIZE: usize> {
     ///   and is NOT the same type as stored here.
     /// - [`futures_net::driver::sys::net::UdpSocket`] is not actually non-blocking, despite the
     ///   documentation.
-    /// - Neither [std::sys::net::UdpSocket], nor [net2::UdpBuilder] expose`set_nonblocking()` so
-    ///   we need use [socket2::Socket] while building the listener.
+    /// - Neither [std::sys::net::UdpSocket], nor [net2::UdpBuilder] expose `set_nonblocking()` so
+    ///   we need use [socket2::Socket] while building the listener but are unable to change
+    ///   blocking or exclusivity after construction.
     io: PollEvented<sys::net::UdpSocket>,
 }
 
@@ -50,7 +51,7 @@ impl<const SIZE: usize> UdpStream<SIZE> {
 
         // NOTE for consideration if/when implementing conversion to a UdpStream
         // =====================================================================
-        // This would still another process from re-binding to the same address & port if converted
+        // This would stop another process from re-binding to the same address & port if converted
         // to a UdpStream which actively begins listening on this address, thereby claiming
         // exclusive interest in all received data.
         // see https://man7.org/linux/man-pages/man7/socket.7.html#:~:text=SO_REUSEADDR
