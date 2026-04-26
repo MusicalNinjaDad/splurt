@@ -1,10 +1,11 @@
 #![cfg_attr(unstable_let_chains, feature(let_chains))]
+#![feature(future_join)]
 #![feature(never_type)]
 #![feature(try_blocks_heterogeneous)]
 #![feature(try_trait_v2)]
 #![feature(try_trait_v2_residual)]
 
-use std::{collections::HashMap, fmt::Debug, io, process::Termination as _T};
+use std::{collections::HashMap, fmt::Debug, future::join, io, process::Termination as _T};
 
 use clap::Parser;
 use cotton_netif::get_interfaces;
@@ -68,6 +69,11 @@ fn main() -> Exit<()> {
                 }
             };
 
+            let both = join!(search, listen_loop);
+            let (search, listen) = futures::executor::block_on(both);
+            search?;
+            listen?;
+
             // let run_both = async {
             //     try bikeshed Exit<()> {
             //         futures::future::join(listen_loop?, search?).await;
@@ -85,8 +91,8 @@ fn main() -> Exit<()> {
             // // 73 |                     futures::future::join(listen_loop.await?, search?).await;
             // // |
 
-            futures::executor::block_on(search)?;
-            futures::executor::block_on(listen_loop)?;
+            // futures::executor::block_on(search)?;
+            // futures::executor::block_on(listen_loop)?;
         }
 
         Command::Interfaces => {
