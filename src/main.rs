@@ -4,13 +4,7 @@
 #![feature(try_trait_v2)]
 #![feature(try_trait_v2_residual)]
 
-use std::{
-    collections::HashMap,
-    fmt::Debug,
-    io,
-    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
-    process::Termination as _T,
-};
+use std::{collections::HashMap, fmt::Debug, io, process::Termination as _T};
 
 use clap::Parser;
 use cotton_netif::get_interfaces;
@@ -20,7 +14,7 @@ use futures_util::StreamExt;
 use try_v2::{Try, Try_ConvertResult};
 use uuid::Uuid;
 
-use ssdp_rs::udp::UdpListener;
+use ssdp_rs::search::Searcher;
 
 mod cli;
 use cli::*;
@@ -55,39 +49,30 @@ fn main() -> Exit<()> {
 
     match &splurt.command {
         Command::Listen => {
-            let multicast = Ipv4Addr::new(239, 255, 255, 250);
-
-            let std::net::IpAddr::V4(interface) = get_bind_addr()?.ip() else {
-                todo!()
+            let mut searcher = Searcher::new("splurt", "v0.0.1", "splurt ssdp repeater")?;
+            let search = async {
+                try bikeshed Exit<()> {
+                    println!("sending an M-SEARCH");
+                    searcher.search().await?
+                }
             };
 
-            println!("will join multicast on interface {interface}");
-
-            let listen_addr = SocketAddrV4::new(interface, 1900).into();
-            let mut listener = UdpListener::bind(listen_addr).expect("sender");
-            listener
-                .socket()
-                .join_multicast_v4(&multicast, &interface)?;
-
-            let send_addr = listener.local_addr().expect("bound port");
-            println!("listening on {:?}", send_addr);
-
-            let listen_loop = async move {
-                let mut incoming = [b'\x00'; 1024];
-                try bikeshed Exit<()> {
+            let mut listener = Searcher::new("splurt", "v0.0.1", "splurt ssdp repeater")?;
+            let listen_loop = async {
+                try bikeshed io::Result<()> {
                     loop {
                         println!("listening ...");
-                        let (bytes, sent_by) = listener.recv_from(&mut incoming).await?;
-                        println!(
-                            "received: {} from {} ({} bytes)",
-                            String::from_utf8_lossy(&incoming),
-                            sent_by,
-                            bytes
-                        );
+                        let (msg, sent_by) = listener.next().await.expect("a message")?;
+                        println!("received: {} from {}", msg, sent_by);
                     }
                 }
             };
 
+            // let run_both = async {
+            //     futures::future::join(listen_loop, search).await;
+            // };
+
+            futures::executor::block_on(search)?;
             futures::executor::block_on(listen_loop)?;
         }
 
@@ -201,25 +186,6 @@ fn main() -> Exit<()> {
         }
     }
     Exit::Ok(())
-}
-
-// Adapted from https://github.com/jakobhellermann/ssdp-client/blob/main/src/search.rs
-#[cfg(not(windows))]
-fn get_bind_addr() -> Result<SocketAddr, std::io::Error> {
-    Ok(([0, 0, 0, 0], 0).into())
-}
-
-#[cfg(windows)]
-async fn get_bind_addr() -> Result<SocketAddr, std::io::Error> {
-    // Windows 10 is multihomed so that the address that is used for the broadcast send is not guaranteed to be your local ip address, it can be any of the virtual interfaces instead.
-    // Thanks to @dheijl for figuring this out <3 (https://github.com/jakobhellermann/ssdp-client/issues/3#issuecomment-687098826)
-    let any: SocketAddr = ([0, 0, 0, 0], 0).into();
-    let socket = UdpSocket::bind(any).await?;
-    let googledns: SocketAddr = ([8, 8, 8, 8], 80).into();
-    socket.connect(googledns).await?;
-    let bind_addr = socket.local_addr()?;
-
-    Ok(bind_addr)
 }
 
 #[derive(Debug, Termination, Try, Try_ConvertResult, PartialEq, PartialOrd, Eq, Ord)]
