@@ -142,7 +142,7 @@ impl<'searcher> Future for Search<'searcher> {
         let this = &mut *self;
         let stream = &mut *this.searcher;
         let msg = this.msg.as_bytes();
-        let ssdp_multicast = Ipv4Addr::new(239, 25, 255, 25);
+        let ssdp_multicast = Ipv4Addr::new(239, 255, 255, 250);
         let ssdp_multicast = SocketAddr::new(ssdp_multicast.into(), 1900);
         stream
             .push(msg, ssdp_multicast)
