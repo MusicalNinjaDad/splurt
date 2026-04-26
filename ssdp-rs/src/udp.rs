@@ -17,7 +17,16 @@ use socket2::{Domain, Type};
 #[derive(Debug)]
 /// A non-blocking async UdpSocket with ability to `recv_from` via `next` and `send_to` via `push`.
 ///
-/// Messages received via [UdpStream::next] will be provided as an array of bytes of length `SIZE`.
+/// #### BUF_SIZE
+/// Messages received via [UdpStream::next] will be provided as an array of bytes of length
+/// `BUF_SIZE`. This is a generic const to allow avoid us having to allocate a 65k buffer on each
+/// call to next in order to cover the max possible UDP datagram size.
+///
+/// It is your responsibility to ensure that `BUF_SIZE` is large enough to hold the largest UDP
+/// datagram your protocol expects; if it is smaller than the incoming datagram size, the datagram
+/// will be truncated in the output from `next`. You cannot rely on the returned `bytes_read` value
+/// to indicate truncation as this will also be set to the buffer length, not the full size of the
+/// truncated message (this is the underlying behaviour of the libc call `recv_from`).
 ///
 /// #### Note
 /// - This does NOT have exclusive access to the bound port. If you want to guarantee that
@@ -566,5 +575,33 @@ mod tests {
         let first = UdpStream::<32>::bind(addr).expect("first connection");
         let addr = first.local_addr().expect("bound port");
         let _second = UdpStream::<32>::bind(addr).expect("second connection");
+    }
+
+    #[futures_net::test]
+    async fn truncated_next() {
+        let loopback = Ipv4Addr::new(127, 0, 0, 1);
+        let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
+        let mut receiver = UdpStream::<8>::bind(addr).expect("receiver");
+        let rec_addr = receiver.local_addr().expect("bound port");
+
+        let mut sender = UdpStream::<8>::bind(addr).expect("sender");
+        let original_msg = b"udp loopback test";
+
+        let send = async move {
+            sender.push(original_msg, rec_addr).await.expect("send msg");
+        };
+
+        let rec = async {
+            let (msg, len, _sent_by) = receiver
+                .next()
+                .await
+                .expect("a message")
+                .expect("a valid message");
+            // bytes read is limited to buf size - as per libc call recv_from
+            assert_eq!(len, 8);
+            assert_eq!(msg, original_msg[..8]);
+        };
+
+        futures::join!(rec, send);
     }
 }
