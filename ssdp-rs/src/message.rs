@@ -26,7 +26,7 @@ pub enum Message {
 impl Display for Message {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Message::Alive(_notification) => todo!(),
+            Message::Alive(_notification) => todo!("display alive messages"),
             Message::Search(msearch) => {
                 write!(f, "{msearch}")
             }
