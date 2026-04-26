@@ -19,7 +19,7 @@ futures = "0.3.32"
 futures-net = "0.6.0"
 osinfo = "1.0.0"
 socket2 = { version = "0.6.3", features = ["all"] }
-uuid = "1.23.1"
+uuid = { version = "1.23.1", features = ["v4"] }
 
 [build-dependencies]
 autocfg = { workspace = true }
