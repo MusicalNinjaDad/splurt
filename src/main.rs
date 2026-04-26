@@ -59,7 +59,7 @@ fn main() -> Exit<()> {
 
             let mut listener = Searcher::new("splurt", "v0.0.1", "splurt ssdp repeater")?;
             let listen_loop = async {
-                try bikeshed io::Result<()> {
+                try bikeshed Exit<()> {
                     loop {
                         println!("listening ...");
                         let (msg, sent_by) = listener.next().await.expect("a message")?;
