@@ -69,8 +69,21 @@ fn main() -> Exit<()> {
             };
 
             // let run_both = async {
-            //     futures::future::join(listen_loop, search).await;
+            //     try bikeshed Exit<()> {
+            //         futures::future::join(listen_loop?, search?).await;
+            //     }
             // };
+            // // error[E0277]: the `?` operator can only be applied to values that implement `std::ops::Try`
+            // // --> src/main.rs:73:43
+            // // |
+            // // 73 |                     futures::future::join(listen_loop?, search?).await;
+            // // |                                           ^^^^^^^^^^^^ the `?` operator cannot be applied to type `{async block@src/main.rs:61:31: 61:36}`
+            // // |
+            // // = help: the nightly-only, unstable trait `std::ops::Try` is not implemented for `{async block@src/main.rs:61:31: 61:36}`
+            // // help: consider `await`ing on the `Future`
+            // // |
+            // // 73 |                     futures::future::join(listen_loop.await?, search?).await;
+            // // |
 
             futures::executor::block_on(search)?;
             futures::executor::block_on(listen_loop)?;
