@@ -1,7 +1,8 @@
 //! An SSDP searcher, that sends M-SEARCH and receives NOTIFY responses
 //!
 //! ## Example usage
-//! ```no_run no reply possible
+//! ```no_run
+//! # // no reply possible so not run as test to avoid endless loop
 //! # use std::io;
 //! use ssdp_rs::search::Searcher;
 //!
