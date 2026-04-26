@@ -16,4 +16,6 @@ pub enum Command {
     Ssdp,
     /// advertise dummy service
     Test,
+    /// listen to udp messages
+    Listen,
 }

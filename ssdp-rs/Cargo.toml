@@ -1,5 +1,5 @@
 [package]
-name = "ssdp-rs"
+name = "ssdp_rs"
 version = "0.0.1"
 edition = "2024"
 readme = "README.md"
