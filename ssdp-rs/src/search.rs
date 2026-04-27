@@ -97,6 +97,10 @@ pub struct Searcher {
     uuid: Uuid,
 }
 
+/// Create a new Searcher with following defaults (can be later changed):
+///
+/// - MX: 5 (max as per spec)
+/// - TTL: 2 (recommended by spec)
 impl Searcher {
     pub fn new(
         addr: Ipv4Addr,
