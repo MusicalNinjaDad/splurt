@@ -118,7 +118,7 @@ where
     ///
     /// Implementations should correspond to [poll_ready] and clear the
     /// relevant readiness marker of the underlying socket
-    fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()>;
+    fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<io::Result<!>>>;
 
     /// Checks
     fn would_block(
@@ -128,10 +128,7 @@ where
     ) -> Poll<Option<io::Result<!>>> {
         let Err(error) = error;
         match error.kind() {
-            io::ErrorKind::WouldBlock => match self.clear_ready(cx) {
-                Ok(_) => Poll::Pending,
-                Err(e) => Poll::Ready(Some(Err(e))),
-            },
+            io::ErrorKind::WouldBlock => self.clear_ready(cx),
             _ => Poll::Ready(Some(Err(error))),
         }
     }
@@ -158,8 +155,11 @@ impl<const _BS: usize> EventedUdpSocket for UdpStream<_BS> {
         Pin::new(&mut *io)
     }
 
-    fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
-        self.as_evented_socket_pin().clear_read_ready(cx)
+    fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<io::Result<!>>> {
+        match self.as_evented_socket_pin().clear_read_ready(cx) {
+            Ok(_) => Poll::Pending,
+            Err(e) => Poll::Ready(Some(Err(e))),
+        }
     }
 }
 
@@ -205,10 +205,7 @@ impl<const BUF_SIZE: usize> Stream for UdpStream<BUF_SIZE> {
                             Err(error) => self.would_block(Err(error), cx).map_ok(|x| x),
                         }
                     }
-                    false => match self.clear_ready(cx) {
-                        Ok(_) => Poll::Pending,
-                        Err(e) => Poll::Ready(Some(Err(e))),
-                    },
+                    false => self.clear_ready(cx).map_ok(|x| x),
                 },
                 Err(e) => self.would_block(Err(e), cx).map_ok(|x| x),
             },
@@ -260,7 +257,7 @@ impl EventedUdpSocket for UdpSink {
         Pin::new(&mut *io)
     }
 
-    fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
+    fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<io::Result<!>>> {
         todo!("sink clear_ready")
     }
 }
