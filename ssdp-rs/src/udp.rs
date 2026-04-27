@@ -113,6 +113,8 @@ where
     /// #### Note
     /// `futures_net::UdpSocket` is NOT the same type as returned here.
     fn as_socket_mut(&mut self) -> &mut sys::net::UdpSocket;
+
+    fn as_evented_socket_pin(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>>;
 }
 
 impl<const _BS: usize> EventedUdpSocket for UdpStream<_BS> {
@@ -128,6 +130,14 @@ impl<const _BS: usize> EventedUdpSocket for UdpStream<_BS> {
     fn as_socket_mut(&mut self) -> &mut sys::net::UdpSocket {
         let io = &mut self.io;
         io.get_mut()
+    }
+
+    /// Converts a pinned `&mut UdpStream` to a pinned &mut of the underlying pollevented socket
+    /// allowing for calls to traits and functions implemented by [PollEvented]
+    fn as_evented_socket_pin(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>> {
+        let listener = self.get_mut();
+        let io = &mut listener.io;
+        Pin::new(&mut *io)
     }
 }
 
@@ -394,13 +404,44 @@ impl EventedUdpSocket for UdpSink {
         let io = &mut self.io;
         io.get_mut()
     }
+
+    /// Converts a pinned `&mut UdpStream` to a pinned &mut of the underlying pollevented socket
+    /// allowing for calls to traits and functions implemented by [PollEvented]
+    fn as_evented_socket_pin(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>> {
+        let listener = self.get_mut();
+        let io = &mut listener.io;
+        Pin::new(&mut *io)
+    }
 }
 
 impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
     type Error = io::Error;
 
     fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        todo!("udpsink poll_ready")
+        let socket = self.as_evented_socket_pin();
+        match socket.poll_write_ready(cx) {
+            Poll::Ready(result) => match result {
+                Ok(ready) => match ready.is_writable() {
+                    true => Poll::Ready(Ok(())),
+                    false => {
+                        //TODO could this be nastily fatal?
+                        //     it's what futures_net does in `impl AsyncRead/Write for PollEvented`
+                        socket.clear_write_ready(cx)?;
+                        Poll::Pending
+                    }
+                },
+                Err(e) => match e.kind() {
+                    io::ErrorKind::WouldBlock => {
+                        //TODO could this be nastily fatal?
+                        //     it's what futures_net does in `impl AsyncRead/Write for PollEvented`
+                        socket.clear_read_ready(cx)?;
+                        Poll::Pending
+                    }
+                    _ => Poll::Ready(Err(e)),
+                },
+            },
+            Poll::Pending => Poll::Pending,
+        }
     }
 
     fn start_send(self: Pin<&mut Self>, item: (&[u8], &A)) -> Result<(), Self::Error> {
