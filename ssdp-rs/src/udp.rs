@@ -268,8 +268,8 @@ impl EventedUdpSocket for UdpSink {
 impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
     type Error = io::Error;
 
-    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        let socket = self.as_evented_socket_pin();
+    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        let socket = self.as_mut().as_evented_socket_pin();
         // Not sure whether PollEvented::poll_write_ready() returning a `Result<Ready>`
         // conveys additional meaningful information, so for saftey not simply using
         // `ready!(...map(|_| ()))` and instead double-checking readiness kind
@@ -277,12 +277,7 @@ impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
             Poll::Ready(result) => match result {
                 Ok(ready) => match ready.is_writable() {
                     true => Poll::Ready(Ok(())),
-                    false => {
-                        //TODO could this be nastily fatal?
-                        //     it's what futures_net does in `impl AsyncRead/Write for PollEvented`
-                        socket.clear_write_ready(cx)?;
-                        Poll::Pending
-                    }
+                    false => self.clear_ready(cx).map_ok(|x| x).map(|opt| opt.unwrap()),
                 },
                 Err(e) => match e.kind() {
                     io::ErrorKind::WouldBlock => {
