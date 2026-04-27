@@ -28,7 +28,7 @@
 
 use std::{
     io,
-    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4},
 };
 
 use futures::{FutureExt, SinkExt, StreamExt};
@@ -59,8 +59,16 @@ impl Searcher {
         let os_info = osinfo::get();
         let os = os_info.get_name();
         let os_version = os_info.get_version().to_string();
+        let mut incoming = UdpStream::bind(addr)?;
+        let IpAddr::V4(interface) = incoming.local_addr()?.ip() else {
+            unimplemented!("no IPv6 support")
+        };
+        let multicast = Ipv4Addr::new(239, 255, 255, 250);
+        incoming
+            .as_socket_mut()
+            .join_multicast_v4(&multicast, &interface)?;
         Ok(Searcher {
-            incoming: UdpStream::bind(addr)?,
+            incoming,
             outgoing: UdpSink::bind(addr)?,
             mx: 5,
             os,
