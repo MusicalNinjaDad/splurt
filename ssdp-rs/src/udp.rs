@@ -6,10 +6,7 @@ use std::{
 };
 
 use async_ready::{AsyncReadReady, AsyncWriteReady};
-use futures::{
-    AsyncWrite, AsyncWriteExt,
-    sink::{Sink, SinkExt},
-};
+use futures::{AsyncWrite, AsyncWriteExt, sink::Sink};
 use futures_net::driver::{
     PollEvented,
     sys::{self, event::Ready},
@@ -676,7 +673,7 @@ impl UdpConnectedStream {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures::AsyncWriteExt;
+    use futures::{AsyncWriteExt, SinkExt};
     use futures_net::{UdpSocket, runtime::Runtime};
 
     #[cfg(assert_matches_in_root)]
