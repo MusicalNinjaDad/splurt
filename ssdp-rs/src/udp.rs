@@ -135,7 +135,7 @@ where
     /// This returns a `Poll<Result<!>>` which will not currently automatically coerce into a
     /// `Poll<Result<T>>`. Work around this by calling `.map_ok(|x| x)` as a no-op to force the
     /// compiler to notice that everything is fine.
-    fn would_block(
+    fn unblock(
         self: Pin<&mut Self>,
         error: io::Result<!>,
         cx: &mut Context<'_>,
@@ -216,12 +216,12 @@ impl<const BUF_SIZE: usize> Stream for UdpStream<BUF_SIZE> {
                             .map(|(len, addr)| (buf, len, addr));
                         match recv {
                             Ok(_) => Poll::Ready(Some(recv)),
-                            Err(e) => self.would_block(Err(e), cx).map_ok(|x| x).map(Some),
+                            Err(e) => self.unblock(Err(e), cx).map_ok(|x| x).map(Some),
                         }
                     }
                     false => self.clear_ready(cx).map_ok(|x| x).map(Some),
                 },
-                Err(e) => self.would_block(Err(e), cx).map_ok(|x| x).map(Some),
+                Err(e) => self.unblock(Err(e), cx).map_ok(|x| x).map(Some),
             },
             Poll::Pending => Poll::Pending,
         }
@@ -293,7 +293,7 @@ impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
                     true => Poll::Ready(Ok(())),
                     false => self.clear_ready(cx).map_ok(|x| x),
                 },
-                Err(e) => self.would_block(Err(e), cx).map_ok(|x| x),
+                Err(e) => self.unblock(Err(e), cx).map_ok(|x| x),
             },
             Poll::Pending => Poll::Pending,
         }
