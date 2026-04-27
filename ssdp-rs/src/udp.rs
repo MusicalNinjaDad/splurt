@@ -180,66 +180,6 @@ mod useful_docs {
         pub fn next<'s>(&'s mut self) -> Next<'s, BUF_SIZE> {
             Next { stream: self }
         }
-
-        /// Sends data from the UDP socket once `await`ed
-        ///
-        /// Awaiting returns an `io::Result<usize>` confirming the number of bytes sent.
-        ///
-        /// #### Note
-        /// - While this function will accept multiple addresses, currently data is only sent to the
-        ///   first one (TODO)
-        /// - If an empty list of addresses the error will be of kind `io::ErrorKind::InvalidInput`
-        pub fn push<'s, 'b, A: ToSocketAddrs + Unpin>(
-            &'s mut self,
-            buf: &'b [u8],
-            addr: A,
-        ) -> Push<'s, 'b, A, BUF_SIZE> {
-            Push {
-                stream: self,
-                buf,
-                addr,
-            }
-        }
-    }
-}
-
-/// The future returned by [UdpStream::push]
-#[derive(Debug)]
-pub struct Push<'stream, 'buf, A: ToSocketAddrs + Unpin, const _BUF_SIZE: usize> {
-    stream: &'stream mut UdpStream<_BUF_SIZE>,
-    buf: &'buf [u8],
-    addr: A,
-}
-
-impl<'stream, 'buf, A: ToSocketAddrs + Unpin, const _BS: usize> Future
-    for Push<'stream, 'buf, A, _BS>
-{
-    type Output = io::Result<usize>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let this = &mut *self;
-        let stream = &mut *this.stream;
-        ready!(stream.poll_write_ready_unpin(cx)?);
-
-        let socket = stream.as_socket();
-
-        let addr = this
-            .addr
-            .to_socket_addrs()?
-            .next()
-            .ok_or(io::Error::from(io::ErrorKind::InvalidInput))?;
-
-        let result = socket.send_to(this.buf, &addr);
-
-        if let Err(ref e) = result
-            && e.kind() == io::ErrorKind::WouldBlock
-        {
-            let pinned = Pin::new(&mut *stream);
-            pinned.clear_write_ready(cx)?;
-            Poll::Pending
-        } else {
-            Poll::Ready(result)
-        }
     }
 }
 
