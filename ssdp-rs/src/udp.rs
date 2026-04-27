@@ -419,7 +419,9 @@ impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
 
     fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         let socket = self.as_evented_socket_pin();
-        //TODO simplify with ready!()
+        // Not sure whether PollEvented::poll_write_ready() returning a `Result<Ready>`
+        // conveys additional meaningful information, so for saftey not simply using
+        // `ready!(...map(|_| ()))` and instead double-checking readiness kind
         match socket.poll_write_ready(cx) {
             Poll::Ready(result) => match result {
                 Ok(ready) => match ready.is_writable() {
