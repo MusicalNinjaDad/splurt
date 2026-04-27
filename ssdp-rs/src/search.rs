@@ -38,7 +38,7 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4},
 };
 
-use futures::{FutureExt, SinkExt, Stream, StreamExt};
+use futures::{SinkExt, Stream, StreamExt};
 use uuid::Uuid;
 
 use crate::{
@@ -48,7 +48,7 @@ use crate::{
 
 const MULTICAST_IP: Ipv4Addr = Ipv4Addr::new(239, 255, 255, 250);
 const SSDP_PORT: u16 = 1900;
-const MUTLICAST_SOCKET: SocketAddr = SocketAddr::new(IpAddr::V4(MULTICAST_IP), SSDP_PORT);
+const MUTLICAST: SocketAddr = SocketAddr::new(IpAddr::V4(MULTICAST_IP), SSDP_PORT);
 const MAX_MSG_SIZE: usize = 1024;
 
 #[derive(Debug)]
@@ -120,7 +120,7 @@ impl Searcher {
         })
     }
 
-    pub fn search<'s>(&'s mut self) -> Search<'s> {
+    pub async fn search(&mut self) -> io::Result<()> {
         let Searcher {
             outgoing,
             mx,
@@ -141,28 +141,6 @@ impl Searcher {
             *uuid,
         )
         .to_string();
-        Search { outgoing, msg }
-    }
-}
-
-/// The future returned by [Searcher::search]
-pub struct Search<'searcher> {
-    outgoing: &'searcher mut UdpSink,
-    msg: String,
-}
-
-impl<'searcher> Future for Search<'searcher> {
-    type Output = io::Result<()>;
-
-    fn poll(
-        mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Self::Output> {
-        let this = &mut *self;
-        let sink = &mut *this.outgoing;
-        let msg = this.msg.as_bytes();
-        sink.send((msg, &MUTLICAST_SOCKET))
-            .poll_unpin(cx)
-            .map_ok(|_| ())
+        outgoing.send((msg.as_bytes(), &MUTLICAST)).await
     }
 }
