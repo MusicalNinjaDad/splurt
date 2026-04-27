@@ -120,6 +120,22 @@ where
     /// Implementations should correspond to [poll_ready] and clear the
     /// relevant readiness marker of the underlying socket
     fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()>;
+
+    /// Checks
+    fn would_block(
+        self: Pin<&mut Self>,
+        error: io::Result<!>,
+        cx: &mut Context<'_>,
+    ) -> Poll<io::Result<!>> {
+        let Err(error) = error;
+        match error.kind() {
+            io::ErrorKind::WouldBlock => match self.clear_ready(cx) {
+                Ok(_) => Poll::Pending,
+                Err(e) => Poll::Ready(Err(e)),
+            },
+            _ => Poll::Ready(Err(error)),
+        }
+    }
 }
 
 impl<const _BS: usize> EventedUdpSocket for UdpStream<_BS> {
@@ -186,11 +202,10 @@ impl<const BUF_SIZE: usize> Stream for UdpStream<BUF_SIZE> {
                             .recv_from(&mut buf)
                             .map(|(len, addr)| (buf, len, addr));
                         match result {
-                            Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                                let evented_socket = self.as_mut().as_evented_socket_pin();
-                                evented_socket.clear_read_ready(cx)?;
-                                Poll::Pending
-                            }
+                            Err(error) => match self.would_block(Err(error), cx) {
+                                Poll::Ready(Err(err)) => Poll::Ready(Some(Err(err))),
+                                Poll::Pending => Poll::Pending,
+                            },
                             _ => Poll::Ready(Some(result)),
                         }
                     }
