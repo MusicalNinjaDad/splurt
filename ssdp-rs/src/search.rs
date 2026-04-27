@@ -45,18 +45,6 @@ const MUTLICAST_SOCKET: SocketAddr = SocketAddr::new(IpAddr::V4(MULTICAST_IP), S
 const MAX_MSG_SIZE: usize = 1024;
 
 #[derive(Debug)]
-pub struct Searcher {
-    outgoing: UdpSink,
-    mx: u8,
-    os: String,
-    os_version: String,
-    product_name: String,
-    product_version: String,
-    friendly_name: String,
-    uuid: Uuid,
-}
-
-#[derive(Debug)]
 pub struct Listener {
     incoming: UdpStream<MAX_MSG_SIZE>,
 }
@@ -87,6 +75,17 @@ impl Stream for Listener {
             .poll_next_unpin(cx)
             .map_ok(|(msg, len, addr)| (String::from_utf8_lossy(&msg[..len]).to_string(), addr))
     }
+}
+#[derive(Debug)]
+pub struct Searcher {
+    outgoing: UdpSink,
+    mx: u8,
+    os: String,
+    os_version: String,
+    product_name: String,
+    product_version: String,
+    friendly_name: String,
+    uuid: Uuid,
 }
 
 impl Searcher {
