@@ -141,8 +141,45 @@ impl<const _BS: usize> EventedUdpSocket for UdpStream<_BS> {
 impl<const BUF_SIZE: usize> Stream for UdpStream<BUF_SIZE> {
     type Item = io::Result<([u8; BUF_SIZE], usize, SocketAddr)>;
 
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        todo!("impl poll_next")
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        // PollEvented::poll_read_ready consumes the input,unlike PollEvented::poll_write_ready.
+        // So we need to reborrow in order to later call clear_read_ready.
+        let evented_socket = self.as_mut().as_evented_socket_pin();
+        match evented_socket.poll_read_ready(cx) {
+            Poll::Ready(result) => match result {
+                Ok(ready) => match ready.is_readable() {
+                    true => {
+                        let mut buf: [u8; BUF_SIZE] = [b'\x00'; BUF_SIZE];
+                        let result = self
+                            .as_socket()
+                            .recv_from(&mut buf)
+                            .map(|(len, addr)| (buf, len, addr));
+                        match result {
+                            Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
+                                let evented_socket = self.as_mut().as_evented_socket_pin();
+                                evented_socket.clear_read_ready(cx)?;
+                                Poll::Pending
+                            }
+                            _ => Poll::Ready(Some(result)),
+                        }
+                    }
+                    false => {
+                        let evented_socket = self.as_mut().as_evented_socket_pin();
+                        evented_socket.clear_read_ready(cx)?;
+                        Poll::Pending
+                    }
+                },
+                Err(e) => match e.kind() {
+                    io::ErrorKind::WouldBlock => {
+                        let evented_socket = self.as_mut().as_evented_socket_pin();
+                        evented_socket.clear_read_ready(cx)?;
+                        Poll::Pending
+                    }
+                    _ => Poll::Ready(Some(Err(e))),
+                },
+            },
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
 
