@@ -285,13 +285,13 @@ impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
     type Error = io::Error;
 
     /// Attempts to prepare the Sink to receive a value.
-    /// 
+    ///
     /// This method must be called and return Poll::Ready(Ok(())) prior to each call to start_send.
-    /// 
+    ///
     /// This method returns Poll::Ready once the underlying sink is ready to receive data.
     /// If this method returns Poll::Pending, the current task is registered to be notified
     /// (via cx.waker().wake_by_ref()) when poll_ready should be called again.
-    /// 
+    ///
     /// If the attempt to poll readiness fails this method will properly handle
     /// it by calling [Self::clear_ready]/[Self::unblock] to ensure the underlying socket does not
     /// remain blocked.
@@ -314,9 +314,6 @@ impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
     ///   first one (TODO)
     /// - If an empty list of addresses the error will be of kind `io::ErrorKind::InvalidInput`
     fn start_send(self: Pin<&mut Self>, item: (&[u8], &A)) -> Result<(), Self::Error> {
-        //TODO Implementations of poll_ready and start_send will usually involve flushing behind
-        //     the scenes in order to make room for new messages.
-
         let socket = self.as_socket();
         let (msg, addr) = item;
         let addr = addr
