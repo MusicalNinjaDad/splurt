@@ -2,14 +2,13 @@ use std::{
     io,
     net::{SocketAddr, ToSocketAddrs},
     pin::Pin,
-    task::{Context, Poll, ready},
+    task::{Context, Poll},
 };
 
-use async_ready::{AsyncReadReady, AsyncWriteReady};
-use futures::sink::Sink;
+use futures::{Stream, sink::Sink};
 use futures_net::driver::{
     PollEvented,
-    sys::{self, event::Ready},
+    sys::{self},
 };
 use socket2::{Domain, Type};
 
@@ -56,14 +55,14 @@ pub trait EventedUdpSocket
 where
     Self: Sized,
 {
-    /// Create a new thing from a PollEvented<sys::net::UdpSocket>
+    /// Create a new `Self` from a PollEvented<sys::net::UdpSocket>
     fn from_evented_socket(evented_socket: PollEvented<sys::net::UdpSocket>) -> io::Result<Self>;
 
-    /// Create a new [UdpStream] by binding it to a given [SocketAddr].
+    /// Create a new `Self` by binding it to a given [SocketAddr].
     ///
-    /// The listener is guaranteed to be constructed to be non-blocking and have non-exclusive
-    /// access to the bound address; if either of these system calls fails to take effect an
-    /// [io::ErrorKind::Unsupported] will be returned.
+    /// In the default implementation, the listener is guaranteed to be constructed to be
+    /// non-blocking and have non-exclusive access to the bound address; if either of these system
+    /// calls fails to take effect an [io::ErrorKind::Unsupported] will be returned.
     fn bind(addr: SocketAddr) -> io::Result<Self> {
         let s2 = socket2::Socket::new(Domain::IPV4, Type::DGRAM, None)?;
         let addr = addr.into();
@@ -94,7 +93,7 @@ where
     // pub fn is_non_exclusive(&self) -> Option<SocketAddr>
     // pub fn check_non_exclusive(&self) -> io::Result<SocketAddr>
 
-    /// Get the local address of this listener
+    /// Get the local address of the underlying Socket
     fn local_addr(&self) -> io::Result<SocketAddr> {
         self.as_socket().local_addr()
     }
@@ -114,6 +113,46 @@ where
     /// Converts a pinned `&mut Self` to a pinned &mut of the underlying pollevented socket
     /// allowing for calls to traits and functions implemented by [PollEvented]
     fn as_evented_socket_pin(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>>;
+
+    /// Clear the readiness state of the underlying socket.
+    ///
+    /// **This MUST be called after any failed readiness poll.**
+    ///
+    /// Implementations should attempt to clear the relevant readiness marker of the underlying
+    /// socket and then return:
+    /// - `Poll::Pending` if successful
+    /// - `Poll::Ready(error)` on error, to avoid repeated polling without handling the error
+    ///
+    /// #### Note
+    /// This returns a `Poll<Result<!>>` which will not currently automatically coerce into a
+    /// `Poll<Result<T>>`. Work around this by calling `.map_ok(|x| x)` as a no-op to force the
+    /// compiler to notice that everything is fine.
+    fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<!>>;
+    // TODO: #30 Should an error during clear_ready be clearly fatal?
+    //       One option would be to return a `Poll<Option<!>>`, thus differentiating it
+    //       from unblock processing a non-blocking error. This would lead to a Stream
+    //       delivering `None` and thus signalling it is dead. But it would lose the
+    //       details of the error which occurred.
+
+    /// Checks whether `error` will block the underlying Socket and either:
+    /// - calls [Self::clear_ready] for blocking errors
+    /// - returns `Poll::Ready(error)` for non-blocking errors
+    ///
+    /// #### Note
+    /// This returns a `Poll<Result<!>>` which will not currently automatically coerce into a
+    /// `Poll<Result<T>>`. Work around this by calling `.map_ok(|x| x)` as a no-op to force the
+    /// compiler to notice that everything is fine.
+    fn unblock(
+        self: Pin<&mut Self>,
+        error: io::Result<!>,
+        cx: &mut Context<'_>,
+    ) -> Poll<io::Result<!>> {
+        let Err(error) = error;
+        match error.kind() {
+            io::ErrorKind::WouldBlock => self.clear_ready(cx),
+            _ => Poll::Ready(Err(error)),
+        }
+    }
 }
 
 impl<const _BS: usize> EventedUdpSocket for UdpStream<_BS> {
@@ -132,26 +171,21 @@ impl<const _BS: usize> EventedUdpSocket for UdpStream<_BS> {
     }
 
     fn as_evented_socket_pin(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>> {
-        let listener = self.get_mut();
-        let io = &mut listener.io;
+        let this = self.get_mut();
+        let io = &mut this.io;
         Pin::new(&mut *io)
+    }
+
+    fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<!>> {
+        match self.as_evented_socket_pin().clear_read_ready(cx) {
+            Ok(_) => Poll::Pending,
+            Err(e) => Poll::Ready(Err(e)),
+        }
     }
 }
 
-impl<const BUF_SIZE: usize> UdpStream<BUF_SIZE> {
-    /// Receives data from the IO interface once `await`ed.
-    ///
-    /// Awaiting returns the number of bytes read and the target from whence the data as an
-    /// `io::Result<(usize, SocketAddr)>`
-    pub fn recv_from<'listener, 'buf>(
-        &'listener mut self,
-        buf: &'buf mut [u8],
-    ) -> RecvFrom<'listener, 'buf, BUF_SIZE> {
-        RecvFrom {
-            buf,
-            listener: self,
-        }
-    }
+impl<const BUF_SIZE: usize> Stream for UdpStream<BUF_SIZE> {
+    type Item = io::Result<([u8; BUF_SIZE], usize, SocketAddr)>;
 
     /// Receives data from the IO interface once `await`ed.
     ///
@@ -174,194 +208,28 @@ impl<const BUF_SIZE: usize> UdpStream<BUF_SIZE> {
     /// - There are no clear situations which could lead to this returning `None`. Wrapping the
     ///   returned data in an `Option` is done purely to maintain a consistent API with expectations
     ///   on an Iterator / Stream
-    pub fn next<'s>(&'s mut self) -> Next<'s, BUF_SIZE> {
-        Next { stream: self }
-    }
-
-    /// Sends data from the UDP socket once `await`ed
-    ///
-    /// Awaiting returns an `io::Result<usize>` confirming the number of bytes sent.
-    ///
-    /// #### Note
-    /// - While this function will accept multiple addresses, currently data is only sent to the
-    ///   first one (TODO)
-    /// - If an empty list of addresses the error will be of kind `io::ErrorKind::InvalidInput`
-    pub fn push<'s, 'b, A: ToSocketAddrs + Unpin>(
-        &'s mut self,
-        buf: &'b [u8],
-        addr: A,
-    ) -> Push<'s, 'b, A, BUF_SIZE> {
-        Push {
-            stream: self,
-            buf,
-            addr,
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let evented_socket = self.as_mut().as_evented_socket_pin();
+        match evented_socket.poll_read_ready(cx) {
+            Poll::Ready(is_ready) => match is_ready {
+                Ok(readiness) => match readiness.is_readable() {
+                    true => {
+                        let mut buf: [u8; BUF_SIZE] = [b'\x00'; BUF_SIZE];
+                        let recv = self
+                            .as_socket()
+                            .recv_from(&mut buf)
+                            .map(|(len, addr)| (buf, len, addr));
+                        match recv {
+                            Ok(_) => Poll::Ready(Some(recv)),
+                            Err(e) => self.unblock(Err(e), cx).map_ok(|x| x).map(Some),
+                        }
+                    }
+                    false => self.clear_ready(cx).map_ok(|x| x).map(Some),
+                },
+                Err(e) => self.unblock(Err(e), cx).map_ok(|x| x).map(Some),
+            },
+            Poll::Pending => Poll::Pending,
         }
-    }
-}
-
-/// The future returned by [UdpStream::push]
-#[derive(Debug)]
-pub struct Push<'stream, 'buf, A: ToSocketAddrs + Unpin, const _BUF_SIZE: usize> {
-    stream: &'stream mut UdpStream<_BUF_SIZE>,
-    buf: &'buf [u8],
-    addr: A,
-}
-
-impl<'stream, 'buf, A: ToSocketAddrs + Unpin, const _BS: usize> Future
-    for Push<'stream, 'buf, A, _BS>
-{
-    type Output = io::Result<usize>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let this = &mut *self;
-        let stream = &mut *this.stream;
-        ready!(stream.poll_write_ready_unpin(cx)?);
-
-        let socket = stream.as_socket();
-
-        let addr = this
-            .addr
-            .to_socket_addrs()?
-            .next()
-            .ok_or(io::Error::from(io::ErrorKind::InvalidInput))?;
-
-        let result = socket.send_to(this.buf, &addr);
-
-        if let Err(ref e) = result
-            && e.kind() == io::ErrorKind::WouldBlock
-        {
-            let pinned = Pin::new(&mut *stream);
-            pinned.clear_write_ready(cx)?;
-            Poll::Pending
-        } else {
-            Poll::Ready(result)
-        }
-    }
-}
-
-/// The future returned by [UdpStream::next]
-#[derive(Debug)]
-pub struct Next<'stream, const BUF_SIZE: usize> {
-    stream: &'stream mut UdpStream<BUF_SIZE>,
-}
-
-impl<'stream, const BUF_SIZE: usize> Future for Next<'stream, BUF_SIZE> {
-    type Output = Option<io::Result<([u8; BUF_SIZE], usize, SocketAddr)>>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let this = &mut *self;
-        let stream = &mut *this.stream;
-        ready!(stream.poll_read_ready_unpin(cx)?);
-
-        let socket = stream.as_socket();
-
-        // Maximum data length for a UDP Datagram
-        // see https://en.wikipedia.org/wiki/User_Datagram_Protocol#UDP_datagram_structure
-        let mut buf: [u8; BUF_SIZE] = [b'\x00'; BUF_SIZE];
-
-        let result = socket
-            .recv_from(&mut buf)
-            .map(|(len, addr)| (buf, len, addr));
-
-        if let Err(ref e) = result
-            && e.kind() == io::ErrorKind::WouldBlock
-        {
-            let pinned = Pin::new(&mut *stream);
-            pinned.clear_read_ready(cx)?;
-            Poll::Pending
-        } else {
-            Poll::Ready(Some(result))
-        }
-    }
-}
-
-/// The future returned by `UdpStream::recv_from`
-#[derive(Debug)]
-pub struct RecvFrom<'listener, 'buf, const _BUF_SIZE: usize> {
-    listener: &'listener mut UdpStream<_BUF_SIZE>,
-    buf: &'buf mut [u8],
-}
-
-impl<'listener, 'buf, const _BS: usize> Future for RecvFrom<'listener, 'buf, _BS> {
-    type Output = io::Result<(usize, SocketAddr)>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let RecvFrom { listener, buf } = &mut *self;
-        Pin::new(&mut **listener).poll_recv_from(cx, buf)
-    }
-}
-
-/// Private functions for handling readiness to read.
-impl<const BUF_SIZE: usize> UdpStream<BUF_SIZE> {
-    /// Receives data from the IO interface if it is ready to read.
-    ///
-    /// If successful, returns the number of bytes read and the target from whence the data came.
-    fn poll_recv_from(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<Result<(usize, std::net::SocketAddr), io::Error>> {
-        let listener = &mut *self;
-        ready!(listener.poll_read_ready_unpin(cx)?);
-
-        let socket = listener.as_socket();
-        let result = socket.recv_from(buf);
-
-        if let Err(ref e) = result
-            && e.kind() == io::ErrorKind::WouldBlock
-        {
-            self.clear_read_ready(cx)?;
-            Poll::Pending
-        } else {
-            Poll::Ready(result)
-        }
-    }
-
-    /// Converts a pinned `&mut UdpStream` to a pinned &mut of the underlying pollevented socket
-    /// allowing for calls to traits and functions implemented by [PollEvented]
-    fn pinned_io(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>> {
-        let listener = self.get_mut();
-        let io = &mut listener.io;
-        Pin::new(&mut *io)
-    }
-
-    /// Needed to handle non-blocking errors in [futures::AsyncRead].
-    /// See [futures_net::driver::PollEvented] for an explanation.
-    fn clear_read_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
-        self.pinned_io().clear_read_ready(cx)
-    }
-
-    /// Needed to handle non-blocking errors in [futures::AsyncWrite].
-    /// See [futures_net::driver::PollEvented] for an explanation.
-    fn clear_write_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
-        let socket = Pin::new(&mut self.io);
-        socket.clear_write_ready(cx)
-    }
-}
-
-impl<const _BUF_SIZE: usize> AsyncReadReady for UdpStream<_BUF_SIZE> {
-    type Ok = Ready;
-
-    type Err = io::Error;
-
-    fn poll_read_ready(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<Self::Ok, Self::Err>> {
-        self.pinned_io().poll_read_ready(cx)
-    }
-}
-
-impl<const _BUF_SIZE: usize> AsyncWriteReady for UdpStream<_BUF_SIZE> {
-    type Ok = Ready;
-
-    type Err = io::Error;
-
-    fn poll_write_ready(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<Self::Ok, Self::Err>> {
-        self.pinned_io().poll_write_ready(cx)
     }
 }
 
@@ -403,40 +271,42 @@ impl EventedUdpSocket for UdpSink {
     }
 
     fn as_evented_socket_pin(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>> {
-        let listener = self.get_mut();
-        let io = &mut listener.io;
+        let this = self.get_mut();
+        let io = &mut this.io;
         Pin::new(&mut *io)
+    }
+
+    fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<!>> {
+        match self.as_evented_socket_pin().clear_write_ready(cx) {
+            Ok(_) => Poll::Pending,
+            Err(e) => Poll::Ready(Err(e)),
+        }
     }
 }
 
 impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
     type Error = io::Error;
 
-    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        let socket = self.as_evented_socket_pin();
-        // Not sure whether PollEvented::poll_write_ready() returning a `Result<Ready>`
-        // conveys additional meaningful information, so for saftey not simply using
-        // `ready!(...map(|_| ()))` and instead double-checking readiness kind
-        match socket.poll_write_ready(cx) {
-            Poll::Ready(result) => match result {
-                Ok(ready) => match ready.is_writable() {
+    /// Attempts to prepare the Sink to receive a value.
+    ///
+    /// This method must be called and return Poll::Ready(Ok(())) prior to each call to start_send.
+    ///
+    /// This method returns Poll::Ready once the underlying sink is ready to receive data.
+    /// If this method returns Poll::Pending, the current task is registered to be notified
+    /// (via cx.waker().wake_by_ref()) when poll_ready should be called again.
+    ///
+    /// If the attempt to poll readiness fails this method will properly handle
+    /// it by calling [Self::clear_ready]/[Self::unblock] to ensure the underlying socket does not
+    /// remain blocked.
+    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        let evented_socket = self.as_mut().as_evented_socket_pin();
+        match evented_socket.poll_write_ready(cx) {
+            Poll::Ready(is_ready) => match is_ready {
+                Ok(readiness) => match readiness.is_writable() {
                     true => Poll::Ready(Ok(())),
-                    false => {
-                        //TODO could this be nastily fatal?
-                        //     it's what futures_net does in `impl AsyncRead/Write for PollEvented`
-                        socket.clear_write_ready(cx)?;
-                        Poll::Pending
-                    }
+                    false => self.clear_ready(cx).map_ok(|x| x),
                 },
-                Err(e) => match e.kind() {
-                    io::ErrorKind::WouldBlock => {
-                        //TODO could this be nastily fatal?
-                        //     it's what futures_net does in `impl AsyncRead/Write for PollEvented`
-                        socket.clear_write_ready(cx)?;
-                        Poll::Pending
-                    }
-                    _ => Poll::Ready(Err(e)),
-                },
+                Err(e) => self.unblock(Err(e), cx).map_ok(|x| x),
             },
             Poll::Pending => Poll::Pending,
         }
@@ -447,9 +317,6 @@ impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
     ///   first one (TODO)
     /// - If an empty list of addresses the error will be of kind `io::ErrorKind::InvalidInput`
     fn start_send(self: Pin<&mut Self>, item: (&[u8], &A)) -> Result<(), Self::Error> {
-        //TODO Implementations of poll_ready and start_send will usually involve flushing behind
-        //     the scenes in order to make room for new messages.
-
         let socket = self.as_socket();
         let (msg, addr) = item;
         let addr = addr
@@ -472,8 +339,7 @@ impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
     /// Await write readiness indicating that all pending messages have been sent, then return
     /// as a no-op (`UdpSockets` do not have an inherent `flush` method).
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        ready!(self.as_evented_socket_pin().poll_write_ready(cx)?);
-        Poll::Ready(Ok(()))
+        <Self as futures::Sink<(&[u8], &A)>>::poll_ready(self, cx)
     }
 
     // TODO: it would be nice to be able to annote these situations with as eg `Poll<!>`
@@ -491,7 +357,7 @@ mod tests {
     use std::net::{Ipv4Addr, SocketAddrV4};
 
     use super::*;
-    use futures::SinkExt;
+    use futures::{SinkExt, StreamExt};
     use futures_net::runtime::Runtime;
 
     #[futures_net::test]
