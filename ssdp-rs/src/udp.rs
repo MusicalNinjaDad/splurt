@@ -205,11 +205,10 @@ impl<const BUF_SIZE: usize> Stream for UdpStream<BUF_SIZE> {
                             Err(error) => self.would_block(Err(error), cx).map_ok(|x| x),
                         }
                     }
-                    false => {
-                        let evented_socket = self.as_mut().as_evented_socket_pin();
-                        evented_socket.clear_read_ready(cx)?;
-                        Poll::Pending
-                    }
+                    false => match self.clear_ready(cx) {
+                        Ok(_) => Poll::Pending,
+                        Err(e) => Poll::Ready(Some(Err(e))),
+                    },
                 },
                 Err(e) => self.would_block(Err(e), cx).map_ok(|x| x),
             },
