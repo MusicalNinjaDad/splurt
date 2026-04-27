@@ -5,7 +5,7 @@ use std::{
 
 use futures::prelude::*;
 use futures_net::{TcpListener, TcpStream, runtime::Runtime};
-use ssdp_rs::udp::{EventedUdpSocket, UdpConnectedStream, UdpStream};
+use ssdp_rs::udp::{EventedUdpSocket, UdpConnectedStream, UdpSink, UdpStream};
 
 #[futures_net::test]
 async fn tcp() {
@@ -176,7 +176,7 @@ async fn push_to_send() {
     let rec_addr = receiver.local_addr().expect("bound port");
     dbg!(rec_addr);
 
-    let mut sender = UdpStream::<32>::bind(addr).expect("sender");
+    let mut sender = UdpSink::bind(addr).expect("sender");
     let send_addr = sender.local_addr().expect("bound port");
     dbg!(send_addr);
 
@@ -187,7 +187,7 @@ async fn push_to_send() {
 
     let send = async move {
         println!("sending {}", String::from_utf8_lossy(msg));
-        sender.push(msg, rec_addr).await.expect("send msg");
+        sender.send((msg, &rec_addr)).await.expect("send msg");
     };
 
     let rec = async {
