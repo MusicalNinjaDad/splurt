@@ -31,7 +31,7 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4},
 };
 
-use futures::{FutureExt, SinkExt, StreamExt};
+use futures::{FutureExt, SinkExt, Stream, StreamExt};
 use uuid::Uuid;
 
 use crate::{
@@ -40,7 +40,8 @@ use crate::{
 };
 
 const MULTICAST_IP: Ipv4Addr = Ipv4Addr::new(239, 255, 255, 250);
-const MUTLICAST_SOCKET: SocketAddr = SocketAddr::new(IpAddr::V4(MULTICAST_IP), 1900);
+const SSDP_PORT: u16 = 1900;
+const MUTLICAST_SOCKET: SocketAddr = SocketAddr::new(IpAddr::V4(MULTICAST_IP), SSDP_PORT);
 const MAX_MSG_SIZE: usize = 1024;
 
 #[derive(Debug)]
@@ -54,6 +55,39 @@ pub struct Searcher {
     product_version: String,
     friendly_name: String,
     uuid: Uuid,
+}
+
+#[derive(Debug)]
+pub struct Listener {
+    incoming: UdpStream<MAX_MSG_SIZE>,
+}
+
+impl Listener {
+    pub fn new(addr: Ipv4Addr) -> io::Result<Self> {
+        let addr = SocketAddrV4::new(addr, SSDP_PORT).into();
+        let mut incoming = UdpStream::bind(addr)?;
+        let IpAddr::V4(interface) = incoming.local_addr()?.ip() else {
+            unimplemented!("no IPv6 support")
+        };
+        incoming
+            .as_socket_mut()
+            .join_multicast_v4(&MULTICAST_IP, &interface)?;
+        Ok(Self { incoming })
+    }
+}
+
+impl Stream for Listener {
+    type Item = io::Result<(String, SocketAddr)>;
+
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        self.as_mut()
+            .incoming
+            .poll_next_unpin(cx)
+            .map_ok(|(msg, len, addr)| (String::from_utf8_lossy(&msg[..len]).to_string(), addr))
+    }
 }
 
 impl Searcher {
