@@ -52,7 +52,12 @@ fn main() -> Exit<()> {
 
     match &splurt.command {
         Command::Listen => {
-            let mut searcher = Searcher::new("splurt", "v0.0.1", "splurt ssdp repeater")?;
+            let mut searcher = Searcher::new(
+                Ipv4Addr::UNSPECIFIED,
+                "splurt",
+                "v0.0.1",
+                "splurt ssdp repeater",
+            )?;
             let search = async {
                 try bikeshed Exit<()> {
                     println!("sending an M-SEARCH");

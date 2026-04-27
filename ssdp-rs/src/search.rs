@@ -89,8 +89,13 @@ pub struct Searcher {
 }
 
 impl Searcher {
-    pub fn new(product_name: &str, product_version: &str, friendly_name: &str) -> io::Result<Self> {
-        let addr = SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 1900).into();
+    pub fn new(
+        addr: Ipv4Addr,
+        product_name: &str,
+        product_version: &str,
+        friendly_name: &str,
+    ) -> io::Result<Self> {
+        let addr = SocketAddrV4::new(addr, 1900).into();
         let uuid = Uuid::new_v4();
         let os_info = osinfo::get();
         let os = os_info.get_name();
