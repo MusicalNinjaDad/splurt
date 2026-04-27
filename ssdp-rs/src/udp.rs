@@ -204,8 +204,6 @@ impl<const BUF_SIZE: usize> Stream for UdpStream<BUF_SIZE> {
     ///   returned data in an `Option` is done purely to maintain a consistent API with expectations
     ///   on an Iterator / Stream
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        // PollEvented::poll_read_ready consumes the input,unlike PollEvented::poll_write_ready.
-        // So we need to reborrow in order to later call clear_read_ready.
         let evented_socket = self.as_mut().as_evented_socket_pin();
         match evented_socket.poll_read_ready(cx) {
             Poll::Ready(is_ready) => match is_ready {
