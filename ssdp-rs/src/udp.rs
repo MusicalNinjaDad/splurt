@@ -419,6 +419,7 @@ impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
 
     fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         let socket = self.as_evented_socket_pin();
+        //TODO simplify with ready!()
         match socket.poll_write_ready(cx) {
             Poll::Ready(result) => match result {
                 Ok(ready) => match ready.is_writable() {
@@ -471,8 +472,11 @@ impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
         })
     }
 
+    /// Await write readiness indicating that all pending messages have been sent, then return
+    /// as a no-op (`UdpSockets` do not have an inherent `flush` method).
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        todo!("udpsink poll_flush")
+        ready!(self.as_evented_socket_pin().poll_write_ready(cx)?);
+        Poll::Ready(Ok(()))
     }
 
     fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
