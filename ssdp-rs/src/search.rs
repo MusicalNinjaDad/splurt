@@ -29,10 +29,9 @@
 use std::{
     io,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
-    task::Poll,
 };
 
-use futures::{FutureExt, SinkExt, StreamExt, ready};
+use futures::{FutureExt, SinkExt, StreamExt};
 use uuid::Uuid;
 
 use crate::{
@@ -98,34 +97,13 @@ impl Searcher {
         Search { outgoing, msg }
     }
 
-    pub fn next<'s>(&'s mut self) -> Next<'s> {
-        Next { searcher: self }
-    }
-}
-
-/// The future returned by [Searcher::next]
-pub struct Next<'searcher> {
-    searcher: &'searcher mut Searcher,
-}
-
-impl<'searcher> Future for Next<'searcher> {
-    type Output = Option<io::Result<(String, SocketAddr)>>;
-
-    fn poll(
-        mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Self::Output> {
-        let this = &mut *self;
-        let searcher = &mut *this.searcher;
-        let stream = &mut searcher.incoming;
-        let reply = ready!(stream.next().poll_unpin(cx));
-        match reply {
-            Some(reply) => {
-                let (reply, _, sender) = reply?;
-                let reply = String::from_utf8_lossy(&reply).to_string();
-                Poll::Ready(Some(Ok((reply, sender))))
+    pub async fn next(&mut self) -> Option<io::Result<(String, SocketAddr)>> {
+        match self.incoming.next().await? {
+            Ok((msg, len, sender)) => {
+                let msg = String::from_utf8_lossy(&msg[..len]).to_string();
+                Some(Ok((msg, sender)))
             }
-            None => Poll::Ready(None),
+            Err(e) => Some(Err(e)),
         }
     }
 }
