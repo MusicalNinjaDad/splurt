@@ -32,17 +32,18 @@ use std::{
     task::Poll,
 };
 
-use futures::{FutureExt, ready};
+use futures::{FutureExt, SinkExt, ready};
 use uuid::Uuid;
 
 use crate::{
     message::Message,
-    udp::{EventedUdpSocket, UdpStream},
+    udp::{EventedUdpSocket, UdpSink, UdpStream},
 };
 
 #[derive(Debug)]
 pub struct Searcher {
     incoming: UdpStream<512>,
+    outgoing: UdpSink,
     mx: u8,
     os: String,
     os_version: String,
@@ -61,6 +62,7 @@ impl Searcher {
         let os_version = os_info.get_version().to_string();
         Ok(Searcher {
             incoming: UdpStream::bind(addr)?,
+            outgoing: UdpSink::bind(addr)?,
             mx: 5,
             os,
             os_version,
@@ -73,7 +75,8 @@ impl Searcher {
 
     pub fn search<'s>(&'s mut self) -> Search<'s> {
         let Searcher {
-            incoming: stream,
+            incoming: _,
+            outgoing,
             mx,
             os,
             os_version,
@@ -92,10 +95,7 @@ impl Searcher {
             *uuid,
         )
         .to_string();
-        Search {
-            searcher: stream,
-            msg,
-        }
+        Search { outgoing, msg }
     }
 
     pub fn next<'s>(&'s mut self) -> Next<'s> {
@@ -132,7 +132,7 @@ impl<'searcher> Future for Next<'searcher> {
 
 /// The future returned by [Searcher::search]
 pub struct Search<'searcher> {
-    searcher: &'searcher mut UdpStream<512>,
+    outgoing: &'searcher mut UdpSink,
     msg: String,
 }
 
@@ -144,12 +144,11 @@ impl<'searcher> Future for Search<'searcher> {
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
         let this = &mut *self;
-        let stream = &mut *this.searcher;
+        let sink = &mut *this.outgoing;
         let msg = this.msg.as_bytes();
         let ssdp_multicast = Ipv4Addr::new(239, 255, 255, 250);
         let ssdp_multicast = SocketAddr::new(ssdp_multicast.into(), 1900);
-        stream
-            .push(msg, ssdp_multicast)
+        sink.send((msg, &ssdp_multicast))
             .poll_unpin(cx)
             .map_ok(|_| ())
     }
