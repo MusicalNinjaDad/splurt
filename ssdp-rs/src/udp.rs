@@ -114,6 +114,20 @@ where
     /// Converts a pinned `&mut Self` to a pinned &mut of the underlying pollevented socket
     /// allowing for calls to traits and functions implemented by [PollEvented]
     fn as_evented_socket_pin(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>>;
+
+    /// Check whether this socket is ready for the intended default action.
+    ///
+    /// Implementations should:
+    /// - call `poll_xxx_ready` on the underlying socket
+    /// - validate the readiness returned
+    /// - in case of suitable readiness *or a non-blocking error*:
+    ///   -  return `Poll::Ready`
+    /// - in case of a blocking error:
+    ///   - call `self.clear_ready()`,
+    ///   - then return Poll:Pending
+    /// - in case not suitably ready:
+    ///   - return Poll::Pending
+    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>>;
 }
 
 impl<const _BS: usize> EventedUdpSocket for UdpStream<_BS> {
@@ -135,6 +149,10 @@ impl<const _BS: usize> EventedUdpSocket for UdpStream<_BS> {
         let listener = self.get_mut();
         let io = &mut listener.io;
         Pin::new(&mut *io)
+    }
+
+    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        todo!("socket poll_ready")
     }
 }
 
@@ -348,6 +366,10 @@ impl EventedUdpSocket for UdpSink {
         let listener = self.get_mut();
         let io = &mut listener.io;
         Pin::new(&mut *io)
+    }
+
+    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        todo!("sink poll_ready")
     }
 }
 
