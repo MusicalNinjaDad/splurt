@@ -6,7 +6,10 @@ use std::{
 };
 
 use async_ready::{AsyncReadReady, AsyncWriteReady};
-use futures::{AsyncWrite, AsyncWriteExt};
+use futures::{
+    AsyncWrite, AsyncWriteExt,
+    sink::{Sink, SinkExt},
+};
 use futures_net::driver::{
     PollEvented,
     sys::{self, event::Ready},
@@ -393,6 +396,26 @@ impl EventedUdpSocket for UdpSink {
     }
 }
 
+impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
+    type Error = io::Error;
+
+    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        todo!("udpsink poll_ready")
+    }
+
+    fn start_send(self: Pin<&mut Self>, item: (&[u8], &A)) -> Result<(), Self::Error> {
+        todo!("udpsink start_send")
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        todo!("udpsink poll_flush")
+    }
+
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        todo!("udpsink poll_close")
+    }
+}
+
 pub struct UdpConnectedStream {
     /// The underlying, evented Socket.
     ///
@@ -662,11 +685,14 @@ mod tests {
         let mut receiver = UdpStream::<8>::bind(addr).expect("receiver");
         let rec_addr = receiver.local_addr().expect("bound port");
 
-        let mut sender = UdpStream::<8>::bind(addr).expect("sender");
+        let mut sender = UdpSink::bind(addr).expect("sender");
         let original_msg = b"udp loopback test";
 
         let send = async move {
-            sender.push(original_msg, rec_addr).await.expect("send msg");
+            sender
+                .send((original_msg, &rec_addr))
+                .await
+                .expect("send msg");
         };
 
         let rec = async {
