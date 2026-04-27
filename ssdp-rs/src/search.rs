@@ -35,7 +35,10 @@ use std::{
 use futures::{FutureExt, ready};
 use uuid::Uuid;
 
-use crate::{message::Message, udp::UdpStream};
+use crate::{
+    message::Message,
+    udp::{EventedUdpSocket, UdpStream},
+};
 
 #[derive(Debug)]
 pub struct Searcher {
