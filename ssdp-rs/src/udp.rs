@@ -258,7 +258,10 @@ impl EventedUdpSocket for UdpSink {
     }
 
     fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<io::Result<!>>> {
-        todo!("sink clear_ready")
+        match self.as_evented_socket_pin().clear_write_ready(cx) {
+            Ok(_) => Poll::Pending,
+            Err(e) => Poll::Ready(Some(Err(e))),
+        }
     }
 }
 
