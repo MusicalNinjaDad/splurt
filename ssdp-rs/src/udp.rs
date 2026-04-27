@@ -192,17 +192,17 @@ impl<const BUF_SIZE: usize> Stream for UdpStream<BUF_SIZE> {
         // So we need to reborrow in order to later call clear_read_ready.
         let evented_socket = self.as_mut().as_evented_socket_pin();
         match evented_socket.poll_read_ready(cx) {
-            Poll::Ready(result) => match result {
-                Ok(ready) => match ready.is_readable() {
+            Poll::Ready(is_ready) => match is_ready {
+                Ok(readiness) => match readiness.is_readable() {
                     true => {
                         let mut buf: [u8; BUF_SIZE] = [b'\x00'; BUF_SIZE];
-                        let result = self
+                        let recv = self
                             .as_socket()
                             .recv_from(&mut buf)
                             .map(|(len, addr)| (buf, len, addr));
-                        match result {
-                            Ok(_) => Poll::Ready(Some(result)),
-                            Err(error) => self.would_block(Err(error), cx).map_ok(|x| x),
+                        match recv {
+                            Ok(_) => Poll::Ready(Some(recv)),
+                            Err(e) => self.would_block(Err(e), cx).map_ok(|x| x),
                         }
                     }
                     false => self.clear_ready(cx).map_ok(|x| x),
