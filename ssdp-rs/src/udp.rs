@@ -432,7 +432,7 @@ impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
                     io::ErrorKind::WouldBlock => {
                         //TODO could this be nastily fatal?
                         //     it's what futures_net does in `impl AsyncRead/Write for PollEvented`
-                        socket.clear_read_ready(cx)?;
+                        socket.clear_write_ready(cx)?;
                         Poll::Pending
                     }
                     _ => Poll::Ready(Err(e)),
