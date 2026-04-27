@@ -355,6 +355,44 @@ impl<const _BUF_SIZE: usize> AsyncWriteReady for UdpStream<_BUF_SIZE> {
     }
 }
 
+#[derive(Debug)]
+/// A non-blocking async UdpSocket with ability to `send_to` via `send` and make use of all the
+/// niceties that come with [`futures::sink::Sink`] and [`futures::sink::SinkExt`].
+///
+/// #### Note
+/// - This does NOT have exclusive access to the bound port. If you want to guarantee that
+///   no other processes bind to the same socket use a [UdpConnectedStream], which will exclusively
+///   claim the port (or vote thumbs up on issue #22 TODO: implement `bind_exclusive` etc.)
+pub struct UdpSink {
+    /// The underlying, evented Socket.
+    ///
+    /// #### Note
+    /// - [`futures_net::UdpSocket`] does NOT implement [futures_net::driver::sys::event::Evented]
+    ///   and is NOT the same type as stored here.
+    /// - [`futures_net::driver::sys::net::UdpSocket`] is not actually non-blocking, despite the
+    ///   documentation.
+    /// - Neither [std::sys::net::UdpSocket], nor [net2::UdpBuilder] expose `set_nonblocking()` so
+    ///   we need use [socket2::Socket] while building the listener but are unable to change
+    ///   blocking or exclusivity after construction.
+    io: PollEvented<sys::net::UdpSocket>,
+}
+
+impl EventedUdpSocket for UdpSink {
+    fn from_evented_socket(evented_socket: PollEvented<sys::net::UdpSocket>) -> io::Result<Self> {
+        Ok(Self { io: evented_socket })
+    }
+
+    fn as_socket(&self) -> &sys::net::UdpSocket {
+        let io = &self.io;
+        io.get_ref()
+    }
+
+    fn as_socket_mut(&mut self) -> &mut sys::net::UdpSocket {
+        let io = &mut self.io;
+        io.get_mut()
+    }
+}
+
 pub struct UdpConnectedStream {
     /// The underlying, evented Socket.
     ///
