@@ -5,11 +5,10 @@ use std::{
     task::{Context, Poll, ready},
 };
 
-use async_ready::{AsyncReadReady, AsyncWriteReady};
 use futures::{Stream, sink::Sink};
 use futures_net::driver::{
     PollEvented,
-    sys::{self, event::Ready},
+    sys::{self},
 };
 use socket2::{Domain, Type};
 
@@ -160,7 +159,7 @@ impl<const _BS: usize> EventedUdpSocket for UdpStream<_BS> {
     }
 
     fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
-        self.clear_read_ready(cx)
+        self.as_evented_socket_pin().clear_read_ready(cx)
     }
 }
 
@@ -216,109 +215,6 @@ impl<const BUF_SIZE: usize> Stream for UdpStream<BUF_SIZE> {
             },
             Poll::Pending => Poll::Pending,
         }
-    }
-}
-
-mod useful_docs {
-    use super::*;
-
-    impl<const BUF_SIZE: usize> UdpStream<BUF_SIZE> {
-        /// Receives data from the IO interface once `await`ed.
-        ///
-        /// Awaiting returns the number of bytes read and the target from whence the data as an
-        /// `io::Result<(usize, SocketAddr)>`
-        pub fn recv_from<'listener, 'buf>(
-            &'listener mut self,
-            buf: &'buf mut [u8],
-        ) -> RecvFrom<'listener, 'buf, BUF_SIZE> {
-            RecvFrom {
-                buf,
-                listener: self,
-            }
-        }
-    }
-}
-
-/// The future returned by `UdpStream::recv_from`
-#[derive(Debug)]
-pub struct RecvFrom<'listener, 'buf, const _BUF_SIZE: usize> {
-    listener: &'listener mut UdpStream<_BUF_SIZE>,
-    buf: &'buf mut [u8],
-}
-
-impl<'listener, 'buf, const _BS: usize> Future for RecvFrom<'listener, 'buf, _BS> {
-    type Output = io::Result<(usize, SocketAddr)>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let RecvFrom { listener, buf } = &mut *self;
-        Pin::new(&mut **listener).poll_recv_from(cx, buf)
-    }
-}
-
-/// Private functions for handling readiness to read.
-impl<const BUF_SIZE: usize> UdpStream<BUF_SIZE> {
-    /// Receives data from the IO interface if it is ready to read.
-    ///
-    /// If successful, returns the number of bytes read and the target from whence the data came.
-    fn poll_recv_from(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<Result<(usize, std::net::SocketAddr), io::Error>> {
-        let listener = &mut *self;
-        ready!(listener.poll_read_ready_unpin(cx)?);
-
-        let socket = listener.as_socket();
-        let result = socket.recv_from(buf);
-
-        if let Err(ref e) = result
-            && e.kind() == io::ErrorKind::WouldBlock
-        {
-            self.clear_read_ready(cx)?;
-            Poll::Pending
-        } else {
-            Poll::Ready(result)
-        }
-    }
-
-    /// Converts a pinned `&mut UdpStream` to a pinned &mut of the underlying pollevented socket
-    /// allowing for calls to traits and functions implemented by [PollEvented]
-    fn pinned_io(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>> {
-        let listener = self.get_mut();
-        let io = &mut listener.io;
-        Pin::new(&mut *io)
-    }
-
-    /// Needed to handle non-blocking errors in [futures::AsyncRead].
-    /// See [futures_net::driver::PollEvented] for an explanation.
-    fn clear_read_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
-        self.pinned_io().clear_read_ready(cx)
-    }
-}
-
-impl<const _BUF_SIZE: usize> AsyncReadReady for UdpStream<_BUF_SIZE> {
-    type Ok = Ready;
-
-    type Err = io::Error;
-
-    fn poll_read_ready(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<Self::Ok, Self::Err>> {
-        self.pinned_io().poll_read_ready(cx)
-    }
-}
-
-impl<const _BUF_SIZE: usize> AsyncWriteReady for UdpStream<_BUF_SIZE> {
-    type Ok = Ready;
-
-    type Err = io::Error;
-
-    fn poll_write_ready(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<Self::Ok, Self::Err>> {
-        self.pinned_io().poll_write_ready(cx)
     }
 }
 
