@@ -128,6 +128,11 @@ where
     /// `Poll<Result<T>>`. Work around this by calling `.map_ok(|x| x)` as a no-op to force the
     /// compiler to notice that everything is fine.
     fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<!>>;
+    // TODO: #30 Should an error during clear_ready be clearly fatal?
+    //       One option would be to return a `Poll<Option<!>>`, thus differentiating it
+    //       from unblock processing a non-blocking error. This would lead to a Stream
+    //       delivering `None` and thus signalling it is dead. But it would lose the
+    //       details of the error which occurred.
 
     /// Checks whether `error` will block the underlying Socket and either:
     /// - calls [Self::clear_ready] for blocking errors
