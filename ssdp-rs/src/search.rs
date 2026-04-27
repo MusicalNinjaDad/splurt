@@ -3,22 +3,29 @@
 //! ## Example usage
 //! ```no_run
 //! # // no reply possible so not run as test to avoid endless loop
-//! # use std::io;
-//! use ssdp_rs::search::Searcher;
+//! # use std::{io, net::Ipv4Addr};
+//! use futures::StreamExt;
+//! use ssdp_rs::search::{Listener, Searcher};
 //!
 //! # fn main() -> io::Result<()> {
 //! // Create a new searcher
-//! let mut searcher = Searcher::new("splurt", "0.0.1", "splurt ssdp message repeater")?;
+//! let mut searcher = Searcher::new(
+//!     Ipv4Addr::UNSPECIFIED,
+//!     "splurt",
+//!     "v0.0.1",
+//!     "splurt ssdp repeater",
+//! )?;
 //!
 //! // run a search - can call next().await on the result
 //! # futures::executor::block_on( async {
 //! searcher.search().await.expect("search executed");
 //! # });
 //!
-//! // get the results
+//! // listen for messages on your network
+//! let mut listener = Listener::new(Ipv4Addr::UNSPECIFIED)?;
 //! # futures::executor::block_on( async {
 //! loop {
-//!     let answer = searcher.next().await;
+//!     let answer = listener.next().await;
 //!     // do something with answer
 //! }
 //! # });

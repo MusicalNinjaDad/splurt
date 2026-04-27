@@ -13,7 +13,7 @@ use clap::Parser;
 use cotton_netif::get_interfaces;
 use cotton_ssdp::{Advertisement, AsyncService, Notification};
 use exit_safely::Termination;
-use futures_util::StreamExt;
+use futures::StreamExt;
 use try_v2::{Try, Try_ConvertResult};
 use uuid::Uuid;
 
