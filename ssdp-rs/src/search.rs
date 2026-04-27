@@ -41,10 +41,11 @@ use crate::{
 
 const MULTICAST_IP: Ipv4Addr = Ipv4Addr::new(239, 255, 255, 250);
 const MUTLICAST_SOCKET: SocketAddr = SocketAddr::new(IpAddr::V4(MULTICAST_IP), 1900);
+const MAX_MSG_SIZE: usize = 1024;
 
 #[derive(Debug)]
 pub struct Searcher {
-    incoming: UdpStream<512>,
+    incoming: UdpStream<MAX_MSG_SIZE>,
     outgoing: UdpSink,
     mx: u8,
     os: String,
