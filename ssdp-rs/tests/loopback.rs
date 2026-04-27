@@ -82,7 +82,7 @@ async fn stream_and_sink() {
     let rec = async {
         println!("initiating receiver");
         let (msg, len, sent_by) = receiver
-            ._next()
+            .next()
             .await
             .expect("a message")
             .expect("a valid message");
