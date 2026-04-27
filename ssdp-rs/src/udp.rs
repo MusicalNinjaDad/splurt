@@ -138,63 +138,67 @@ impl<const _BS: usize> EventedUdpSocket for UdpStream<_BS> {
     }
 }
 
-impl<const BUF_SIZE: usize> UdpStream<BUF_SIZE> {
-    /// Receives data from the IO interface once `await`ed.
-    ///
-    /// Awaiting returns the number of bytes read and the target from whence the data as an
-    /// `io::Result<(usize, SocketAddr)>`
-    pub fn recv_from<'listener, 'buf>(
-        &'listener mut self,
-        buf: &'buf mut [u8],
-    ) -> RecvFrom<'listener, 'buf, BUF_SIZE> {
-        RecvFrom {
-            buf,
-            listener: self,
+mod useful_docs {
+    use super::*;
+
+    impl<const BUF_SIZE: usize> UdpStream<BUF_SIZE> {
+        /// Receives data from the IO interface once `await`ed.
+        ///
+        /// Awaiting returns the number of bytes read and the target from whence the data as an
+        /// `io::Result<(usize, SocketAddr)>`
+        pub fn recv_from<'listener, 'buf>(
+            &'listener mut self,
+            buf: &'buf mut [u8],
+        ) -> RecvFrom<'listener, 'buf, BUF_SIZE> {
+            RecvFrom {
+                buf,
+                listener: self,
+            }
         }
-    }
 
-    /// Receives data from the IO interface once `await`ed.
-    ///
-    /// Awaiting returns an array of bytes containing the message received, the message length
-    /// and the target from whence the data came as an
-    /// `Option<io::Result<([u8; BUF_SIZE], usize, SocketAddr)>>`
-    ///
-    /// #### Note
-    ///
-    /// - Messages received via [UdpStream::next] will be provided as an array of bytes of length
-    ///   `BUF_SIZE`. This is a generic const to allow avoid us having to allocate a 65k buffer on each
-    ///   call to next in order to cover the max possible UDP datagram size.
-    /// - It is your responsibility to ensure that `BUF_SIZE` is large enough to hold the largest UDP
-    ///   datagram your protocol expects; if it is smaller than the incoming datagram size, the datagram
-    ///   will be truncated in the output from `next`. You cannot rely on the returned `bytes_read` value
-    ///   to indicate truncation as this will also be set to the buffer length, not the full size of the
-    ///   truncated message (this is the underlying behaviour of the libc call `recv_from`).
-    /// - All bytes after the actual message will be NULL so it can be directly converted to a String,
-    ///   for example, without first slicing. Other data manipulation should take into account the actual length.
-    /// - There are no clear situations which could lead to this returning `None`. Wrapping the
-    ///   returned data in an `Option` is done purely to maintain a consistent API with expectations
-    ///   on an Iterator / Stream
-    pub fn next<'s>(&'s mut self) -> Next<'s, BUF_SIZE> {
-        Next { stream: self }
-    }
+        /// Receives data from the IO interface once `await`ed.
+        ///
+        /// Awaiting returns an array of bytes containing the message received, the message length
+        /// and the target from whence the data came as an
+        /// `Option<io::Result<([u8; BUF_SIZE], usize, SocketAddr)>>`
+        ///
+        /// #### Note
+        ///
+        /// - Messages received via [UdpStream::next] will be provided as an array of bytes of length
+        ///   `BUF_SIZE`. This is a generic const to allow avoid us having to allocate a 65k buffer on each
+        ///   call to next in order to cover the max possible UDP datagram size.
+        /// - It is your responsibility to ensure that `BUF_SIZE` is large enough to hold the largest UDP
+        ///   datagram your protocol expects; if it is smaller than the incoming datagram size, the datagram
+        ///   will be truncated in the output from `next`. You cannot rely on the returned `bytes_read` value
+        ///   to indicate truncation as this will also be set to the buffer length, not the full size of the
+        ///   truncated message (this is the underlying behaviour of the libc call `recv_from`).
+        /// - All bytes after the actual message will be NULL so it can be directly converted to a String,
+        ///   for example, without first slicing. Other data manipulation should take into account the actual length.
+        /// - There are no clear situations which could lead to this returning `None`. Wrapping the
+        ///   returned data in an `Option` is done purely to maintain a consistent API with expectations
+        ///   on an Iterator / Stream
+        pub fn next<'s>(&'s mut self) -> Next<'s, BUF_SIZE> {
+            Next { stream: self }
+        }
 
-    /// Sends data from the UDP socket once `await`ed
-    ///
-    /// Awaiting returns an `io::Result<usize>` confirming the number of bytes sent.
-    ///
-    /// #### Note
-    /// - While this function will accept multiple addresses, currently data is only sent to the
-    ///   first one (TODO)
-    /// - If an empty list of addresses the error will be of kind `io::ErrorKind::InvalidInput`
-    pub fn push<'s, 'b, A: ToSocketAddrs + Unpin>(
-        &'s mut self,
-        buf: &'b [u8],
-        addr: A,
-    ) -> Push<'s, 'b, A, BUF_SIZE> {
-        Push {
-            stream: self,
-            buf,
-            addr,
+        /// Sends data from the UDP socket once `await`ed
+        ///
+        /// Awaiting returns an `io::Result<usize>` confirming the number of bytes sent.
+        ///
+        /// #### Note
+        /// - While this function will accept multiple addresses, currently data is only sent to the
+        ///   first one (TODO)
+        /// - If an empty list of addresses the error will be of kind `io::ErrorKind::InvalidInput`
+        pub fn push<'s, 'b, A: ToSocketAddrs + Unpin>(
+            &'s mut self,
+            buf: &'b [u8],
+            addr: A,
+        ) -> Push<'s, 'b, A, BUF_SIZE> {
+            Push {
+                stream: self,
+                buf,
+                addr,
+            }
         }
     }
 }
