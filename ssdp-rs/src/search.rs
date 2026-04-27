@@ -39,6 +39,9 @@ use crate::{
     udp::{EventedUdpSocket, UdpSink, UdpStream},
 };
 
+const MULTICAST_IP: Ipv4Addr = Ipv4Addr::new(239, 255, 255, 250);
+const MUTLICAST_SOCKET: SocketAddr = SocketAddr::new(IpAddr::V4(MULTICAST_IP), 1900);
+
 #[derive(Debug)]
 pub struct Searcher {
     incoming: UdpStream<512>,
@@ -63,10 +66,9 @@ impl Searcher {
         let IpAddr::V4(interface) = incoming.local_addr()?.ip() else {
             unimplemented!("no IPv6 support")
         };
-        let multicast = Ipv4Addr::new(239, 255, 255, 250);
         incoming
             .as_socket_mut()
-            .join_multicast_v4(&multicast, &interface)?;
+            .join_multicast_v4(&MULTICAST_IP, &interface)?;
         Ok(Searcher {
             incoming,
             outgoing: UdpSink::bind(addr)?,
@@ -132,9 +134,7 @@ impl<'searcher> Future for Search<'searcher> {
         let this = &mut *self;
         let sink = &mut *this.outgoing;
         let msg = this.msg.as_bytes();
-        let ssdp_multicast = Ipv4Addr::new(239, 255, 255, 250);
-        let ssdp_multicast = SocketAddr::new(ssdp_multicast.into(), 1900);
-        sink.send((msg, &ssdp_multicast))
+        sink.send((msg, &MUTLICAST_SOCKET))
             .poll_unpin(cx)
             .map_ok(|_| ())
     }
