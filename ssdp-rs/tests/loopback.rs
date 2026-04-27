@@ -164,7 +164,7 @@ async fn next_to_read() {
 }
 
 #[futures_net::test]
-async fn push_to_send() {
+async fn stream_and_sink() {
     let loopback = Ipv4Addr::new(127, 0, 0, 1);
 
     // https://doc.rust-lang.org/std/net/struct.TcpListener.html#method.bind
@@ -172,18 +172,17 @@ async fn push_to_send() {
     // The port allocated can be queried via the TcpListener::local_addr method.
     let addr: SocketAddr = SocketAddrV4::new(loopback, 0).into();
 
-    let mut receiver = UdpStream::<32>::bind(addr).expect("receiver");
-    let rec_addr = receiver.local_addr().expect("bound port");
-    dbg!(rec_addr);
-
     let mut sender = UdpSink::bind(addr).expect("sender");
     let send_addr = sender.local_addr().expect("bound port");
+    let msg: &[u8; 17] = b"udp loopback test";
     dbg!(send_addr);
 
+    let mut receiver = UdpStream::<32>::bind(addr).expect("receiver");
+    let rec_addr = receiver.local_addr().expect("bound port");
     let mut received: [u8; 17] = [b'\x00'; 17];
-    let msg: &[u8; 17] = b"udp loopback test";
-
+    // dummy address (google DNS) should be changed on reception of message from our sender
     let mut outer_sent_by = SocketAddr::from_str("8.8.8.8:80").expect("valid addr");
+    dbg!(rec_addr);
 
     let send = async move {
         println!("sending {}", String::from_utf8_lossy(msg));
