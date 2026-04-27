@@ -55,14 +55,14 @@ pub trait EventedUdpSocket
 where
     Self: Sized,
 {
-    /// Create a new thing from a PollEvented<sys::net::UdpSocket>
+    /// Create a new `Self` from a PollEvented<sys::net::UdpSocket>
     fn from_evented_socket(evented_socket: PollEvented<sys::net::UdpSocket>) -> io::Result<Self>;
 
-    /// Create a new [UdpStream] by binding it to a given [SocketAddr].
+    /// Create a new `Self` by binding it to a given [SocketAddr].
     ///
-    /// The listener is guaranteed to be constructed to be non-blocking and have non-exclusive
-    /// access to the bound address; if either of these system calls fails to take effect an
-    /// [io::ErrorKind::Unsupported] will be returned.
+    /// In the default implementation, the listener is guaranteed to be constructed to be
+    /// non-blocking and have non-exclusive access to the bound address; if either of these system
+    /// calls fails to take effect an [io::ErrorKind::Unsupported] will be returned.
     fn bind(addr: SocketAddr) -> io::Result<Self> {
         let s2 = socket2::Socket::new(Domain::IPV4, Type::DGRAM, None)?;
         let addr = addr.into();
@@ -93,7 +93,7 @@ where
     // pub fn is_non_exclusive(&self) -> Option<SocketAddr>
     // pub fn check_non_exclusive(&self) -> io::Result<SocketAddr>
 
-    /// Get the local address of this listener
+    /// Get the local address of the underlying Socket
     fn local_addr(&self) -> io::Result<SocketAddr> {
         self.as_socket().local_addr()
     }
@@ -114,7 +114,9 @@ where
     /// allowing for calls to traits and functions implemented by [PollEvented]
     fn as_evented_socket_pin(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>>;
 
-    /// Clear the readiness state of this socket, to be called after a failed readiness poll.
+    /// Clear the readiness state of the underlying socket.
+    /// 
+    /// **This MUST be called after any failed readiness poll.**
     ///
     /// Implementations should attempt to clear the relevant readiness marker of the underlying
     /// socket and then return:
@@ -127,7 +129,7 @@ where
     /// compiler to notice that everything is fine.
     fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<!>>;
 
-    /// Checks whether error will block the socket and either:
+    /// Checks whether `error` will block the underlying Socket and either:
     /// - calls [Self::clear_ready] for blocking errors
     /// - returns `Poll::Ready(error)` for non-blocking errors
     ///
