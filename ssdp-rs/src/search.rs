@@ -36,9 +36,11 @@
 use std::{
     io,
     net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4},
+    time::Duration,
 };
 
 use futures::{SinkExt, Stream, StreamExt};
+use futures_timer::Delay;
 use uuid::Uuid;
 
 use crate::{
@@ -141,6 +143,17 @@ impl Searcher {
             *uuid,
         )
         .to_string();
-        outgoing.send((msg.as_bytes(), &MUTLICAST)).await
+        let repeat = 5;
+        let initial_delay = Duration::from_secs(5);
+        let resend_every = Duration::from_secs(15 * 60);
+        loop {
+            let resend_timer = Delay::new(resend_every);
+            for _ in 0..repeat {
+                let initial_timer = Delay::new(initial_delay);
+                outgoing.send((msg.as_bytes(), &MUTLICAST)).await?;
+                initial_timer.await;
+            }
+            resend_timer.await;
+        }
     }
 }
