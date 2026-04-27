@@ -42,7 +42,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct Searcher {
-    stream: UdpStream<512>,
+    incoming: UdpStream<512>,
     mx: u8,
     os: String,
     os_version: String,
@@ -60,7 +60,7 @@ impl Searcher {
         let os = os_info.get_name();
         let os_version = os_info.get_version().to_string();
         Ok(Searcher {
-            stream: UdpStream::bind(addr)?,
+            incoming: UdpStream::bind(addr)?,
             mx: 5,
             os,
             os_version,
@@ -73,7 +73,7 @@ impl Searcher {
 
     pub fn search<'s>(&'s mut self) -> Search<'s> {
         let Searcher {
-            stream,
+            incoming: stream,
             mx,
             os,
             os_version,
@@ -117,7 +117,7 @@ impl<'searcher> Future for Next<'searcher> {
     ) -> std::task::Poll<Self::Output> {
         let this = &mut *self;
         let searcher = &mut *this.searcher;
-        let stream = &mut searcher.stream;
+        let stream = &mut searcher.incoming;
         let reply = ready!(stream.next().poll_unpin(cx));
         match reply {
             Some(reply) => {
