@@ -481,8 +481,13 @@ impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
         Poll::Ready(Ok(()))
     }
 
+    // TODO: it would be nice to be able to annote these situations with as eg `Poll<!>`
+    //       is this worth a sub-issue to the tracking issue for `never_type`?
+    /// #### Note
+    /// This only flushes but does not close as no-one exposes the libc `close()`
+    /// call on a `UdpSocket`
     fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        todo!("udpsink poll_close")
+        <Self as futures::Sink<(&[u8], &A)>>::poll_flush(self, cx)
     }
 }
 
