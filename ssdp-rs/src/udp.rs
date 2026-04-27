@@ -128,6 +128,12 @@ where
     /// - in case not suitably ready:
     ///   - return Poll::Pending
     fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>>;
+
+    /// Clear the readiness state of this socket, to be called in case of an .
+    ///
+    /// Implementations should correspond to [poll_ready] and clear the
+    /// relevant readiness marker of the underlying socket
+    fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()>;
 }
 
 impl<const _BS: usize> EventedUdpSocket for UdpStream<_BS> {
@@ -153,6 +159,10 @@ impl<const _BS: usize> EventedUdpSocket for UdpStream<_BS> {
 
     fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         todo!("socket poll_ready")
+    }
+
+    fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
+        todo!("socket clear_ready")
     }
 }
 
@@ -370,6 +380,10 @@ impl EventedUdpSocket for UdpSink {
 
     fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         todo!("sink poll_ready")
+    }
+
+    fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
+        todo!("sink clear_ready")
     }
 }
 
