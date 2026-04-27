@@ -115,7 +115,7 @@ where
     fn as_evented_socket_pin(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>>;
 
     /// Clear the readiness state of the underlying socket.
-    /// 
+    ///
     /// **This MUST be called after any failed readiness poll.**
     ///
     /// Implementations should attempt to clear the relevant readiness marker of the underlying
@@ -284,11 +284,19 @@ impl EventedUdpSocket for UdpSink {
 impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
     type Error = io::Error;
 
+    /// Attempts to prepare the Sink to receive a value.
+    /// 
+    /// This method must be called and return Poll::Ready(Ok(())) prior to each call to start_send.
+    /// 
+    /// This method returns Poll::Ready once the underlying sink is ready to receive data.
+    /// If this method returns Poll::Pending, the current task is registered to be notified
+    /// (via cx.waker().wake_by_ref()) when poll_ready should be called again.
+    /// 
+    /// If the attempt to poll readiness fails this method will properly handle
+    /// it by calling [Self::clear_ready]/[Self::unblock] to ensure the underlying socket does not
+    /// remain blocked.
     fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         let evented_socket = self.as_mut().as_evented_socket_pin();
-        // Not sure whether PollEvented::poll_write_ready() returning a `Result<Ready>`
-        // conveys additional meaningful information, so for saftey not simply using
-        // `ready!(...map(|_| ()))` and instead double-checking readiness kind
         match evented_socket.poll_write_ready(cx) {
             Poll::Ready(is_ready) => match is_ready {
                 Ok(readiness) => match readiness.is_writable() {
