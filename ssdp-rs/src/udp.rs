@@ -2,7 +2,7 @@ use std::{
     io,
     net::{SocketAddr, ToSocketAddrs},
     pin::Pin,
-    task::{Context, Poll, ready},
+    task::{Context, Poll},
 };
 
 use futures::{Stream, sink::Sink};
@@ -331,8 +331,7 @@ impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
     /// Await write readiness indicating that all pending messages have been sent, then return
     /// as a no-op (`UdpSockets` do not have an inherent `flush` method).
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        ready!(self.as_evented_socket_pin().poll_write_ready(cx)?);
-        Poll::Ready(Ok(()))
+        <Self as futures::Sink<(&[u8], &A)>>::poll_ready(self, cx)
     }
 
     // TODO: it would be nice to be able to annote these situations with as eg `Poll<!>`
