@@ -166,8 +166,8 @@ impl<const _BS: usize> EventedUdpSocket for UdpStream<_BS> {
     }
 
     fn as_evented_socket_pin(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>> {
-        let listener = self.get_mut();
-        let io = &mut listener.io;
+        let this = self.get_mut();
+        let io = &mut this.io;
         Pin::new(&mut *io)
     }
 
@@ -268,8 +268,8 @@ impl EventedUdpSocket for UdpSink {
     }
 
     fn as_evented_socket_pin(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>> {
-        let listener = self.get_mut();
-        let io = &mut listener.io;
+        let this = self.get_mut();
+        let io = &mut this.io;
         Pin::new(&mut *io)
     }
 
