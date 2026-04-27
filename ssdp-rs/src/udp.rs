@@ -118,7 +118,7 @@ where
     ///
     /// Implementations should correspond to [poll_ready] and clear the
     /// relevant readiness marker of the underlying socket
-    fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<io::Result<!>>>;
+    fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<!>>;
 
     /// Checks
     fn would_block(
@@ -128,7 +128,7 @@ where
     ) -> Poll<Option<io::Result<!>>> {
         let Err(error) = error;
         match error.kind() {
-            io::ErrorKind::WouldBlock => self.clear_ready(cx),
+            io::ErrorKind::WouldBlock => self.clear_ready(cx).map(|r| Some(r)),
             _ => Poll::Ready(Some(Err(error))),
         }
     }
@@ -155,10 +155,10 @@ impl<const _BS: usize> EventedUdpSocket for UdpStream<_BS> {
         Pin::new(&mut *io)
     }
 
-    fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<io::Result<!>>> {
+    fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<!>> {
         match self.as_evented_socket_pin().clear_read_ready(cx) {
             Ok(_) => Poll::Pending,
-            Err(e) => Poll::Ready(Some(Err(e))),
+            Err(e) => Poll::Ready(Err(e)),
         }
     }
 }
@@ -205,7 +205,7 @@ impl<const BUF_SIZE: usize> Stream for UdpStream<BUF_SIZE> {
                             Err(e) => self.would_block(Err(e), cx).map_ok(|x| x),
                         }
                     }
-                    false => self.clear_ready(cx).map_ok(|x| x),
+                    false => self.clear_ready(cx).map_ok(|x| x).map(Some),
                 },
                 Err(e) => self.would_block(Err(e), cx).map_ok(|x| x),
             },
@@ -257,10 +257,10 @@ impl EventedUdpSocket for UdpSink {
         Pin::new(&mut *io)
     }
 
-    fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<io::Result<!>>> {
+    fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<!>> {
         match self.as_evented_socket_pin().clear_write_ready(cx) {
             Ok(_) => Poll::Pending,
-            Err(e) => Poll::Ready(Some(Err(e))),
+            Err(e) => Poll::Ready(Err(e)),
         }
     }
 }
