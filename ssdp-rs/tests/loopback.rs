@@ -5,7 +5,7 @@ use std::{
 
 use futures::prelude::*;
 use futures_net::{TcpListener, TcpStream, runtime::Runtime};
-use ssdp_rs::udp::{UdpConnectedStream, UdpStream};
+use ssdp_rs::udp::{EventedUdpSocket, UdpConnectedStream, UdpStream};
 
 #[futures_net::test]
 async fn tcp() {

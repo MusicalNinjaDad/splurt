@@ -46,13 +46,25 @@ pub struct UdpStream<const BUF_SIZE: usize> {
     io: PollEvented<sys::net::UdpSocket>,
 }
 
-impl<const BUF_SIZE: usize> UdpStream<BUF_SIZE> {
+/// Basic functions on a struct wrapping a PollEvented<sys::net::UdpSocket>
+///
+/// Right now this is lazy for my own use, so makes assumptions about internal structure.
+///
+/// #### Note
+/// - TODO #26 handle cases with multiple fields which need to be provided during construction
+pub trait EventedUdpSocket
+where
+    Self: Sized,
+{
+    /// Create a new thing from a PollEvented<sys::net::UdpSocket>
+    fn from_evented_socket(evented_socket: PollEvented<sys::net::UdpSocket>) -> io::Result<Self>;
+
     /// Create a new [UdpStream] by binding it to a given [SocketAddr].
     ///
     /// The listener is guaranteed to be constructed to be non-blocking and have non-exclusive
     /// access to the bound address; if either of these system calls fails to take effect an
     /// [io::ErrorKind::Unsupported] will be returned.
-    pub fn bind(addr: SocketAddr) -> io::Result<Self> {
+    fn bind(addr: SocketAddr) -> io::Result<Self> {
         let s2 = socket2::Socket::new(Domain::IPV4, Type::DGRAM, None)?;
         let addr = addr.into();
         s2.set_nonblocking(true)?;
@@ -71,8 +83,8 @@ impl<const BUF_SIZE: usize> UdpStream<BUF_SIZE> {
 
         s2.bind(&addr)?;
         let sstd: std::net::UdpSocket = s2.into();
-        let io = PollEvented::new(sys::net::UdpSocket::from_socket(sstd)?);
-        Ok(Self { io })
+        let evented_socket = PollEvented::new(sys::net::UdpSocket::from_socket(sstd)?);
+        Self::from_evented_socket(evented_socket)
     }
 
     // // TODO: #22 Add bind_exclusive constructor & update struct docs for UdpStream
@@ -83,20 +95,40 @@ impl<const BUF_SIZE: usize> UdpStream<BUF_SIZE> {
     // pub fn check_non_exclusive(&self) -> io::Result<SocketAddr>
 
     /// Get the local address of this listener
-    pub fn local_addr(&self) -> io::Result<SocketAddr> {
-        let io = &self.io;
-        let s = io.get_ref();
-        s.local_addr()
+    fn local_addr(&self) -> io::Result<SocketAddr> {
+        self.as_socket().local_addr()
     }
 
     /// Provides access to the underlying Socket.
     ///
     /// #### Note
     /// `futures_net::UdpSocket` is NOT the same type as returned here.
-    pub fn socket(&mut self) -> &mut sys::net::UdpSocket {
-        PollEvented::get_mut(&mut self.io)
+    fn as_socket(&self) -> &sys::net::UdpSocket;
+
+    /// Provides mutable access to the underlying Socket.
+    ///
+    /// #### Note
+    /// `futures_net::UdpSocket` is NOT the same type as returned here.
+    fn as_socket_mut(&mut self) -> &mut sys::net::UdpSocket;
+}
+
+impl<const _BS: usize> EventedUdpSocket for UdpStream<_BS> {
+    fn from_evented_socket(evented_socket: PollEvented<sys::net::UdpSocket>) -> io::Result<Self> {
+        Ok(Self { io: evented_socket })
     }
 
+    fn as_socket(&self) -> &sys::net::UdpSocket {
+        let io = &self.io;
+        io.get_ref()
+    }
+
+    fn as_socket_mut(&mut self) -> &mut sys::net::UdpSocket {
+        let io = &mut self.io;
+        io.get_mut()
+    }
+}
+
+impl<const BUF_SIZE: usize> UdpStream<BUF_SIZE> {
     /// Receives data from the IO interface once `await`ed.
     ///
     /// Awaiting returns the number of bytes read and the target from whence the data as an
@@ -175,7 +207,7 @@ impl<'stream, 'buf, A: ToSocketAddrs + Unpin, const _BS: usize> Future
         let stream = &mut *this.stream;
         ready!(stream.poll_write_ready_unpin(cx)?);
 
-        let socket = stream.socket();
+        let socket = stream.as_socket();
 
         let addr = this
             .addr
@@ -211,7 +243,7 @@ impl<'stream, const BUF_SIZE: usize> Future for Next<'stream, BUF_SIZE> {
         let stream = &mut *this.stream;
         ready!(stream.poll_read_ready_unpin(cx)?);
 
-        let socket = stream.socket();
+        let socket = stream.as_socket();
 
         // Maximum data length for a UDP Datagram
         // see https://en.wikipedia.org/wiki/User_Datagram_Protocol#UDP_datagram_structure
@@ -262,7 +294,7 @@ impl<const BUF_SIZE: usize> UdpStream<BUF_SIZE> {
         let listener = &mut *self;
         ready!(listener.poll_read_ready_unpin(cx)?);
 
-        let socket = listener.socket();
+        let socket = listener.as_socket();
         let result = socket.recv_from(buf);
 
         if let Err(ref e) = result
