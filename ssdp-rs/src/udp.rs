@@ -202,8 +202,8 @@ impl<const BUF_SIZE: usize> Stream for UdpStream<BUF_SIZE> {
                             .recv_from(&mut buf)
                             .map(|(len, addr)| (buf, len, addr));
                         match result {
+                            Ok(_) => Poll::Ready(Some(result)),
                             Err(error) => self.would_block(Err(error), cx).map_ok(|x| x),
-                            _ => Poll::Ready(Some(result)),
                         }
                     }
                     false => {
