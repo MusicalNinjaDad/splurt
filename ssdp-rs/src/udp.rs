@@ -128,7 +128,7 @@ where
     ) -> Poll<Option<io::Result<!>>> {
         let Err(error) = error;
         match error.kind() {
-            io::ErrorKind::WouldBlock => self.clear_ready(cx).map(|r| Some(r)),
+            io::ErrorKind::WouldBlock => self.clear_ready(cx).map(Some),
             _ => Poll::Ready(Some(Err(error))),
         }
     }
