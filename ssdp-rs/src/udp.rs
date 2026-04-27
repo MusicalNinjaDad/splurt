@@ -114,13 +114,27 @@ where
     /// allowing for calls to traits and functions implemented by [PollEvented]
     fn as_evented_socket_pin(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>>;
 
-    /// Clear the readiness state of this socket, to be called in case of an .
+    /// Clear the readiness state of this socket, to be called after a failed readiness poll.
     ///
-    /// Implementations should correspond to [poll_ready] and clear the
-    /// relevant readiness marker of the underlying socket
+    /// Implementations should attempt to clear the relevant readiness marker of the underlying
+    /// socket and then return:
+    /// - `Poll::Pending` if successful
+    /// - `Poll::Ready(error)` on error, to avoid repeated polling without handling the error
+    ///
+    /// #### Note
+    /// This returns a `Poll<Result<!>>` which will not currently automatically coerce into a
+    /// `Poll<Result<T>>`. Work around this by calling `.map_ok(|x| x)` as a no-op to force the
+    /// compiler to notice that everything is fine.
     fn clear_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<!>>;
 
-    /// Checks
+    /// Checks whether error will block the socket and either:
+    /// - calls [Self::clear_ready] for blocking errors
+    /// - returns `Poll::Ready(error)` for non-blocking errors
+    ///
+    /// #### Note
+    /// This returns a `Poll<Result<!>>` which will not currently automatically coerce into a
+    /// `Poll<Result<T>>`. Work around this by calling `.map_ok(|x| x)` as a no-op to force the
+    /// compiler to notice that everything is fine.
     fn would_block(
         self: Pin<&mut Self>,
         error: io::Result<!>,
