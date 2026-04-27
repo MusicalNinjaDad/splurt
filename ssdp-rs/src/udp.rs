@@ -279,15 +279,7 @@ impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
                     true => Poll::Ready(Ok(())),
                     false => self.clear_ready(cx).map_ok(|x| x).map(|opt| opt.unwrap()),
                 },
-                Err(e) => match e.kind() {
-                    io::ErrorKind::WouldBlock => {
-                        //TODO could this be nastily fatal?
-                        //     it's what futures_net does in `impl AsyncRead/Write for PollEvented`
-                        socket.clear_write_ready(cx)?;
-                        Poll::Pending
-                    }
-                    _ => Poll::Ready(Err(e)),
-                },
+                Err(e) => self.would_block(Err(e), cx).map_ok(|x| x),
             },
             Poll::Pending => Poll::Pending,
         }
