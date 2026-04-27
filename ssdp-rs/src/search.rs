@@ -122,6 +122,22 @@ impl Searcher {
         })
     }
 
+    pub fn mx(&self) -> u8 {
+        self.mx
+    }
+
+    /// Set the MX (see UPnP spec para 1.3.2)
+    ///
+    /// - Only values 0..=5 are accepted, other values will result in an `io::ErrorKind::InvalidInput`.
+    /// - If successfully set the `Ok(u8)` will contain the old value
+    pub fn set_mx(&mut self, mx: u8) -> io::Result<u8> {
+        let current = self.mx;
+        match mx {
+            0..=5 => Ok(current),
+            _ => Err(io::Error::from(io::ErrorKind::InvalidInput)),
+        }
+    }
+
     pub async fn search(&mut self) -> io::Result<()> {
         let Searcher {
             outgoing,
