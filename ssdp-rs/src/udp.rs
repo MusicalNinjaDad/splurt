@@ -111,6 +111,8 @@ where
     /// `futures_net::UdpSocket` is NOT the same type as returned here.
     fn as_socket_mut(&mut self) -> &mut sys::net::UdpSocket;
 
+    /// Converts a pinned `&mut Self` to a pinned &mut of the underlying pollevented socket
+    /// allowing for calls to traits and functions implemented by [PollEvented]
     fn as_evented_socket_pin(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>>;
 }
 
@@ -129,8 +131,6 @@ impl<const _BS: usize> EventedUdpSocket for UdpStream<_BS> {
         io.get_mut()
     }
 
-    /// Converts a pinned `&mut UdpStream` to a pinned &mut of the underlying pollevented socket
-    /// allowing for calls to traits and functions implemented by [PollEvented]
     fn as_evented_socket_pin(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>> {
         let listener = self.get_mut();
         let io = &mut listener.io;
@@ -402,8 +402,6 @@ impl EventedUdpSocket for UdpSink {
         io.get_mut()
     }
 
-    /// Converts a pinned `&mut UdpStream` to a pinned &mut of the underlying pollevented socket
-    /// allowing for calls to traits and functions implemented by [PollEvented]
     fn as_evented_socket_pin(self: Pin<&mut Self>) -> Pin<&mut PollEvented<sys::net::UdpSocket>> {
         let listener = self.get_mut();
         let io = &mut listener.io;
