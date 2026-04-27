@@ -177,7 +177,7 @@ mod useful_docs {
         /// - There are no clear situations which could lead to this returning `None`. Wrapping the
         ///   returned data in an `Option` is done purely to maintain a consistent API with expectations
         ///   on an Iterator / Stream
-        pub fn next<'s>(&'s mut self) -> Next<'s, BUF_SIZE> {
+        pub fn _next<'s>(&'s mut self) -> Next<'s, BUF_SIZE> {
             Next { stream: self }
         }
     }
@@ -273,13 +273,6 @@ impl<const BUF_SIZE: usize> UdpStream<BUF_SIZE> {
     /// See [futures_net::driver::PollEvented] for an explanation.
     fn clear_read_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
         self.pinned_io().clear_read_ready(cx)
-    }
-
-    /// Needed to handle non-blocking errors in [futures::AsyncWrite].
-    /// See [futures_net::driver::PollEvented] for an explanation.
-    fn clear_write_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> io::Result<()> {
-        let socket = Pin::new(&mut self.io);
-        socket.clear_write_ready(cx)
     }
 }
 
@@ -466,7 +459,7 @@ mod tests {
 
         let rec = async {
             let (msg, len, _sent_by) = receiver
-                .next()
+                ._next()
                 .await
                 .expect("a message")
                 .expect("a valid message");
