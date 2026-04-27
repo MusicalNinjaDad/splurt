@@ -125,11 +125,11 @@ where
         self: Pin<&mut Self>,
         error: io::Result<!>,
         cx: &mut Context<'_>,
-    ) -> Poll<Option<io::Result<!>>> {
+    ) -> Poll<io::Result<!>> {
         let Err(error) = error;
         match error.kind() {
-            io::ErrorKind::WouldBlock => self.clear_ready(cx).map(Some),
-            _ => Poll::Ready(Some(Err(error))),
+            io::ErrorKind::WouldBlock => self.clear_ready(cx),
+            _ => Poll::Ready(Err(error)),
         }
     }
 }
@@ -202,12 +202,12 @@ impl<const BUF_SIZE: usize> Stream for UdpStream<BUF_SIZE> {
                             .map(|(len, addr)| (buf, len, addr));
                         match recv {
                             Ok(_) => Poll::Ready(Some(recv)),
-                            Err(e) => self.would_block(Err(e), cx).map_ok(|x| x),
+                            Err(e) => self.would_block(Err(e), cx).map_ok(|x| x).map(Some),
                         }
                     }
                     false => self.clear_ready(cx).map_ok(|x| x).map(Some),
                 },
-                Err(e) => self.would_block(Err(e), cx).map_ok(|x| x),
+                Err(e) => self.would_block(Err(e), cx).map_ok(|x| x).map(Some),
             },
             Poll::Pending => Poll::Pending,
         }
