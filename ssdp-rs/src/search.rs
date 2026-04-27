@@ -32,7 +32,7 @@ use std::{
     task::Poll,
 };
 
-use futures::{FutureExt, SinkExt, ready};
+use futures::{FutureExt, SinkExt, StreamExt, ready};
 use uuid::Uuid;
 
 use crate::{
@@ -118,7 +118,7 @@ impl<'searcher> Future for Next<'searcher> {
         let this = &mut *self;
         let searcher = &mut *this.searcher;
         let stream = &mut searcher.incoming;
-        let reply = ready!(stream._next().poll_unpin(cx));
+        let reply = ready!(stream.next().poll_unpin(cx));
         match reply {
             Some(reply) => {
                 let (reply, _, sender) = reply?;

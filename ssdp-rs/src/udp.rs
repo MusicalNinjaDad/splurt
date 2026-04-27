@@ -141,6 +141,27 @@ impl<const _BS: usize> EventedUdpSocket for UdpStream<_BS> {
 impl<const BUF_SIZE: usize> Stream for UdpStream<BUF_SIZE> {
     type Item = io::Result<([u8; BUF_SIZE], usize, SocketAddr)>;
 
+    /// Receives data from the IO interface once `await`ed.
+    ///
+    /// Awaiting returns an array of bytes containing the message received, the message length
+    /// and the target from whence the data came as an
+    /// `Option<io::Result<([u8; BUF_SIZE], usize, SocketAddr)>>`
+    ///
+    /// #### Note
+    ///
+    /// - Messages received via [UdpStream::next] will be provided as an array of bytes of length
+    ///   `BUF_SIZE`. This is a generic const to allow avoid us having to allocate a 65k buffer on each
+    ///   call to next in order to cover the max possible UDP datagram size.
+    /// - It is your responsibility to ensure that `BUF_SIZE` is large enough to hold the largest UDP
+    ///   datagram your protocol expects; if it is smaller than the incoming datagram size, the datagram
+    ///   will be truncated in the output from `next`. You cannot rely on the returned `bytes_read` value
+    ///   to indicate truncation as this will also be set to the buffer length, not the full size of the
+    ///   truncated message (this is the underlying behaviour of the libc call `recv_from`).
+    /// - All bytes after the actual message will be NULL so it can be directly converted to a String,
+    ///   for example, without first slicing. Other data manipulation should take into account the actual length.
+    /// - There are no clear situations which could lead to this returning `None`. Wrapping the
+    ///   returned data in an `Option` is done purely to maintain a consistent API with expectations
+    ///   on an Iterator / Stream
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // PollEvented::poll_read_ready consumes the input,unlike PollEvented::poll_write_ready.
         // So we need to reborrow in order to later call clear_read_ready.
@@ -199,67 +220,6 @@ mod useful_docs {
                 buf,
                 listener: self,
             }
-        }
-
-        /// Receives data from the IO interface once `await`ed.
-        ///
-        /// Awaiting returns an array of bytes containing the message received, the message length
-        /// and the target from whence the data came as an
-        /// `Option<io::Result<([u8; BUF_SIZE], usize, SocketAddr)>>`
-        ///
-        /// #### Note
-        ///
-        /// - Messages received via [UdpStream::next] will be provided as an array of bytes of length
-        ///   `BUF_SIZE`. This is a generic const to allow avoid us having to allocate a 65k buffer on each
-        ///   call to next in order to cover the max possible UDP datagram size.
-        /// - It is your responsibility to ensure that `BUF_SIZE` is large enough to hold the largest UDP
-        ///   datagram your protocol expects; if it is smaller than the incoming datagram size, the datagram
-        ///   will be truncated in the output from `next`. You cannot rely on the returned `bytes_read` value
-        ///   to indicate truncation as this will also be set to the buffer length, not the full size of the
-        ///   truncated message (this is the underlying behaviour of the libc call `recv_from`).
-        /// - All bytes after the actual message will be NULL so it can be directly converted to a String,
-        ///   for example, without first slicing. Other data manipulation should take into account the actual length.
-        /// - There are no clear situations which could lead to this returning `None`. Wrapping the
-        ///   returned data in an `Option` is done purely to maintain a consistent API with expectations
-        ///   on an Iterator / Stream
-        pub fn _next<'s>(&'s mut self) -> Next<'s, BUF_SIZE> {
-            Next { stream: self }
-        }
-    }
-}
-
-/// The future returned by [UdpStream::next]
-#[derive(Debug)]
-pub struct Next<'stream, const BUF_SIZE: usize> {
-    stream: &'stream mut UdpStream<BUF_SIZE>,
-}
-
-impl<'stream, const BUF_SIZE: usize> Future for Next<'stream, BUF_SIZE> {
-    type Output = Option<io::Result<([u8; BUF_SIZE], usize, SocketAddr)>>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let this = &mut *self;
-        let stream = &mut *this.stream;
-        ready!(stream.poll_read_ready_unpin(cx)?);
-
-        let socket = stream.as_socket();
-
-        // Maximum data length for a UDP Datagram
-        // see https://en.wikipedia.org/wiki/User_Datagram_Protocol#UDP_datagram_structure
-        let mut buf: [u8; BUF_SIZE] = [b'\x00'; BUF_SIZE];
-
-        let result = socket
-            .recv_from(&mut buf)
-            .map(|(len, addr)| (buf, len, addr));
-
-        if let Err(ref e) = result
-            && e.kind() == io::ErrorKind::WouldBlock
-        {
-            let pinned = Pin::new(&mut *stream);
-            pinned.clear_read_ready(cx)?;
-            Poll::Pending
-        } else {
-            Poll::Ready(Some(result))
         }
     }
 }
