@@ -109,9 +109,10 @@ impl Searcher {
         let os_info = osinfo::get();
         let os = os_info.get_name();
         let os_version = os_info.get_version().to_string();
-
+        let mut outgoing = UdpSink::bind(addr)?;
+        outgoing.as_socket_mut().set_ttl(2)?;
         Ok(Searcher {
-            outgoing: UdpSink::bind(addr)?,
+            outgoing,
             mx: 5,
             os,
             os_version,
@@ -136,6 +137,15 @@ impl Searcher {
             0..=5 => Ok(current),
             _ => Err(io::Error::from(io::ErrorKind::InvalidInput)),
         }
+    }
+
+    pub fn ttl(&self) -> io::Result<u32> {
+        self.outgoing.as_socket().ttl()
+    }
+
+    pub fn set_ttl(&mut self, ttl: u32) -> io::Result<u32> {
+        let current = self.ttl()?;
+        self.outgoing.as_socket_mut().set_ttl(ttl).map(|_| current)
     }
 
     pub async fn search(&mut self) -> io::Result<()> {
