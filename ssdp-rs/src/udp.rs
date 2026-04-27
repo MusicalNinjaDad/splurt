@@ -444,8 +444,31 @@ impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
         }
     }
 
+    /// #### Note
+    /// - While this function will accept multiple addresses, currently data is only sent to the
+    ///   first one (TODO)
+    /// - If an empty list of addresses the error will be of kind `io::ErrorKind::InvalidInput`
     fn start_send(self: Pin<&mut Self>, item: (&[u8], &A)) -> Result<(), Self::Error> {
-        todo!("udpsink start_send")
+        //TODO Implementations of poll_ready and start_send will usually involve flushing behind
+        //     the scenes in order to make room for new messages.
+
+        let socket = self.as_socket();
+        let (msg, addr) = item;
+        let addr = addr
+            .to_socket_addrs()?
+            .next()
+            .ok_or(io::Error::from(io::ErrorKind::InvalidInput))?;
+        socket.send_to(msg, &addr).and_then(|l| {
+            if l != msg.len() {
+                Err(io::Error::other(format!(
+                    "{} bytes sent but message was {} bytes",
+                    l,
+                    msg.len()
+                )))
+            } else {
+                Ok(())
+            }
+        })
     }
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
