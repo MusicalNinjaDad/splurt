@@ -6,7 +6,7 @@ use std::{
 };
 
 use async_ready::{AsyncReadReady, AsyncWriteReady};
-use futures::sink::Sink;
+use futures::{Stream, sink::Sink};
 use futures_net::driver::{
     PollEvented,
     sys::{self, event::Ready},
@@ -135,6 +135,14 @@ impl<const _BS: usize> EventedUdpSocket for UdpStream<_BS> {
         let listener = self.get_mut();
         let io = &mut listener.io;
         Pin::new(&mut *io)
+    }
+}
+
+impl<const BUF_SIZE: usize> Stream for UdpStream<BUF_SIZE> {
+    type Item = io::Result<([u8; BUF_SIZE], usize, SocketAddr)>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        todo!("impl poll_next")
     }
 }
 
@@ -428,7 +436,7 @@ mod tests {
     use std::net::{Ipv4Addr, SocketAddrV4};
 
     use super::*;
-    use futures::SinkExt;
+    use futures::{SinkExt, StreamExt};
     use futures_net::runtime::Runtime;
 
     #[futures_net::test]
@@ -459,7 +467,7 @@ mod tests {
 
         let rec = async {
             let (msg, len, _sent_by) = receiver
-                ._next()
+                .next()
                 .await
                 .expect("a message")
                 .expect("a valid message");
