@@ -46,7 +46,6 @@ const MAX_MSG_SIZE: usize = 1024;
 
 #[derive(Debug)]
 pub struct Searcher {
-    incoming: UdpStream<MAX_MSG_SIZE>,
     outgoing: UdpSink,
     mx: u8,
     os: String,
@@ -97,15 +96,8 @@ impl Searcher {
         let os_info = osinfo::get();
         let os = os_info.get_name();
         let os_version = os_info.get_version().to_string();
-        let mut incoming = UdpStream::bind(addr)?;
-        let IpAddr::V4(interface) = incoming.local_addr()?.ip() else {
-            unimplemented!("no IPv6 support")
-        };
-        incoming
-            .as_socket_mut()
-            .join_multicast_v4(&MULTICAST_IP, &interface)?;
+
         Ok(Searcher {
-            incoming,
             outgoing: UdpSink::bind(addr)?,
             mx: 5,
             os,
@@ -119,7 +111,6 @@ impl Searcher {
 
     pub fn search<'s>(&'s mut self) -> Search<'s> {
         let Searcher {
-            incoming: _,
             outgoing,
             mx,
             os,
@@ -140,16 +131,6 @@ impl Searcher {
         )
         .to_string();
         Search { outgoing, msg }
-    }
-
-    pub async fn next(&mut self) -> Option<io::Result<(String, SocketAddr)>> {
-        match self.incoming.next().await? {
-            Ok((msg, len, sender)) => {
-                let msg = String::from_utf8_lossy(&msg[..len]).to_string();
-                Some(Ok((msg, sender)))
-            }
-            Err(e) => Some(Err(e)),
-        }
     }
 }
 
