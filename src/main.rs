@@ -17,7 +17,7 @@ use futures::StreamExt;
 use try_v2::{Try, Try_ConvertResult};
 use uuid::Uuid;
 
-use ssdp_rs::search::{Listener, Searcher};
+use ssdp_rs::{Listener, Searcher};
 
 mod cli;
 use cli::*;

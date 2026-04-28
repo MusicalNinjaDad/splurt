@@ -5,7 +5,7 @@
 //! # // no reply possible so not run as test to avoid endless loop
 //! # use std::{io, net::Ipv4Addr};
 //! use futures::StreamExt;
-//! use ssdp_rs::search::{Listener, Searcher};
+//! use ssdp_rs::{Listener, Searcher};
 //!
 //! # fn main() -> io::Result<()> {
 //! // Create a new searcher
@@ -34,52 +34,20 @@
 
 use std::{
     io,
-    net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4},
+    net::{Ipv4Addr, SocketAddrV4},
     time::Duration,
 };
 
-use futures::{SinkExt, Stream, StreamExt};
+use futures::SinkExt;
 use futures_timer::Delay;
 use uuid::Uuid;
 
 use crate::{
-    MAX_MSG_SIZE, MULTICAST_IP, MUTLICAST, SSDP_PORT,
+    MUTLICAST, SSDP_PORT,
     message::{Message, Mx},
-    udp::{EventedUdpSocket, UdpSink, UdpStream},
+    udp::{EventedUdpSocket, UdpSink},
 };
 
-#[derive(Debug)]
-pub struct Listener {
-    incoming: UdpStream<MAX_MSG_SIZE>,
-}
-
-impl Listener {
-    pub fn new(addr: Ipv4Addr) -> io::Result<Self> {
-        let addr = SocketAddrV4::new(addr, SSDP_PORT).into();
-        let mut incoming = UdpStream::bind(addr)?;
-        let IpAddr::V4(interface) = incoming.local_addr()?.ip() else {
-            unimplemented!("no IPv6 support")
-        };
-        incoming
-            .as_socket_mut()
-            .join_multicast_v4(&MULTICAST_IP, &interface)?;
-        Ok(Self { incoming })
-    }
-}
-
-impl Stream for Listener {
-    type Item = io::Result<(String, SocketAddr)>;
-
-    fn poll_next(
-        mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Self::Item>> {
-        self.as_mut()
-            .incoming
-            .poll_next_unpin(cx)
-            .map_ok(|(msg, len, addr)| (String::from_utf8_lossy(&msg[..len]).to_string(), addr))
-    }
-}
 #[derive(Debug)]
 pub struct Searcher {
     outgoing: UdpSink,
