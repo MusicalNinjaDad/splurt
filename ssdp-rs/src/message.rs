@@ -9,6 +9,7 @@
 
 use std::{
     collections::HashMap,
+    error,
     fmt::Display,
     io,
     net::{AddrParseError, SocketAddr, SocketAddrV4, SocketAddrV6},
@@ -18,6 +19,50 @@ use std::{
 use uuid::Uuid;
 
 use crate::MULTICAST;
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Error {
+    InvalidMethod(String),
+}
+
+impl error::Error for Error {}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
+        }
+    }
+}
+
+pub enum Method {
+    MSearch,
+    Notify,
+    Response,
+}
+
+impl Display for Method {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Method::MSearch => write!(f, "M-SEARCH * HTTP/1.1"),
+            Method::Notify => write!(f, "NOTIFY * HTTP/1.1"),
+            Method::Response => write!(f, "HTTP/1.1 200 OK"),
+        }
+    }
+}
+
+impl FromStr for Method {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "M-SEARCH * HTTP/1.1" => Ok(Self::MSearch),
+            "NOTIFY * HTTP/1.1" => Ok(Self::Notify),
+            "HTTP/1.1 200 OK" => Ok(Self::Response),
+            _ => Err(Error::InvalidMethod(s.to_string())),
+        }
+    }
+}
 
 /// A valid & parsed ssdp message
 ///
@@ -117,7 +162,7 @@ impl Display for MSearch {
             friendly_name,
             uuid,
         } = self;
-        writeln!(f, "M-SEARCH * HTTP/1.1")?;
+        writeln!(f, "{}", Method::MSearch)?;
         host.write_header(f)?;
         writeln!(f, r#"MAN: "ssdp:discover""#)?;
         mx.write_header(f)?;
