@@ -220,10 +220,8 @@ impl Searcher {
     /// - If successfully set the `Ok(u8)` will contain the old value
     pub fn set_mx(&mut self, mx: u8) -> io::Result<u8> {
         let current = self.mx.into();
-        match mx {
-            0..=5 => Ok(current),
-            _ => Err(io::Error::from(io::ErrorKind::InvalidInput)),
-        }
+        self.mx = mx.try_into()?;
+        Ok(current)
     }
 
     pub fn ttl(&self) -> io::Result<u32> {
