@@ -87,6 +87,7 @@ impl Stream for Listener {
 #[derive(Debug)]
 pub struct Searcher {
     outgoing: UdpSink,
+    /// The MX field in the M-SEARCH message
     pub mx: Mx,
     os: String,
     os_version: String,
@@ -94,6 +95,12 @@ pub struct Searcher {
     product_version: String,
     friendly_name: String,
     uuid: Uuid,
+    /// M-SEARCH messages are sent `repeat` times
+    repeat: u8,
+    /// Delay between repeated M-SEARCH messages
+    repeat_delay: Duration,
+    /// The full set of `repeat` messages are resent every `resend`
+    resend_every: Duration,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -110,6 +117,9 @@ pub struct UpnpMessenger<'a> {
     product_version: &'a str,
     friendly_name: &'a str,
     uuid: Option<Uuid>,
+    repeat: Option<u8>,
+    repeat_delay: Option<Duration>,
+    resend_every: Option<Duration>,
 }
 
 impl UpnpMessenger<'_> {
@@ -159,6 +169,9 @@ impl UpnpMessenger<'_> {
     /// - MX: 5 (max)
     /// - OS: retrieved at runtime
     /// - UUID: random UUID v4
+    /// - Repeat: 5
+    /// - Repeat delay: 5s
+    /// - Resend every: 15 mins
     pub fn build_searcher(&mut self) -> io::Result<Searcher> {
         let ip = self.addr.unwrap_or(Ipv4Addr::UNSPECIFIED);
         let port = self.port.unwrap_or(SSDP_PORT);
@@ -175,6 +188,9 @@ impl UpnpMessenger<'_> {
         let product_version = self.product_version.to_string();
         let friendly_name = self.friendly_name.to_string();
         let uuid = self.uuid.unwrap_or(Uuid::new_v4());
+        let repeat = self.repeat.unwrap_or(5);
+        let repeat_delay = self.repeat_delay.unwrap_or(Duration::from_secs(5));
+        let resend_every = self.resend_every.unwrap_or(Duration::from_secs(15 * 60));
         Ok(Searcher {
             outgoing,
             mx,
@@ -184,6 +200,9 @@ impl UpnpMessenger<'_> {
             product_version,
             friendly_name,
             uuid,
+            repeat,
+            repeat_delay,
+            resend_every,
         })
     }
 }
@@ -213,6 +232,9 @@ impl Searcher {
             product_version,
             friendly_name,
             uuid,
+            repeat,
+            repeat_delay,
+            resend_every,
         } = self;
         let msg = Message::new_search(
             *mx,
@@ -224,13 +246,10 @@ impl Searcher {
             *uuid,
         )
         .to_string();
-        let repeat = 5;
-        let initial_delay = Duration::from_secs(5);
-        let resend_every = Duration::from_secs(15 * 60);
         loop {
-            let resend_timer = Delay::new(resend_every);
-            for _ in 0..repeat {
-                let initial_timer = Delay::new(initial_delay);
+            let resend_timer = Delay::new(*resend_every);
+            for _ in 0..*repeat {
+                let initial_timer = Delay::new(*repeat_delay);
                 outgoing.send((msg.as_bytes(), &MUTLICAST)).await?;
                 initial_timer.await;
             }
