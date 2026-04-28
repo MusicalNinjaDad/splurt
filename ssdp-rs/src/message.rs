@@ -209,9 +209,7 @@ impl Display for DeviceDetails {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 enum Vendor {
-    #[expect(unused)]
     Standard,
-    #[expect(unused)]
     Custom(String),
 }
 
@@ -224,7 +222,16 @@ impl Display for Vendor {
     }
 }
 
-//TODO impl FromStr for Vendor
+ impl FromStr for Vendor {
+    type Err = !;
+ 
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "schemas-upnp-org" => Ok(Self::Standard),
+            _ => Ok(Self::Custom(s.to_string())),
+        }
+    }
+ }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 enum Device {
