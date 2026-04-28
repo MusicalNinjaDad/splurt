@@ -138,6 +138,24 @@ impl Display for Message {
     }
 }
 
+pub enum Man {
+    Discover,
+}
+
+impl Display for Man {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            Man::Discover => "ssdp:discover",
+        };
+        // MAN values are enclosed in double-quotes
+        write!(f, r#""{}""#, str)
+    }
+}
+
+impl Header for Man {
+    const HEADER_KEY: &'static str = "MAN";
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MSearch {
     host: Host,
@@ -164,7 +182,7 @@ impl Display for MSearch {
         } = self;
         writeln!(f, "{}", Method::MSearch)?;
         host.write_header(f)?;
-        writeln!(f, r#"MAN: "ssdp:discover""#)?;
+        Man::Discover.write_header(f)?;
         mx.write_header(f)?;
         writeln!(f, "ST: ssdp:all")?;
         user_agent.write_header(f)?;
