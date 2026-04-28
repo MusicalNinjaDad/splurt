@@ -118,11 +118,19 @@ impl Header for Host {
     const HEADER_KEY: &'static str = "HOST";
 }
 
-trait Header
-where
-    Self: Display,
-{
+trait Header {
     const HEADER_KEY: &'static str;
+}
+
+trait HeaderExt {
+    /// Output as a valid header line
+    fn to_header(&self) -> String;
+
+    /// Write a valid header line to `f` including new-line
+    fn write_header(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
+}
+
+impl<H: Header + Display> HeaderExt for H {
     /// Output as a valid header line
     fn to_header(&self) -> String {
         format!("{}: {}", Self::HEADER_KEY, self)
@@ -131,6 +139,22 @@ where
     /// Write a valid header line to `f` including new-line
     fn write_header(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.to_header())
+    }
+}
+
+impl<H: Header + HeaderExt> HeaderExt for Option<H> {
+    fn to_header(&self) -> String {
+        match self {
+            Some(header) => header.to_header(),
+            None => String::new(),
+        }
+    }
+
+    fn write_header(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Some(header) => header.write_header(f),
+            None => Ok(()),
+        }
     }
 }
 
@@ -189,13 +213,9 @@ impl Display for MSearch {
         writeln!(f, r#"MAN: "ssdp:discover""#)?;
         mx.write_header(f)?;
         writeln!(f, "ST: ssdp:all")?;
-        if let Some(user_agent) = user_agent {
-            user_agent.write_header(f)?;
-        }
+        user_agent.write_header(f)?;
         friendly_name.write_header(f)?;
-        if let Some(uuid) = uuid {
-            uuid.write_header(f)?;
-        }
+        uuid.write_header(f)?;
         // Must end with blank line as per spec:
         //   "Note: No body is present in requests with method M-SEARCH, but note that the
         //          message shall have a blank line following the last header field."
