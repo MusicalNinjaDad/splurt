@@ -5,17 +5,19 @@
 #![feature(try_trait_v2)]
 #![feature(try_trait_v2_residual)]
 
-use std::{collections::HashMap, fmt::Debug, future::join, io, process::Termination as _T};
+use std::{
+    collections::HashMap, fmt::Debug, future::join, io, net::Ipv4Addr, process::Termination as _T,
+};
 
 use clap::Parser;
 use cotton_netif::get_interfaces;
 use cotton_ssdp::{Advertisement, AsyncService, Notification};
 use exit_safely::Termination;
-use futures_util::StreamExt;
+use futures::StreamExt;
 use try_v2::{Try, Try_ConvertResult};
 use uuid::Uuid;
 
-use ssdp_rs::search::Searcher;
+use ssdp_rs::{Listener, Searcher};
 
 mod cli;
 use cli::*;
@@ -58,7 +60,7 @@ fn main() -> Exit<()> {
                 }
             };
 
-            let mut listener = Searcher::new("splurt", "v0.0.1", "splurt ssdp repeater")?;
+            let mut listener = Listener::new(Ipv4Addr::UNSPECIFIED)?;
             let listen_loop = async {
                 try bikeshed Exit<()> {
                     loop {
