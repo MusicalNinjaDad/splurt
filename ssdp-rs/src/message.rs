@@ -30,228 +30,6 @@ pub enum Message {
     Search(MSearch),
 }
 
-/// Formats Message as per OCF specification (2020)
-impl Display for Message {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Message::Alive(_notification) => todo!("display alive messages"),
-            Message::Search(msearch) => {
-                write!(f, "{msearch}")
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct MSearch {
-    host: Host,
-    mx: Mx,
-    user_agent: Option<UserAgent>,
-    friendly_name: FriendlyName,
-    uuid: Option<Uuid>,
-}
-
-impl Header for Uuid {
-    const HEADER_KEY: &'static str = "CPUUID.UPNP.ORG";
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct FriendlyName(String);
-
-impl Header for FriendlyName {
-    const HEADER_KEY: &'static str = "CPFN.UPNP.ORG";
-}
-
-impl Display for FriendlyName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl From<&str> for FriendlyName {
-    fn from(s: &str) -> Self {
-        Self(s.to_string())
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Host {
-    V4(SocketAddrV4),
-    /// IPv6 is currently untested & largely unimplemented
-    _V6(SocketAddrV6),
-}
-
-impl Display for Host {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Host::V4(socket_addr_v4) => write!(f, "{socket_addr_v4}"),
-            Host::_V6(socket_addr_v6) => write!(f, "{socket_addr_v6}"),
-        }
-    }
-}
-
-impl FromStr for Host {
-    type Err = AddrParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let addr = SocketAddr::from_str(s)?;
-        Ok(addr.into())
-    }
-}
-
-impl From<SocketAddr> for Host {
-    fn from(addr: SocketAddr) -> Self {
-        match addr {
-            SocketAddr::V4(socket_addr_v4) => Self::V4(socket_addr_v4),
-            SocketAddr::V6(socket_addr_v6) => Self::_V6(socket_addr_v6),
-        }
-    }
-}
-
-impl Default for Host {
-    fn default() -> Self {
-        MULTICAST.into()
-    }
-}
-
-impl Header for Host {
-    const HEADER_KEY: &'static str = "HOST";
-}
-
-trait Header {
-    const HEADER_KEY: &'static str;
-}
-
-trait HeaderExt {
-    /// Output as a valid header line
-    fn to_header(&self) -> String;
-
-    /// Write a valid header line to `f` including new-line
-    fn write_header(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
-}
-
-impl<H: Header + Display> HeaderExt for H {
-    /// Output as a valid header line
-    fn to_header(&self) -> String {
-        format!("{}: {}", Self::HEADER_KEY, self)
-    }
-
-    /// Write a valid header line to `f` including new-line
-    fn write_header(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}", self.to_header())
-    }
-}
-
-impl<H: Header + HeaderExt> HeaderExt for Option<H> {
-    fn to_header(&self) -> String {
-        match self {
-            Some(header) => header.to_header(),
-            None => String::new(),
-        }
-    }
-
-    fn write_header(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Some(header) => header.write_header(f),
-            None => Ok(()),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-/// A valid MX value (0..=5) (see UPnP spec para 1.3.2)
-///
-/// - Construct via `TryFrom<u8>`
-/// - Desconstruct via `Into<u8>`
-/// - Invalid values will result in an `io::ErrorKind::InvalidInput`.
-pub struct Mx(u8);
-
-impl Display for Mx {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl TryFrom<u8> for Mx {
-    type Error = io::Error;
-
-    fn try_from(mx: u8) -> Result<Self, Self::Error> {
-        match mx {
-            0..=5 => Ok(Self(mx)),
-            _ => Err(io::Error::from(io::ErrorKind::InvalidInput)),
-        }
-    }
-}
-
-impl From<Mx> for u8 {
-    fn from(mx: Mx) -> Self {
-        mx.0
-    }
-}
-
-impl Header for Mx {
-    const HEADER_KEY: &'static str = "MX";
-}
-
-/// Entire valid M-SEARCH message including initial method line,
-/// as per OCF specification (2020) section 1.3.2
-///
-/// #### Note:
-/// I've rarely actually seen a well-formed spec-conform M-SEARCH flying around my network
-/// but there's nothing wrong with actually being fully valid!
-impl Display for MSearch {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self {
-            host,
-            mx,
-            user_agent,
-            friendly_name,
-            uuid,
-        } = self;
-        writeln!(f, "M-SEARCH * HTTP/1.1")?;
-        host.write_header(f)?;
-        writeln!(f, r#"MAN: "ssdp:discover""#)?;
-        mx.write_header(f)?;
-        writeln!(f, "ST: ssdp:all")?;
-        user_agent.write_header(f)?;
-        friendly_name.write_header(f)?;
-        uuid.write_header(f)?;
-        // Must end with blank line as per spec:
-        //   "Note: No body is present in requests with method M-SEARCH, but note that the
-        //          message shall have a blank line following the last header field."
-        writeln!(f)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct UserAgent {
-    os: String,
-    os_version: String,
-    product_name: String,
-    product_version: String,
-}
-
-/// Formatted as per OCF specification (2020) section 1.3.2 for the `USER-AGENT` *value*,
-/// does NOT include the header key
-impl Display for UserAgent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self {
-            os,
-            os_version,
-            product_name,
-            product_version,
-        } = self;
-        write!(
-            f,
-            "{os}/{os_version} UPnP/2.0 {product_name}/{product_version}"
-        )
-    }
-}
-
-impl Header for UserAgent {
-    const HEADER_KEY: &'static str = "USER-AGENT";
-}
-
 impl Message {
     /// Parse an ssdp message from given text
     pub fn parse(contents: &str) -> Option<Message> {
@@ -303,6 +81,227 @@ impl Message {
     }
 }
 
+/// Formats Message as per OCF specification (2020)
+impl Display for Message {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Message::Alive(_notification) => todo!("display alive messages"),
+            Message::Search(msearch) => {
+                write!(f, "{msearch}")
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct MSearch {
+    host: Host,
+    mx: Mx,
+    user_agent: Option<UserAgent>,
+    friendly_name: FriendlyName,
+    uuid: Option<Uuid>,
+}
+
+/// Entire valid M-SEARCH message including initial method line,
+/// as per OCF specification (2020) section 1.3.2
+///
+/// #### Note:
+/// I've rarely actually seen a well-formed spec-conform M-SEARCH flying around my network
+/// but there's nothing wrong with actually being fully valid!
+impl Display for MSearch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            host,
+            mx,
+            user_agent,
+            friendly_name,
+            uuid,
+        } = self;
+        writeln!(f, "M-SEARCH * HTTP/1.1")?;
+        host.write_header(f)?;
+        writeln!(f, r#"MAN: "ssdp:discover""#)?;
+        mx.write_header(f)?;
+        writeln!(f, "ST: ssdp:all")?;
+        user_agent.write_header(f)?;
+        friendly_name.write_header(f)?;
+        uuid.write_header(f)?;
+        // Must end with blank line as per spec:
+        //   "Note: No body is present in requests with method M-SEARCH, but note that the
+        //          message shall have a blank line following the last header field."
+        writeln!(f)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Host {
+    V4(SocketAddrV4),
+    /// IPv6 is currently untested & largely unimplemented
+    _V6(SocketAddrV6),
+}
+
+impl Header for Host {
+    const HEADER_KEY: &'static str = "HOST";
+}
+
+impl Display for Host {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Host::V4(socket_addr_v4) => write!(f, "{socket_addr_v4}"),
+            Host::_V6(socket_addr_v6) => write!(f, "{socket_addr_v6}"),
+        }
+    }
+}
+
+impl From<SocketAddr> for Host {
+    fn from(addr: SocketAddr) -> Self {
+        match addr {
+            SocketAddr::V4(socket_addr_v4) => Self::V4(socket_addr_v4),
+            SocketAddr::V6(socket_addr_v6) => Self::_V6(socket_addr_v6),
+        }
+    }
+}
+
+impl FromStr for Host {
+    type Err = AddrParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let addr = SocketAddr::from_str(s)?;
+        Ok(addr.into())
+    }
+}
+
+impl Default for Host {
+    fn default() -> Self {
+        MULTICAST.into()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+/// A valid MX value (0..=5) (see UPnP spec para 1.3.2)
+///
+/// - Construct via `TryFrom<u8>`
+/// - Desconstruct via `Into<u8>`
+/// - Invalid values will result in an `io::ErrorKind::InvalidInput`.
+pub struct Mx(u8);
+
+impl Header for Mx {
+    const HEADER_KEY: &'static str = "MX";
+}
+
+impl Display for Mx {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl TryFrom<u8> for Mx {
+    type Error = io::Error;
+
+    fn try_from(mx: u8) -> Result<Self, Self::Error> {
+        match mx {
+            0..=5 => Ok(Self(mx)),
+            _ => Err(io::Error::from(io::ErrorKind::InvalidInput)),
+        }
+    }
+}
+
+impl From<Mx> for u8 {
+    fn from(mx: Mx) -> Self {
+        mx.0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct UserAgent {
+    os: String,
+    os_version: String,
+    product_name: String,
+    product_version: String,
+}
+
+impl Header for UserAgent {
+    const HEADER_KEY: &'static str = "USER-AGENT";
+}
+
+/// Formatted as per OCF specification (2020) section 1.3.2 for the `USER-AGENT` *value*,
+/// does NOT include the header key
+impl Display for UserAgent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            os,
+            os_version,
+            product_name,
+            product_version,
+        } = self;
+        write!(
+            f,
+            "{os}/{os_version} UPnP/2.0 {product_name}/{product_version}"
+        )
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct FriendlyName(String);
+
+impl Header for FriendlyName {
+    const HEADER_KEY: &'static str = "CPFN.UPNP.ORG";
+}
+
+impl Display for FriendlyName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<&str> for FriendlyName {
+    fn from(s: &str) -> Self {
+        Self(s.to_string())
+    }
+}
+
+impl Header for Uuid {
+    const HEADER_KEY: &'static str = "CPUUID.UPNP.ORG";
+}
+
+trait Header {
+    const HEADER_KEY: &'static str;
+}
+
+trait HeaderExt {
+    /// Output as a valid header line
+    fn to_header(&self) -> String;
+
+    /// Write a valid header line to `f` including new-line
+    fn write_header(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
+}
+
+impl<H: Header + Display> HeaderExt for H {
+    /// Output as a valid header line
+    fn to_header(&self) -> String {
+        format!("{}: {}", Self::HEADER_KEY, self)
+    }
+
+    /// Write a valid header line to `f` including new-line
+    fn write_header(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{}", self.to_header())
+    }
+}
+
+impl<H: Header + HeaderExt> HeaderExt for Option<H> {
+    fn to_header(&self) -> String {
+        match self {
+            Some(header) => header.to_header(),
+            None => String::new(),
+        }
+    }
+
+    fn write_header(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Some(header) => header.write_header(f),
+            None => Ok(()),
+        }
+    }
+}
 #[derive(Debug, Clone, PartialEq)]
 pub struct Notification {
     location: Option<String>,
