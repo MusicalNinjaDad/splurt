@@ -98,7 +98,7 @@ pub struct Searcher {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
-pub struct UpnpBuilder<'a> {
+pub struct UpnpMessager<'a> {
     addr: Option<Ipv4Addr>,
     port: Option<u16>,
     ttl: Option<u32>,
@@ -112,7 +112,20 @@ pub struct UpnpBuilder<'a> {
     uuid: Option<Uuid>,
 }
 
-impl UpnpBuilder<'_> {
+impl UpnpMessager<'_> {
+    pub fn new<'a>(
+        product_name: &'a str,
+        product_version: &'a str,
+        friendly_name: &'a str,
+    ) -> UpnpMessager<'a> {
+        UpnpMessager {
+            product_name,
+            product_version,
+            friendly_name,
+            ..Default::default()
+        }
+    }
+
     pub fn ip(&mut self, addr: Ipv4Addr) -> &mut Self {
         self.addr = Some(addr);
         self
@@ -138,7 +151,7 @@ impl UpnpBuilder<'_> {
         self
     }
 
-    pub fn build(&mut self) -> io::Result<Searcher> {
+    pub fn build_searcher(&mut self) -> io::Result<Searcher> {
         let ip = self.addr.unwrap_or(Ipv4Addr::UNSPECIFIED);
         let port = self.port.unwrap_or(SSDP_PORT);
         let addr = SocketAddrV4::new(ip, port).into();
@@ -197,19 +210,6 @@ impl Searcher {
         })
     }
 
-    pub fn custom<'a>(
-        product_name: &'a str,
-        product_version: &'a str,
-        friendly_name: &'a str,
-    ) -> UpnpBuilder<'a> {
-        UpnpBuilder {
-            product_name,
-            product_version,
-            friendly_name,
-            ..Default::default()
-        }
-    }
-
     pub fn ttl(&self) -> io::Result<u32> {
         self.outgoing.as_socket().ttl()
     }
@@ -261,13 +261,13 @@ mod tests {
 
     #[test]
     fn custom_build() {
-        let s = Searcher::custom("splurt", "v0.0.1", "splurt is nice")
+        let s = UpnpMessager::new("splurt", "v0.0.1", "splurt is nice")
             .ip(Ipv4Addr::LOCALHOST)
             .port(1901)
             .mx(3)
             .uuid(Uuid::new_v4())
             .ttl(3)
-            .build()
+            .build_searcher()
             .expect("built");
         assert_eq!(s.friendly_name, "splurt is nice");
         assert_eq!(s.mx, 3.try_into().expect("mx 3 is valid"));
