@@ -69,29 +69,29 @@ pub struct Searcher {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 /// A builder for custom UpnpMessengers
-pub struct UpnpMessenger<'a> {
+pub struct UpnpMessenger<'bldr> {
     addr: Option<Ipv4Addr>,
     port: Option<u16>,
     ttl: Option<u32>,
 
     mx: Option<u8>,
-    os: Option<&'a str>,
-    os_version: Option<&'a str>,
-    product_name: &'a str,
-    product_version: &'a str,
-    friendly_name: &'a str,
+    os: Option<&'bldr str>,
+    os_version: Option<&'bldr str>,
+    product_name: &'bldr str,
+    product_version: &'bldr str,
+    friendly_name: &'bldr str,
     uuid: Option<Uuid>,
     repeat: Option<u8>,
     repeat_delay: Option<Duration>,
     resend_every: Option<Duration>,
 }
 
-impl UpnpMessenger<'_> {
-    pub fn new<'a>(
-        product_name: &'a str,
-        product_version: &'a str,
-        friendly_name: &'a str,
-    ) -> UpnpMessenger<'a> {
+impl<'bldr> UpnpMessenger<'bldr> {
+    pub fn new(
+        product_name: &'bldr str,
+        product_version: &'bldr str,
+        friendly_name: &'bldr str,
+    ) -> UpnpMessenger<'bldr> {
         UpnpMessenger {
             product_name,
             product_version,
@@ -117,6 +117,16 @@ impl UpnpMessenger<'_> {
 
     pub fn mx(&mut self, mx: u8) -> &mut Self {
         self.mx = Some(mx);
+        self
+    }
+
+    pub fn os(&mut self, os: &'bldr str) -> &mut Self {
+        self.os = Some(os);
+        self
+    }
+
+    pub fn os_version(&mut self, os_version: &'bldr str) -> &mut Self {
+        self.os_version = Some(os_version);
         self
     }
 
@@ -161,8 +171,14 @@ impl UpnpMessenger<'_> {
 
         let mx = Mx::try_from(self.mx.unwrap_or(5))?;
         let os_info = osinfo::get();
-        let os = os_info.get_name();
-        let os_version = os_info.get_version().to_string();
+        let os = self
+            .os
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| os_info.get_name());
+        let os_version = self
+            .os_version
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| os_info.get_version().to_string());
         let product_name = self.product_name.to_string();
         let product_version = self.product_version.to_string();
         let friendly_name = self.friendly_name.to_string();
@@ -243,6 +259,7 @@ mod tests {
 
     #[test]
     fn custom_build() {
+        let os_version = String::from("latest_and_greatest");
         let s = UpnpMessenger::new("splurt", "v0.0.1", "splurt is nice")
             .ip(Ipv4Addr::LOCALHOST)
             .port(1901)
@@ -252,6 +269,8 @@ mod tests {
             .repeat(4)
             .repeat_delay(Duration::from_secs(2))
             .resend_every(Duration::from_secs(60))
+            .os("fooOs")
+            .os_version(&os_version)
             .build_searcher()
             .expect("built");
         assert_eq!(s.friendly_name, "splurt is nice");
@@ -259,6 +278,8 @@ mod tests {
         assert_eq!(s.repeat, 4);
         assert_eq!(s.repeat_delay, Duration::from_secs(2));
         assert_eq!(s.resend_every, Duration::from_secs(60));
+        assert_eq!(s.os, "fooOs");
+        assert_eq!(s.os_version, "latest_and_greatest");
     }
 
     #[test]
