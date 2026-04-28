@@ -161,6 +161,21 @@ impl UpnpMessenger<'_> {
         self
     }
 
+    pub fn repeat(&mut self, repeat: u8) -> &mut Self {
+        self.repeat = Some(repeat);
+        self
+    }
+
+    pub fn repeat_delay(&mut self, repeat_delay: Duration) -> &mut Self {
+        self.repeat_delay = Some(repeat_delay);
+        self
+    }
+
+    pub fn resend_every(&mut self, resend_every: Duration) -> &mut Self {
+        self.resend_every = Some(resend_every);
+        self
+    }
+
     /// Build a Searcher using following default values, if not defined:
     ///
     /// - IP: `Ipv4Addr::UNSPECIFIED`
@@ -270,10 +285,16 @@ mod tests {
             .mx(3)
             .uuid(Uuid::new_v4())
             .ttl(3)
+            .repeat(4)
+            .repeat_delay(Duration::from_secs(2))
+            .resend_every(Duration::from_secs(60))
             .build_searcher()
             .expect("built");
         assert_eq!(s.friendly_name, "splurt is nice");
         assert_eq!(s.mx, 3.try_into().expect("mx 3 is valid"));
+        assert_eq!(s.repeat, 4);
+        assert_eq!(s.repeat_delay, Duration::from_secs(2));
+        assert_eq!(s.resend_every, Duration::from_secs(60));
     }
 
     #[test]
