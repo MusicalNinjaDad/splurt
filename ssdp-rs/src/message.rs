@@ -104,6 +104,11 @@ where
     fn to_header(&self) -> String {
         format!("{}: {}", Self::HEADER_KEY, self)
     }
+
+    /// Write a valid header line to `f` including new-line
+    fn write_header(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{}", self.to_header())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -157,12 +162,12 @@ impl Display for MSearch {
             uuid,
         } = self;
         writeln!(f, "M-SEARCH * HTTP/1.1")?;
-        writeln!(f, "{}", host.to_header())?;
+        host.write_header(f)?;
         writeln!(f, r#"MAN: "ssdp:discover""#)?;
-        writeln!(f, "{}", mx.to_header())?;
+        mx.write_header(f)?;
         writeln!(f, "ST: ssdp:all")?;
         if let Some(user_agent) = user_agent {
-            writeln!(f, "USER-AGENT: {}", user_agent)?;
+            writeln!(f, "{}", user_agent.to_header())?;
         }
         writeln!(f, "CPFN.UPNP.ORG: {}", friendly_name)?;
         if let Some(uuid) = uuid {
@@ -195,6 +200,10 @@ impl Display for UserAgent {
             "{os}/{os_version} UPnP/2.0 {product_name}/{product_version}"
         )
     }
+}
+
+impl Header for UserAgent {
+    const HEADER_KEY: &'static str = "USER-AGENT";
 }
 
 impl Message {
