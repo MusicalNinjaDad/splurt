@@ -190,12 +190,15 @@ impl Display for MSearch {
         mx.write_header(f)?;
         writeln!(f, "ST: ssdp:all")?;
         if let Some(user_agent) = user_agent {
-            writeln!(f, "{}", user_agent.to_header())?;
+            user_agent.write_header(f)?;
         }
-        writeln!(f, "CPFN.UPNP.ORG: {}", friendly_name)?;
+        friendly_name.write_header(f)?;
         if let Some(uuid) = uuid {
             uuid.write_header(f)?;
         }
+        // Must end with blank line as per spec:
+        //   "Note: No body is present in requests with method M-SEARCH, but note that the
+        //          message shall have a blank line following the last header field."
         writeln!(f)
     }
 }
