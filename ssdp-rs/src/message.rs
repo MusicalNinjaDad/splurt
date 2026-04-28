@@ -24,6 +24,7 @@ use crate::MULTICAST;
 pub enum Error {
     InvalidMethod(String),
     InvalidST(String),
+    InvalidDevice(String),
 }
 
 impl error::Error for Error {}
@@ -33,6 +34,9 @@ impl Display for Error {
         match self {
             Error::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
             Error::InvalidST(st) => write!(f, "{} is not a valid upnp search type", st),
+            Error::InvalidDevice(device) => {
+                writeln!(f, "{} is not a valid upnp device:ver specification", device)
+            }
         }
     }
 }
@@ -222,20 +226,19 @@ impl Display for Vendor {
     }
 }
 
- impl FromStr for Vendor {
+impl FromStr for Vendor {
     type Err = !;
- 
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "schemas-upnp-org" => Ok(Self::Standard),
             _ => Ok(Self::Custom(s.to_string())),
         }
     }
- }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 enum Device {
-    #[expect(unused)]
     Other { device_type: String, ver: String },
 }
 
@@ -244,6 +247,20 @@ impl Display for Device {
         match self {
             Device::Other { device_type, ver } => write!(f, "{}:{}", device_type, ver),
         }
+    }
+}
+
+impl FromStr for Device {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (device_type, ver) = s
+            .split_once(":")
+            .ok_or(Error::InvalidDevice(s.to_string()))?;
+        Ok(Self::Other {
+            device_type: device_type.to_string(),
+            ver: ver.to_string(),
+        })
     }
 }
 
