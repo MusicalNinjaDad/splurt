@@ -166,8 +166,10 @@ enum ST {
     /// `ssdp:all`: Search for all devices and services.
     All,
     /// `upnp:rootdevice`: Search for root devices only.
+    #[expect(unused)]
     Root,
     /// uuid:device-UUID: Search for a particular device.
+    #[expect(unused)]
     Uuid(Uuid),
     /// `urn:schemas-upnp-org:device:deviceType:ver`:
     ///     Search for any device of this type where `deviceType` and `ver` are
@@ -178,6 +180,7 @@ enum ST {
     ///     specifies the highest supported version of the device type. Period characters in
     ///     the Vendor Domain Name shall be replaced with hyphens in accordance with RFC 2141.
     /// TODO: #36 DeviceTypes
+    #[expect(unused)]
     Device(DeviceDetails),
     /// `urn:schemas-upnp-org:service:serviceType:ver`:
     ///     Search for any service of this type where serviceType and ver are
@@ -188,6 +191,7 @@ enum ST {
     ///     specifies the highest supported version of the service type. Period characters in
     ///     the Vendor Domain Name shall be replaced with hyphens in accordance with RFC 2141.
     /// TODO: #37 ServiceTypes
+    #[expect(unused)]
     Service(ServiceDetails),
 }
 
@@ -205,7 +209,9 @@ impl Display for DeviceDetails {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 enum Vendor {
+    #[expect(unused)]
     Standard,
+    #[expect(unused)]
     Custom(String),
 }
 
@@ -222,6 +228,7 @@ impl Display for Vendor {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 enum Device {
+    #[expect(unused)]
     Other { device_type: String, ver: String },
 }
 
@@ -247,6 +254,7 @@ impl Display for ServiceDetails {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 enum Service {
+    #[expect(unused)]
     Other { service_type: String, ver: String },
 }
 
@@ -274,15 +282,13 @@ impl Display for ST {
     }
 }
 
-impl FromStr for ST {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            _ => todo!("from str ST"),
-        }
-    }
-}
+//TODO: impl FromStr for ST {
+//     type Err = Error;
+//
+//     fn from_str(s: &str) -> Result<Self, Self::Err> {
+//         todo!("from str ST")
+//     }
+// }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MSearch {
