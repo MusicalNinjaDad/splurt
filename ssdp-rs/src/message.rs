@@ -25,6 +25,7 @@ pub enum Error {
     InvalidMethod(String),
     InvalidST(String),
     InvalidDevice(String),
+    InvalidDeviceDetails(String),
 }
 
 impl error::Error for Error {}
@@ -34,7 +35,12 @@ impl Display for Error {
         match self {
             Error::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
             Error::InvalidST(st) => write!(f, "{} is not a valid upnp search type", st),
-            Error::InvalidDevice(device) => {
+            Error::InvalidDevice(device) => writeln!(
+                f,
+                "{} is not a valid upnp device specification (valid forms are `urn:domain-name:device:deviceType:ver` & `urn:schemas-upnp-org:device:deviceType:ver`)",
+                device
+            ),
+            Error::InvalidDeviceDetails(device) => {
                 writeln!(f, "{} is not a valid upnp device:ver specification", device)
             }
         }
@@ -211,6 +217,27 @@ impl Display for DeviceDetails {
     }
 }
 
+impl FromStr for DeviceDetails {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let err = || Error::InvalidDevice(s.to_string());
+        let mut parts = s.split(":");
+        match parts.next() {
+            Some("urn") => (),
+            _ => return Err(err()),
+        };
+        let Ok(vendor) = parts.next().ok_or_else(err)?.parse::<Vendor>();
+        match parts.next() {
+            Some("device") => (),
+            _ => return Err(err()),
+        };
+        let device: String = parts.collect();
+        let device: Device = device.parse()?;
+        Ok(Self { vendor, device })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 enum Vendor {
     Standard,
@@ -256,7 +283,7 @@ impl FromStr for Device {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (device_type, ver) = s
             .split_once(":")
-            .ok_or(Error::InvalidDevice(s.to_string()))?;
+            .ok_or(Error::InvalidDeviceDetails(s.to_string()))?;
         Ok(Self::Other {
             device_type: device_type.to_string(),
             ver: ver.to_string(),
