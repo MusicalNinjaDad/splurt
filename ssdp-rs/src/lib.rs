@@ -18,5 +18,5 @@ pub use search::Searcher;
 
 pub const MULTICAST_IP: Ipv4Addr = Ipv4Addr::new(239, 255, 255, 250);
 pub const SSDP_PORT: u16 = 1900;
-pub const MUTLICAST: SocketAddr = SocketAddr::new(IpAddr::V4(MULTICAST_IP), SSDP_PORT);
+pub const MULTICAST: SocketAddr = SocketAddr::new(IpAddr::V4(MULTICAST_IP), SSDP_PORT);
 pub const MAX_MSG_SIZE: usize = 1024;

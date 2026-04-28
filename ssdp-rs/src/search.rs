@@ -43,7 +43,7 @@ use futures_timer::Delay;
 use uuid::Uuid;
 
 use crate::{
-    MUTLICAST, SSDP_PORT,
+    MULTICAST, SSDP_PORT,
     message::{Message, Mx},
     udp::{EventedUdpSocket, UdpSink},
 };
@@ -117,7 +117,7 @@ impl Searcher {
             let resend_timer = Delay::new(*resend_every);
             for _ in 0..*repeat {
                 let initial_timer = Delay::new(*repeat_delay);
-                outgoing.send((msg.as_bytes(), &MUTLICAST)).await?;
+                outgoing.send((msg.as_bytes(), &MULTICAST)).await?;
                 initial_timer.await;
             }
             resend_timer.await;
