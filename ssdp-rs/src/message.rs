@@ -413,4 +413,29 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003
         let msg_text = msg.to_string();
         assert_eq!(msg_text, expected);
     }
+
+    #[test]
+    fn search_no_user_agent() {
+        let expected = r#"M-SEARCH * HTTP/1.1
+HOST: 239.255.255.250:1900
+MAN: "ssdp:discover"
+MX: 5
+ST: ssdp:all
+CPFN.UPNP.ORG: splurt SSDP repeater
+CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003
+
+"#;
+        let mx = 5.try_into().expect("valid mx");
+        let friendly_name = "splurt SSDP repeater";
+        let uuid = uuid!("2fac1234-31f8-11b4-a222-08002b34c003");
+        let msg = MSearch {
+            host: Default::default(),
+            mx,
+            user_agent: None,
+            friendly_name: FriendlyName(friendly_name.to_string()),
+            uuid: Some(uuid),
+        };
+        let msg_text = msg.to_string();
+        assert_eq!(msg_text, expected);
+    }
 }
