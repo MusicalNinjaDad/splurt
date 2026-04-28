@@ -7,9 +7,17 @@
 //!
 //! [spec]: https://openconnectivity.org/upnp-specs/UPnP-arch-DeviceArchitecture-v2.0-20200417.pdf
 
-use std::{collections::HashMap, fmt::Display, io};
+use std::{
+    collections::HashMap,
+    fmt::Display,
+    io,
+    net::{AddrParseError, SocketAddr, SocketAddrV4, SocketAddrV6},
+    str::FromStr,
+};
 
 use uuid::Uuid;
+
+use crate::MULTICAST;
 
 /// A valid & parsed ssdp message
 ///
@@ -36,10 +44,51 @@ impl Display for Message {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MSearch {
+    host: Host,
     mx: Mx,
     user_agent: Option<UserAgent>,
     friendly_name: String,
     uuid: Option<Uuid>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Host {
+    V4(SocketAddrV4),
+    /// IPv6 is currently untested & largely unimplemented
+    _V6(SocketAddrV6),
+}
+
+impl Display for Host {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Host::V4(socket_addr_v4) => write!(f, "{socket_addr_v4}"),
+            Host::_V6(socket_addr_v6) => write!(f, "{socket_addr_v6}"),
+        }
+    }
+}
+
+impl FromStr for Host {
+    type Err = AddrParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let addr = SocketAddr::from_str(s)?;
+        Ok(addr.into())
+    }
+}
+
+impl From<SocketAddr> for Host {
+    fn from(addr: SocketAddr) -> Self {
+        match addr {
+            SocketAddr::V4(socket_addr_v4) => Self::V4(socket_addr_v4),
+            SocketAddr::V6(socket_addr_v6) => Self::_V6(socket_addr_v6),
+        }
+    }
+}
+
+impl Default for Host {
+    fn default() -> Self {
+        MULTICAST.into()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -82,13 +131,14 @@ impl From<Mx> for u8 {
 impl Display for MSearch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self {
+            host,
             mx,
             user_agent,
             friendly_name,
             uuid,
         } = self;
         writeln!(f, "M-SEARCH * HTTP/1.1")?;
-        writeln!(f, "HOST: 239.255.255.250:1900")?;
+        writeln!(f, "HOST: {}", host)?;
         writeln!(f, r#"MAN: "ssdp:discover""#)?;
         writeln!(f, "MX: {}", mx)?;
         writeln!(f, "ST: ssdp:all")?;
@@ -168,7 +218,9 @@ impl Message {
             product_name: product_name.to_string(),
             product_version: product_version.to_string(),
         };
+        let host = Default::default();
         Message::Search(MSearch {
+            host,
             mx,
             user_agent: Some(user_agent),
             friendly_name: friendly_name.to_string(),
