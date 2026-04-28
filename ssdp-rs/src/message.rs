@@ -35,6 +35,7 @@ impl Display for Error {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Method {
     MSearch,
     Notify,
@@ -138,6 +139,7 @@ impl Display for Message {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Man {
     Discover,
 }
