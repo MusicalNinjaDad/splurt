@@ -67,6 +67,57 @@ pub struct Searcher {
     resend_every: Duration,
 }
 
+/// Create a new Searcher with default values as per [UpnpMessenger::build_searcher]
+impl Searcher {
+    pub fn new(product_name: &str, product_version: &str, friendly_name: &str) -> io::Result<Self> {
+        UpnpMessenger::new(product_name, product_version, friendly_name).build_searcher()
+    }
+
+    pub fn ttl(&self) -> io::Result<u32> {
+        self.outgoing.as_socket().ttl()
+    }
+
+    pub fn set_ttl(&mut self, ttl: u32) -> io::Result<u32> {
+        let current = self.ttl()?;
+        self.outgoing.as_socket_mut().set_ttl(ttl).map(|_| current)
+    }
+
+    pub async fn search(&mut self) -> io::Result<()> {
+        let Searcher {
+            outgoing,
+            mx,
+            os,
+            os_version,
+            product_name,
+            product_version,
+            friendly_name,
+            uuid,
+            repeat,
+            repeat_delay,
+            resend_every,
+        } = self;
+        let msg = Message::new_search(
+            *mx,
+            os,
+            os_version,
+            product_name,
+            product_version,
+            friendly_name,
+            *uuid,
+        )
+        .to_string();
+        loop {
+            let resend_timer = Delay::new(*resend_every);
+            for _ in 0..*repeat {
+                let initial_timer = Delay::new(*repeat_delay);
+                outgoing.send((msg.as_bytes(), &MUTLICAST)).await?;
+                initial_timer.await;
+            }
+            resend_timer.await;
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 /// A builder for custom UpnpMessengers
 pub struct UpnpMessenger<'bldr> {
@@ -201,58 +252,6 @@ impl<'bldr> UpnpMessenger<'bldr> {
         })
     }
 }
-
-/// Create a new Searcher with default values as per [UpnpMessenger::build_searcher]
-impl Searcher {
-    pub fn new(product_name: &str, product_version: &str, friendly_name: &str) -> io::Result<Self> {
-        UpnpMessenger::new(product_name, product_version, friendly_name).build_searcher()
-    }
-
-    pub fn ttl(&self) -> io::Result<u32> {
-        self.outgoing.as_socket().ttl()
-    }
-
-    pub fn set_ttl(&mut self, ttl: u32) -> io::Result<u32> {
-        let current = self.ttl()?;
-        self.outgoing.as_socket_mut().set_ttl(ttl).map(|_| current)
-    }
-
-    pub async fn search(&mut self) -> io::Result<()> {
-        let Searcher {
-            outgoing,
-            mx,
-            os,
-            os_version,
-            product_name,
-            product_version,
-            friendly_name,
-            uuid,
-            repeat,
-            repeat_delay,
-            resend_every,
-        } = self;
-        let msg = Message::new_search(
-            *mx,
-            os,
-            os_version,
-            product_name,
-            product_version,
-            friendly_name,
-            *uuid,
-        )
-        .to_string();
-        loop {
-            let resend_timer = Delay::new(*resend_every);
-            for _ in 0..*repeat {
-                let initial_timer = Delay::new(*repeat_delay);
-                outgoing.send((msg.as_bytes(), &MUTLICAST)).await?;
-                initial_timer.await;
-            }
-            resend_timer.await;
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
