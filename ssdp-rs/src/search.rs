@@ -191,23 +191,9 @@ impl Searcher {
         product_version: &str,
         friendly_name: &str,
     ) -> io::Result<Self> {
-        let addr = SocketAddrV4::new(addr, 1900).into();
-        let uuid = Uuid::new_v4();
-        let os_info = osinfo::get();
-        let os = os_info.get_name();
-        let os_version = os_info.get_version().to_string();
-        let mut outgoing = UdpSink::bind(addr)?;
-        outgoing.as_socket_mut().set_ttl(2)?;
-        Ok(Searcher {
-            outgoing,
-            mx: Mx::try_from(5)?,
-            os,
-            os_version,
-            product_name: product_name.to_string(),
-            product_version: product_version.into(),
-            friendly_name: friendly_name.to_string(),
-            uuid,
-        })
+        UpnpMessager::new(product_name, product_version, friendly_name)
+            .ip(addr)
+            .build_searcher()
     }
 
     pub fn ttl(&self) -> io::Result<u32> {
@@ -279,14 +265,15 @@ mod tests {
         let product_version = "v0.0.1";
         let friendly_name = "splurt is nice";
         let ip = Ipv4Addr::LOCALHOST;
-        let s = Searcher::new(ip, product_name, product_version, friendly_name).expect("new searcher");
+        let s =
+            Searcher::new(ip, product_name, product_version, friendly_name).expect("new searcher");
         let ttl = s.outgoing.as_socket().ttl().expect("socket ttl");
         let bound_addr = s.outgoing.as_socket().local_addr().expect("socket addr");
         let bound_ip = bound_addr.ip();
         let bound_port = bound_addr.port();
-        assert_eq!(s.friendly_name , friendly_name);
-        assert_eq!(s.product_name , product_name);
-        assert_eq!(s.product_version , product_version);
+        assert_eq!(s.friendly_name, friendly_name);
+        assert_eq!(s.product_name, product_name);
+        assert_eq!(s.product_version, product_version);
         assert_eq!(s.mx, 5.try_into().expect("default MX 5"));
         assert_eq!(ttl, 2);
         assert_eq!(bound_ip, ip);
