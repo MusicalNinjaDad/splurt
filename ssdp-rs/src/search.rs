@@ -272,4 +272,24 @@ mod tests {
         assert_eq!(s.friendly_name, "splurt is nice");
         assert_eq!(s.mx, 3.try_into().expect("mx 3 is valid"));
     }
+
+    #[test]
+    fn new_searcher() {
+        let product_name = "splurt";
+        let product_version = "v0.0.1";
+        let friendly_name = "splurt is nice";
+        let ip = Ipv4Addr::LOCALHOST;
+        let s = Searcher::new(ip, product_name, product_version, friendly_name).expect("new searcher");
+        let ttl = s.outgoing.as_socket().ttl().expect("socket ttl");
+        let bound_addr = s.outgoing.as_socket().local_addr().expect("socket addr");
+        let bound_ip = bound_addr.ip();
+        let bound_port = bound_addr.port();
+        assert_eq!(s.friendly_name , friendly_name);
+        assert_eq!(s.product_name , product_name);
+        assert_eq!(s.product_version , product_version);
+        assert_eq!(s.mx, 5.try_into().expect("default MX 5"));
+        assert_eq!(ttl, 2);
+        assert_eq!(bound_ip, ip);
+        assert_eq!(bound_port, 1900);
+    }
 }
