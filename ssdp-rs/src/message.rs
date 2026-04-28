@@ -47,8 +47,27 @@ pub struct MSearch {
     host: Host,
     mx: Mx,
     user_agent: Option<UserAgent>,
-    friendly_name: String,
+    friendly_name: FriendlyName,
     uuid: Option<Uuid>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct FriendlyName(String);
+
+impl Header for FriendlyName {
+    const HEADER_KEY: &'static str = "CPFN.UPNP.ORG";
+}
+
+impl Display for FriendlyName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<&str> for FriendlyName {
+    fn from(s: &str) -> Self {
+        Self(s.to_string())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -251,7 +270,7 @@ impl Message {
             host,
             mx,
             user_agent: Some(user_agent),
-            friendly_name: friendly_name.to_string(),
+            friendly_name: friendly_name.into(),
             uuid: Some(uuid),
         })
     }
