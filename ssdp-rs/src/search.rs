@@ -97,6 +97,96 @@ pub struct Searcher {
     uuid: Uuid,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub struct UpnpBuilder<'a> {
+    addr: Option<Ipv4Addr>,
+    port: Option<u16>,
+    ttl: Option<u32>,
+
+    mx: Option<u8>,
+    os: Option<&'a str>,
+    os_version: Option<&'a str>,
+    product_name: &'a str,
+    product_version: &'a str,
+    friendly_name: &'a str,
+    uuid: Option<Uuid>,
+}
+
+impl UpnpBuilder<'_> {
+    pub fn ip(&mut self, addr: Ipv4Addr) -> &mut Self {
+        self.addr = Some(addr);
+        self
+    }
+
+    pub fn port(&mut self, port: u16) -> &mut Self {
+        self.port = Some(port);
+        self
+    }
+
+    pub fn ttl(&mut self, ttl: u32) -> &mut Self {
+        self.ttl = Some(ttl);
+        self
+    }
+
+    pub fn mx(&mut self, mx: u8) -> &mut Self {
+        self.mx = Some(mx);
+        self
+    }
+
+    pub fn uuid(&mut self, uuid: Uuid) -> &mut Self {
+        self.uuid = Some(uuid);
+        self
+    }
+
+    pub fn build(&mut self) -> io::Result<Searcher> {
+        let ip = self.addr.unwrap_or(Ipv4Addr::UNSPECIFIED);
+        let port = self.port.unwrap_or(SSDP_PORT);
+        let addr = SocketAddrV4::new(ip, port).into();
+        let ttl = self.ttl.unwrap_or(2);
+        let mut outgoing = UdpSink::bind(addr)?;
+        outgoing.as_socket_mut().set_ttl(ttl)?;
+
+        let mx = Mx::try_from(self.mx.unwrap_or(5))?;
+        let mx: u8 = mx.into();
+        let os_info = osinfo::get();
+        let os = os_info.get_name();
+        let os_version = os_info.get_version().to_string();
+        let product_name = self.product_name.to_string();
+        let product_version = self.product_version.to_string();
+        let friendly_name = self.friendly_name.to_string();
+        let uuid = self.uuid.unwrap_or(Uuid::new_v4());
+        Ok(Searcher {
+            outgoing,
+            mx,
+            os,
+            os_version,
+            product_name,
+            product_version,
+            friendly_name,
+            uuid,
+        })
+    }
+}
+
+struct Mx(u8);
+
+impl TryFrom<u8> for Mx {
+    type Error = io::Error;
+
+    fn try_from(mx: u8) -> Result<Self, Self::Error> {
+        match mx {
+            0..=5 => Ok(Self(mx)),
+            _ => Err(io::Error::from(io::ErrorKind::InvalidInput)),
+        }
+    }
+}
+
+impl From<Mx> for u8 {
+    fn from(mx: Mx) -> Self {
+        mx.0
+    }
+}
+
 /// Create a new Searcher with following defaults (can be later changed):
 ///
 /// - MX: 5 (max as per spec)
@@ -125,6 +215,19 @@ impl Searcher {
             friendly_name: friendly_name.to_string(),
             uuid,
         })
+    }
+
+    pub fn custom<'a>(
+        product_name: &'a str,
+        product_version: &'a str,
+        friendly_name: &'a str,
+    ) -> UpnpBuilder<'a> {
+        UpnpBuilder {
+            product_name,
+            product_version,
+            friendly_name,
+            ..Default::default()
+        }
     }
 
     pub fn mx(&self) -> u8 {
@@ -185,5 +288,24 @@ impl Searcher {
             }
             resend_timer.await;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn custom_build() {
+        let s = Searcher::custom("splurt", "v0.0.1", "splurt is nice")
+            .ip(Ipv4Addr::LOCALHOST)
+            .port(1901)
+            .mx(3)
+            .uuid(Uuid::new_v4())
+            .ttl(3)
+            .build()
+            .expect("built");
+        assert_eq!(s.friendly_name, "splurt is nice");
+        assert_eq!(s.mx, 3);
     }
 }
