@@ -43,14 +43,10 @@ use futures_timer::Delay;
 use uuid::Uuid;
 
 use crate::{
+    MAX_MSG_SIZE, MULTICAST_IP, MUTLICAST, SSDP_PORT,
     message::{Message, Mx},
     udp::{EventedUdpSocket, UdpSink, UdpStream},
 };
-
-const MULTICAST_IP: Ipv4Addr = Ipv4Addr::new(239, 255, 255, 250);
-const SSDP_PORT: u16 = 1900;
-const MUTLICAST: SocketAddr = SocketAddr::new(IpAddr::V4(MULTICAST_IP), SSDP_PORT);
-const MAX_MSG_SIZE: usize = 1024;
 
 #[derive(Debug)]
 pub struct Listener {
