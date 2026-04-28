@@ -85,11 +85,11 @@ impl Searcher {
     /// Begin a search loop, this will begin to run endlessly once `await`ed and will send
     ///  `repeat` messages every `repeat_every`. See [UpnpMessenger] for details on how to
     /// customise these values.
-    /// 
+    ///
     /// The loop will *not* block in between messages and will only end in case of an error.
-    /// 
+    ///
     /// TODO: #35 provide a cancel one-shot channel to search
-    pub async fn search(&mut self) -> io::Result<()> {
+    pub async fn search(&mut self) -> io::Result<!> {
         let Searcher {
             outgoing,
             mx,
