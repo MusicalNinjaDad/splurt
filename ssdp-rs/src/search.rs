@@ -98,7 +98,8 @@ pub struct Searcher {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
-pub struct UpnpMessager<'a> {
+/// A builder for custom UpnpMessengers
+pub struct UpnpMessenger<'a> {
     addr: Option<Ipv4Addr>,
     port: Option<u16>,
     ttl: Option<u32>,
@@ -112,13 +113,13 @@ pub struct UpnpMessager<'a> {
     uuid: Option<Uuid>,
 }
 
-impl UpnpMessager<'_> {
+impl UpnpMessenger<'_> {
     pub fn new<'a>(
         product_name: &'a str,
         product_version: &'a str,
         friendly_name: &'a str,
-    ) -> UpnpMessager<'a> {
-        UpnpMessager {
+    ) -> UpnpMessenger<'a> {
+        UpnpMessenger {
             product_name,
             product_version,
             friendly_name,
@@ -151,6 +152,14 @@ impl UpnpMessager<'_> {
         self
     }
 
+    /// Build a Searcher using following default values, if not defined:
+    /// 
+    /// - IP: `Ipv4Addr::UNSPECIFIED`
+    /// - Port: 1900
+    /// - TTL: 2
+    /// - MX: 5 (max)
+    /// - OS: retrieved at runtime
+    /// - UUID: random UUID v4
     pub fn build_searcher(&mut self) -> io::Result<Searcher> {
         let ip = self.addr.unwrap_or(Ipv4Addr::UNSPECIFIED);
         let port = self.port.unwrap_or(SSDP_PORT);
@@ -191,7 +200,7 @@ impl Searcher {
         product_version: &str,
         friendly_name: &str,
     ) -> io::Result<Self> {
-        UpnpMessager::new(product_name, product_version, friendly_name)
+        UpnpMessenger::new(product_name, product_version, friendly_name)
             .ip(addr)
             .build_searcher()
     }
@@ -247,7 +256,7 @@ mod tests {
 
     #[test]
     fn custom_build() {
-        let s = UpnpMessager::new("splurt", "v0.0.1", "splurt is nice")
+        let s = UpnpMessenger::new("splurt", "v0.0.1", "splurt is nice")
             .ip(Ipv4Addr::LOCALHOST)
             .port(1901)
             .mx(3)
