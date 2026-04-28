@@ -91,6 +91,21 @@ impl Default for Host {
     }
 }
 
+impl Header for Host {
+    const HEADER_KEY: &'static str = "HOST";
+}
+
+trait Header
+where
+    Self: Display,
+{
+    const HEADER_KEY: &'static str;
+    /// Output as a valid header line
+    fn to_header(&self) -> String {
+        format!("{}: {}", Self::HEADER_KEY, self)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 /// A valid MX value (0..=5) (see UPnP spec para 1.3.2)
 ///
@@ -138,7 +153,7 @@ impl Display for MSearch {
             uuid,
         } = self;
         writeln!(f, "M-SEARCH * HTTP/1.1")?;
-        writeln!(f, "HOST: {}", host)?;
+        writeln!(f, "{}", host.to_header())?;
         writeln!(f, r#"MAN: "ssdp:discover""#)?;
         writeln!(f, "MX: {}", mx)?;
         writeln!(f, "ST: ssdp:all")?;
