@@ -1,4 +1,4 @@
-FROM ghcr.io/musicalninjas/pyo3-devcontainer:latest@sha256:f3614bd2a4560a887fc1cfd5f0737bf659806acbf36c82b2848337ced08601cf
+FROM ghcr.io/musicalninjas/pyo3-devcontainer:latest@sha256:ba91c04096428dd922e5a75ed23e5ec44519d37fa25b7f8c67ad63e2d508fa74
 
 # cargo-zigbuild to support building for specific glibc versions
 # cargo-msrv to validate MSRV
