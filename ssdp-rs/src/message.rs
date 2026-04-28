@@ -137,6 +137,10 @@ impl From<Mx> for u8 {
     }
 }
 
+impl Header for Mx {
+    const HEADER_KEY: &'static str = "MX";
+}
+
 /// Entire valid M-SEARCH message including initial method line,
 /// as per OCF specification (2020) section 1.3.2
 ///
@@ -155,7 +159,7 @@ impl Display for MSearch {
         writeln!(f, "M-SEARCH * HTTP/1.1")?;
         writeln!(f, "{}", host.to_header())?;
         writeln!(f, r#"MAN: "ssdp:discover""#)?;
-        writeln!(f, "MX: {}", mx)?;
+        writeln!(f, "{}", mx.to_header())?;
         writeln!(f, "ST: ssdp:all")?;
         if let Some(user_agent) = user_agent {
             writeln!(f, "USER-AGENT: {}", user_agent)?;
