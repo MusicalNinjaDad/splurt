@@ -10,7 +10,6 @@
 //! # fn main() -> io::Result<()> {
 //! // Create a new searcher
 //! let mut searcher = Searcher::new(
-//!     Ipv4Addr::UNSPECIFIED,
 //!     "splurt",
 //!     "v0.0.1",
 //!     "splurt ssdp repeater",
@@ -153,7 +152,7 @@ impl UpnpMessenger<'_> {
     }
 
     /// Build a Searcher using following default values, if not defined:
-    /// 
+    ///
     /// - IP: `Ipv4Addr::UNSPECIFIED`
     /// - Port: 1900
     /// - TTL: 2
@@ -189,20 +188,10 @@ impl UpnpMessenger<'_> {
     }
 }
 
-/// Create a new Searcher with following defaults (can be later changed):
-///
-/// - MX: 5 (max as per spec)
-/// - TTL: 2 (recommended by spec)
+/// Create a new Searcher with default values as per [UpnpMessenger::build_searcher]
 impl Searcher {
-    pub fn new(
-        addr: Ipv4Addr,
-        product_name: &str,
-        product_version: &str,
-        friendly_name: &str,
-    ) -> io::Result<Self> {
-        UpnpMessenger::new(product_name, product_version, friendly_name)
-            .ip(addr)
-            .build_searcher()
+    pub fn new(product_name: &str, product_version: &str, friendly_name: &str) -> io::Result<Self> {
+        UpnpMessenger::new(product_name, product_version, friendly_name).build_searcher()
     }
 
     pub fn ttl(&self) -> io::Result<u32> {
@@ -273,19 +262,15 @@ mod tests {
         let product_name = "splurt";
         let product_version = "v0.0.1";
         let friendly_name = "splurt is nice";
-        let ip = Ipv4Addr::LOCALHOST;
-        let s =
-            Searcher::new(ip, product_name, product_version, friendly_name).expect("new searcher");
+        let s = Searcher::new(product_name, product_version, friendly_name).expect("new searcher");
         let ttl = s.outgoing.as_socket().ttl().expect("socket ttl");
         let bound_addr = s.outgoing.as_socket().local_addr().expect("socket addr");
-        let bound_ip = bound_addr.ip();
         let bound_port = bound_addr.port();
         assert_eq!(s.friendly_name, friendly_name);
         assert_eq!(s.product_name, product_name);
         assert_eq!(s.product_version, product_version);
         assert_eq!(s.mx, 5.try_into().expect("default MX 5"));
         assert_eq!(ttl, 2);
-        assert_eq!(bound_ip, ip);
         assert_eq!(bound_port, 1900);
     }
 }
