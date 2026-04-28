@@ -51,6 +51,10 @@ pub struct MSearch {
     uuid: Option<Uuid>,
 }
 
+impl Header for Uuid {
+    const HEADER_KEY: &'static str = "CPUUID.UPNP.ORG";
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FriendlyName(String);
 
@@ -190,7 +194,7 @@ impl Display for MSearch {
         }
         writeln!(f, "CPFN.UPNP.ORG: {}", friendly_name)?;
         if let Some(uuid) = uuid {
-            writeln!(f, "CPUUID.UPNP.ORG: {}", uuid)?;
+            uuid.write_header(f)?;
         }
         writeln!(f)
     }
