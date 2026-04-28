@@ -88,7 +88,7 @@ impl Stream for Listener {
 #[derive(Debug)]
 pub struct Searcher {
     outgoing: UdpSink,
-    mx: Mx,
+    pub mx: Mx,
     os: String,
     os_version: String,
     product_name: String,
@@ -208,20 +208,6 @@ impl Searcher {
             friendly_name,
             ..Default::default()
         }
-    }
-
-    pub fn mx(&self) -> u8 {
-        self.mx.into()
-    }
-
-    /// Set the MX (see UPnP spec para 1.3.2)
-    ///
-    /// - Only values 0..=5 are accepted, other values will result in an `io::ErrorKind::InvalidInput`.
-    /// - If successfully set the `Ok(u8)` will contain the old value
-    pub fn set_mx(&mut self, mx: u8) -> io::Result<u8> {
-        let current = self.mx.into();
-        self.mx = mx.try_into()?;
-        Ok(current)
     }
 
     pub fn ttl(&self) -> io::Result<u32> {
