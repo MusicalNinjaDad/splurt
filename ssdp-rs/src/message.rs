@@ -7,7 +7,7 @@
 //!
 //! [spec]: https://openconnectivity.org/upnp-specs/UPnP-arch-DeviceArchitecture-v2.0-20200417.pdf
 
-use std::{collections::HashMap, fmt::Display};
+use std::{collections::HashMap, fmt::Display, io};
 
 use uuid::Uuid;
 
@@ -36,10 +36,41 @@ impl Display for Message {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MSearch {
-    mx: u8,
+    mx: Mx,
     user_agent: Option<UserAgent>,
     friendly_name: String,
     uuid: Option<Uuid>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+/// A valid MX value (0..=5) (see UPnP spec para 1.3.2)
+///
+/// - Construct via `TryFrom<u8>`
+/// - Desconstruct via `Into<u8>`
+/// - Invalid values will result in an `io::ErrorKind::InvalidInput`.
+pub struct Mx(u8);
+
+impl Display for Mx {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl TryFrom<u8> for Mx {
+    type Error = io::Error;
+
+    fn try_from(mx: u8) -> Result<Self, Self::Error> {
+        match mx {
+            0..=5 => Ok(Self(mx)),
+            _ => Err(io::Error::from(io::ErrorKind::InvalidInput)),
+        }
+    }
+}
+
+impl From<Mx> for u8 {
+    fn from(mx: Mx) -> Self {
+        mx.0
+    }
 }
 
 /// Entire valid M-SEARCH message including initial method line,
@@ -123,7 +154,7 @@ impl Message {
     /// While details of the user agent are technically optional we are going to include them
     /// in our searches.
     pub fn new_search(
-        mx: u8,
+        mx: Mx,
         os: &str,
         os_version: &str,
         product_name: &str,
@@ -237,7 +268,7 @@ CPFN.UPNP.ORG: splurt SSDP repeater
 CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003
 
 "#;
-        let mx = 5;
+        let mx = 5.try_into().expect("valid mx");
         let os = "linux";
         let os_version = "6.6.87";
         let product_name = "splurt";

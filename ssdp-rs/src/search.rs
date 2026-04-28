@@ -44,7 +44,7 @@ use futures_timer::Delay;
 use uuid::Uuid;
 
 use crate::{
-    message::Message,
+    message::{Message, Mx},
     udp::{EventedUdpSocket, UdpSink, UdpStream},
 };
 
@@ -88,7 +88,7 @@ impl Stream for Listener {
 #[derive(Debug)]
 pub struct Searcher {
     outgoing: UdpSink,
-    mx: u8,
+    mx: Mx,
     os: String,
     os_version: String,
     product_name: String,
@@ -147,7 +147,6 @@ impl UpnpBuilder<'_> {
         outgoing.as_socket_mut().set_ttl(ttl)?;
 
         let mx = Mx::try_from(self.mx.unwrap_or(5))?;
-        let mx: u8 = mx.into();
         let os_info = osinfo::get();
         let os = os_info.get_name();
         let os_version = os_info.get_version().to_string();
@@ -165,25 +164,6 @@ impl UpnpBuilder<'_> {
             friendly_name,
             uuid,
         })
-    }
-}
-
-struct Mx(u8);
-
-impl TryFrom<u8> for Mx {
-    type Error = io::Error;
-
-    fn try_from(mx: u8) -> Result<Self, Self::Error> {
-        match mx {
-            0..=5 => Ok(Self(mx)),
-            _ => Err(io::Error::from(io::ErrorKind::InvalidInput)),
-        }
-    }
-}
-
-impl From<Mx> for u8 {
-    fn from(mx: Mx) -> Self {
-        mx.0
     }
 }
 
@@ -207,7 +187,7 @@ impl Searcher {
         outgoing.as_socket_mut().set_ttl(2)?;
         Ok(Searcher {
             outgoing,
-            mx: 5,
+            mx: Mx::try_from(5)?,
             os,
             os_version,
             product_name: product_name.to_string(),
@@ -231,7 +211,7 @@ impl Searcher {
     }
 
     pub fn mx(&self) -> u8 {
-        self.mx
+        self.mx.into()
     }
 
     /// Set the MX (see UPnP spec para 1.3.2)
@@ -239,7 +219,7 @@ impl Searcher {
     /// - Only values 0..=5 are accepted, other values will result in an `io::ErrorKind::InvalidInput`.
     /// - If successfully set the `Ok(u8)` will contain the old value
     pub fn set_mx(&mut self, mx: u8) -> io::Result<u8> {
-        let current = self.mx;
+        let current = self.mx.into();
         match mx {
             0..=5 => Ok(current),
             _ => Err(io::Error::from(io::ErrorKind::InvalidInput)),
@@ -306,6 +286,6 @@ mod tests {
             .build()
             .expect("built");
         assert_eq!(s.friendly_name, "splurt is nice");
-        assert_eq!(s.mx, 3);
+        assert_eq!(s.mx, 3.try_into().expect("mx 3 is valid"));
     }
 }
