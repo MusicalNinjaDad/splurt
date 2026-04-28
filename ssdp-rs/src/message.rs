@@ -23,6 +23,7 @@ use crate::MULTICAST;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Error {
     InvalidMethod(String),
+    InvalidST(String),
 }
 
 impl error::Error for Error {}
@@ -31,6 +32,7 @@ impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
+            Error::InvalidST(st) => write!(f, "{} is not a valid upnp search type", st),
         }
     }
 }
@@ -159,6 +161,130 @@ impl Header for Man {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+/// Search Target
+enum ST {
+    /// `ssdp:all`: Search for all devices and services.
+    All,
+    /// `upnp:rootdevice`: Search for root devices only.
+    Root,
+    /// uuid:device-UUID: Search for a particular device.
+    Uuid(Uuid),
+    /// `urn:schemas-upnp-org:device:deviceType:ver`:
+    ///     Search for any device of this type where `deviceType` and `ver` are
+    ///     defined by the UPnP Forum working committee.
+    /// `urn:domain-name:device:deviceType:ver`:
+    ///     Search for any device of this typewhere domain-name (a Vendor Domain Name),
+    ///     deviceType and ver are defined by the UPnP vendor and ver specifies the highest
+    ///     specifies the highest supported version of the device type. Period characters in
+    ///     the Vendor Domain Name shall be replaced with hyphens in accordance with RFC 2141.
+    /// TODO: #36 DeviceTypes
+    Device(DeviceDetails),
+    /// `urn:schemas-upnp-org:service:serviceType:ver`:
+    ///     Search for any service of this type where serviceType and ver are
+    ///     defined by the UPnP Forum working committee.
+    /// `urn:domain-name:service:serviceType:ver`:
+    ///     Search for any service of this type. Where domain-name (a Vendor Domain Name),
+    ///     serviceType and ver are defined by the UPnP vendor and ver specifies the highest
+    ///     specifies the highest supported version of the service type. Period characters in
+    ///     the Vendor Domain Name shall be replaced with hyphens in accordance with RFC 2141.
+    /// TODO: #37 ServiceTypes
+    Service(ServiceDetails),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct DeviceDetails {
+    vendor: Vendor,
+    device: Device,
+}
+
+impl Display for DeviceDetails {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:device:{}", self.vendor, self.device)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum Vendor {
+    Standard,
+    Custom(String),
+}
+
+impl Display for Vendor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Vendor::Standard => write!(f, "schemas-upnp-org"),
+            Vendor::Custom(s) => write!(f, "{}", s),
+        }
+    }
+}
+
+//TODO impl FromStr for Vendor
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum Device {
+    Other { device_type: String, ver: String },
+}
+
+impl Display for Device {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Device::Other { device_type, ver } => write!(f, "{}:{}", device_type, ver),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct ServiceDetails {
+    vendor: Vendor,
+    service: Service,
+}
+
+impl Display for ServiceDetails {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:service:{}", self.vendor, self.service)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum Service {
+    Other { service_type: String, ver: String },
+}
+
+impl Display for Service {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Service::Other { service_type, ver } => write!(f, "{}:{}", service_type, ver),
+        }
+    }
+}
+
+impl Header for ST {
+    const HEADER_KEY: &'static str = "ST";
+}
+
+impl Display for ST {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ST::All => write!(f, "ssdp:all"),
+            ST::Root => write!(f, "upnp:rootdevice"),
+            ST::Uuid(uuid) => write!(f, "uuid:device-{}", uuid),
+            ST::Device(device_details) => write!(f, "urn:{device_details}"),
+            ST::Service(service_details) => write!(f, "urn:{service_details}"),
+        }
+    }
+}
+
+impl FromStr for ST {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            _ => todo!("from str ST"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MSearch {
     host: Host,
     mx: Mx,
@@ -186,7 +312,7 @@ impl Display for MSearch {
         host.write_header(f)?;
         Man::Discover.write_header(f)?;
         mx.write_header(f)?;
-        writeln!(f, "ST: ssdp:all")?;
+        ST::All.write_header(f)?;
         user_agent.write_header(f)?;
         friendly_name.write_header(f)?;
         uuid.write_header(f)?;
