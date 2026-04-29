@@ -214,10 +214,11 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
                     .map_err(|_| ParseError::InvalidDate(date.to_string()))
             })
             .transpose()?;
+        let ext = None;
         let rtn = Self {
             max_age,
             date,
-            ext: todo!("ext"),
+            ext,
             location: todo!(),
             server: todo!(),
             st,
