@@ -28,6 +28,7 @@ const UPNP_VERSION: &str = "2.0";
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ParseError {
     EmptyMessage,
+    InvalidBootId(String),
     InvalidDate(String),
     InvalidDevice(String),
     InvalidDeviceDetails(String),
@@ -45,6 +46,7 @@ impl Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ParseError::EmptyMessage => write!(f, "empty message"),
+            ParseError::InvalidBootId(boot_id) => write!(f, "{boot_id} is not a valid boot instance"),
             ParseError::InvalidDate(date) => write!(f, "{date} is not a valid date"),
             ParseError::InvalidDuration(duration) => {
                 write!(f, "{duration} is not a valid duration")
@@ -229,6 +231,9 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             .parse()
             .map_err(|_| ParseError::InvalidLocation(location.to_string()))?;
         let server = header.try_get("SERVER")?.parse()?;
+        let usn = header.try_get("USN")?.to_string();
+        let boot_id = header.try_get("BOOTID.UPNP.ORG")?;
+        let boot_id = boot_id.parse().map_err(|_| ParseError::InvalidBootId(boot_id.to_string()))?;
         let rtn = Self {
             max_age,
             date,
@@ -236,11 +241,11 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             location,
             server,
             st,
-            usn: todo!("usn"),
-            boot_id: todo!(),
-            config_id: todo!(),
-            port: todo!(),
-            secure_location: todo!(),
+            usn,
+            boot_id,
+            config_id: todo!("config id"),
+            port: todo!("port"),
+            secure_location: todo!("secure_location"),
         };
         todo!("try_from header for response")
     }
@@ -682,7 +687,9 @@ pub struct Response {
     /// `ST`: search target
     st: ST,
     /// `USN`: composite identifier for the advertisement
-    usn: !,
+    /// 
+    /// **TODO** handle USN nicely
+    usn: String,
     /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
     /// increasing value. Control points can use this header field to detect the case when a device
     /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
