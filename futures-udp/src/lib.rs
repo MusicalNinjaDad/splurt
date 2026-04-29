@@ -365,7 +365,7 @@ impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
     /// (via cx.waker().wake_by_ref()) when poll_ready should be called again.
     ///
     /// #### Note
-    /// 
+    ///
     /// - If the attempt to poll readiness fails this method **will properly handle
     ///   it** by calling [Self::clear_ready]/[Self::unblock] to ensure the underlying socket
     ///   does not remain blocked.
