@@ -25,6 +25,7 @@ use crate::{MULTICAST, SSDP_PORT};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ParseError {
+    EmptyMessage,
     InvalidMethod(String),
     InvalidST(String),
     InvalidDevice(String),
@@ -36,6 +37,7 @@ impl error::Error for ParseError {}
 impl Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            ParseError::EmptyMessage => write!(f, "empty message"),
             ParseError::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
             ParseError::InvalidST(st) => write!(f, "{} is not a valid upnp search type", st),
             ParseError::InvalidDevice(device) => write!(
@@ -145,6 +147,20 @@ impl Message {
             friendly_name: friendly_name.into(),
             uuid: Some(uuid),
         })
+    }
+}
+
+impl FromStr for Message {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut lines = s.lines();
+        let method: Method = lines.next().ok_or(ParseError::EmptyMessage)?.parse()?;
+        match method {
+            Method::MSearch => todo!("parse MSearch"),
+            Method::Notify => todo!("parse Notify"),
+            Method::Response => todo!("parse Response"),
+        }
     }
 }
 
@@ -784,5 +800,23 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003
         };
         let msg_text = msg.to_string();
         assert_eq!(msg_text, expected);
+    }
+
+    #[test]
+    fn parse_response() {
+        let raw_response = r#"HTTP/1.1 200 OK
+CACHE-CONTROL: max-age=1900
+DATE: Tue, 28 Apr 2026 12:56:35 GMT
+EXT:
+LOCATION: http://192.168.0.129:50001/desc/device.xml
+OPT: "http://schemas.upnp.org/upnp/1/0/"; ns=01
+01-NLS: 88ccb70e-32ec-11f1-8533-ec2b50e32df5
+SERVER: Linux/2.6.32.12, UPnP/1.0, Portable SDK for UPnP devices/1.6.21
+X-User-Agent: redsonic
+ST: urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1
+USN: uuid:00113214-9943-0011-4399-439914321100::urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1
+"#;
+        let response: Message = raw_response.parse().expect("parsed as response");
+        assert_matches!(response, Message::Response(_));
     }
 }
