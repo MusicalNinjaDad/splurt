@@ -24,7 +24,7 @@ mod error;
 mod header;
 
 pub use error::ParseError;
-pub use header::{Header, HeaderExt, Man, UpnpHeader};
+pub use header::{Header, HeaderExt, Man, ST, UpnpHeader};
 
 use crate::{MULTICAST, SSDP_PORT};
 const UPNP_VERSION: &str = "2.0";
@@ -239,40 +239,6 @@ impl Display for Message {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-/// Search Target
-enum ST {
-    /// `ssdp:all`: Search for all devices and services.
-    All,
-    /// `upnp:rootdevice`: Search for root devices only.
-    Root,
-    /// uuid:device-UUID: Search for a particular device.
-    #[expect(unused)]
-    Uuid(Uuid),
-    /// `urn:schemas-upnp-org:device:deviceType:ver`:
-    ///     Search for any device of this type where `deviceType` and `ver` are
-    ///     defined by the UPnP Forum working committee.
-    /// `urn:domain-name:device:deviceType:ver`:
-    ///     Search for any device of this typewhere domain-name (a Vendor Domain Name),
-    ///     deviceType and ver are defined by the UPnP vendor and ver specifies the highest
-    ///     specifies the highest supported version of the device type. Period characters in
-    ///     the Vendor Domain Name shall be replaced with hyphens in accordance with RFC 2141.
-    /// TODO: #36 DeviceTypes
-    #[expect(unused)]
-    Device(DeviceDetails),
-    /// `urn:schemas-upnp-org:service:serviceType:ver`:
-    ///     Search for any service of this type where serviceType and ver are
-    ///     defined by the UPnP Forum working committee.
-    /// `urn:domain-name:service:serviceType:ver`:
-    ///     Search for any service of this type. Where domain-name (a Vendor Domain Name),
-    ///     serviceType and ver are defined by the UPnP vendor and ver specifies the highest
-    ///     specifies the highest supported version of the service type. Period characters in
-    ///     the Vendor Domain Name shall be replaced with hyphens in accordance with RFC 2141.
-    /// TODO: #37 ServiceTypes
-    #[expect(unused)]
-    Service(ServiceDetails),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct DeviceDetails {
     vendor: Vendor,
     device: Device,
@@ -380,37 +346,6 @@ impl Display for Service {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Service::Other { service_type, ver } => write!(f, "{}:{}", service_type, ver),
-        }
-    }
-}
-
-impl Header for ST {
-    const HEADER_KEY: &'static str = "ST";
-}
-
-impl Display for ST {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ST::All => write!(f, "ssdp:all"),
-            ST::Root => write!(f, "upnp:rootdevice"),
-            ST::Uuid(uuid) => write!(f, "uuid:device-{}", uuid),
-            ST::Device(device_details) => write!(f, "urn:{device_details}"),
-            ST::Service(service_details) => write!(f, "urn:{service_details}"),
-        }
-    }
-}
-
-impl FromStr for ST {
-    type Err = ParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "ssdp:all" => Ok(ST::All),
-            "upnp:rootdevice" => Ok(ST::Root),
-            _ => todo!("parse other ST"),
-            // "uuid:device-{}"
-            // "urn:{device_details}"
-            // "urn:{service_details}"
         }
     }
 }
