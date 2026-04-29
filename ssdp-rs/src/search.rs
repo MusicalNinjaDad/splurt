@@ -40,12 +40,12 @@ use std::{
 
 use futures::SinkExt;
 use futures_timer::Delay;
+use futures_udp::{EventedUdpSocket, UdpSink};
 use uuid::Uuid;
 
 use crate::{
     MULTICAST, SSDP_PORT,
     message::{Message, Mx},
-    udp::{EventedUdpSocket, UdpSink},
 };
 
 #[derive(Debug)]
