@@ -30,6 +30,7 @@ pub enum ParseError {
     InvalidDevice(String),
     InvalidDeviceDetails(String),
     InvalidDuration(String),
+    InvalidLocation(String),
     InvalidMethod(String),
     InvalidST(String),
     MissingField(String),
@@ -54,6 +55,7 @@ impl Display for ParseError {
                 write!(f, "{} is not a valid upnp device:ver specification", device)
             }
             ParseError::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
+            ParseError::InvalidLocation(location) => write!(f, "{location} is not a valid url"),
             ParseError::InvalidST(st) => write!(f, "{} is not a valid upnp search type", st),
             ParseError::MissingField(field) => write!(f, "header is missing field {field}"),
         }
@@ -215,12 +217,16 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             })
             .transpose()?;
         let ext = None;
+        let location = header.try_get("LOCATION")?;
+        let location = location
+            .parse()
+            .map_err(|_| ParseError::InvalidLocation(location.to_string()))?;
         let rtn = Self {
             max_age,
             date,
             ext,
-            location: todo!(),
-            server: todo!(),
+            location,
+            server: todo!("server"),
             st,
             usn: todo!(),
             boot_id: todo!(),
