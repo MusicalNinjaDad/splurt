@@ -16,12 +16,14 @@ use uuid::Uuid;
 mod devices;
 mod error;
 mod header;
+mod services;
 
 pub use devices::{Device, DeviceDetails};
 pub use error::ParseError;
 pub use header::{
     FriendlyName, Header, HeaderExt, Host, Man, MaxAge, Mx, ST, UpnpHeader, UpnpPort, UserAgent,
 };
+pub use services::{Service, ServiceDetails};
 
 const UPNP_VERSION: &str = "2.0";
 
@@ -256,32 +258,6 @@ impl FromStr for Vendor {
         match s {
             "schemas-upnp-org" => Ok(Self::Standard),
             _ => Ok(Self::Custom(s.to_string())),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct ServiceDetails {
-    vendor: Vendor,
-    service: Service,
-}
-
-impl Display for ServiceDetails {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:service:{}", self.vendor, self.service)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-enum Service {
-    #[expect(unused)]
-    Other { service_type: String, ver: String },
-}
-
-impl Display for Service {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Service::Other { service_type, ver } => write!(f, "{}:{}", service_type, ver),
         }
     }
 }
