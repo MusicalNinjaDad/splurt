@@ -7,7 +7,7 @@
 //!
 //! [spec]: https://openconnectivity.org/upnp-specs/UPnP-arch-DeviceArchitecture-v2.0-20200417.pdf
 
-use std::{collections::HashMap, fmt::Display, str::FromStr, time::Duration};
+use std::{collections::HashMap, fmt::Display, str::FromStr};
 
 use chrono::{DateTime, Utc};
 use url::Url;
@@ -17,7 +17,7 @@ mod error;
 mod header;
 
 pub use error::ParseError;
-pub use header::{Header, HeaderExt, Host, Man, Mx, ST, UpnpHeader};
+pub use header::{Header, HeaderExt, Host, Man, MaxAge, Mx, ST, UpnpHeader};
 
 use crate::SSDP_PORT;
 const UPNP_VERSION: &str = "2.0";
@@ -516,28 +516,6 @@ pub struct Response {
     /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
     /// Required when device protection is implemented.
     secure_location: Option<Url>,
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct MaxAge(Duration);
-
-impl Header for MaxAge {
-    const HEADER_KEY: &'static str = "CACHE-CONTROL";
-}
-
-impl FromStr for MaxAge {
-    type Err = ParseError;
-
-    fn from_str(max_age: &str) -> Result<Self, Self::Err> {
-        let (_, secs) = max_age
-            .split_once("max-age=")
-            .ok_or_else(|| ParseError::InvalidDuration(max_age.to_string()))?;
-        let duration = Duration::from_secs(
-            secs.parse()
-                .map_err(|_| ParseError::InvalidDuration(max_age.to_string()))?,
-        );
-        Ok(Self(duration))
-    }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

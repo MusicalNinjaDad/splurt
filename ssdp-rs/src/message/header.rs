@@ -16,6 +16,7 @@ use std::{
     io,
     net::{AddrParseError, SocketAddr, SocketAddrV4, SocketAddrV6},
     str::FromStr,
+    time::Duration,
 };
 
 use uuid::Uuid;
@@ -169,6 +170,28 @@ impl Display for Man {
         };
         // MAN values are enclosed in double-quotes
         write!(f, r#""{}""#, str)
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct MaxAge(Duration);
+
+impl Header for MaxAge {
+    const HEADER_KEY: &'static str = "CACHE-CONTROL";
+}
+
+impl FromStr for MaxAge {
+    type Err = ParseError;
+
+    fn from_str(max_age: &str) -> Result<Self, Self::Err> {
+        let (_, secs) = max_age
+            .split_once("max-age=")
+            .ok_or_else(|| ParseError::InvalidDuration(max_age.to_string()))?;
+        let duration = Duration::from_secs(
+            secs.parse()
+                .map_err(|_| ParseError::InvalidDuration(max_age.to_string()))?,
+        );
+        Ok(Self(duration))
     }
 }
 
