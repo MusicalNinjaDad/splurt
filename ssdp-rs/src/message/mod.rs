@@ -157,7 +157,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
         let location = location
             .parse()
             .map_err(|_| ParseError::InvalidLocation(location.to_string()))?;
-        let server: UserAgent = header.try_get("SERVER")?.parse()?;
+        let server: UserAgent<"SERVER"> = header.try_get("SERVER")?.parse()?;
         let usn = header.try_get("USN")?.to_string();
         let boot_id = header
             .get("BOOTID.UPNP.ORG")
@@ -348,7 +348,7 @@ impl Display for Service {
 pub struct MSearch {
     host: Host,
     mx: Mx,
-    user_agent: Option<UserAgent>,
+    user_agent: Option<UserAgent<"USER-AGENT">>,
     friendly_name: FriendlyName,
     uuid: Option<Uuid>,
 }
@@ -399,7 +399,7 @@ pub struct Response {
     /// `URL` for UPnP description for root device
     location: Url,
     /// `SERVER`: OS/version UPnP/2.0 product/version
-    server: UserAgent,
+    server: UserAgent<"SERVER">,
     /// `ST`: search target
     st: ST,
     /// `USN`: composite identifier for the advertisement

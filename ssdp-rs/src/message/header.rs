@@ -370,7 +370,7 @@ impl From<UpnpPort> for u16 {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct UserAgent {
+pub struct UserAgent<const FIELD_NAME: &'static str> {
     pub os: String,
     pub os_version: String,
     pub upnp_version: String,
@@ -378,11 +378,11 @@ pub struct UserAgent {
     pub product_version: String,
 }
 
-impl Header for UserAgent {
-    const HEADER_KEY: &'static str = "USER-AGENT";
+impl<const FIELD_NAME: &'static str> Header for UserAgent<FIELD_NAME> {
+    const HEADER_KEY: &'static str = FIELD_NAME;
 }
 
-impl FromStr for UserAgent {
+impl<const _FN: &'static str> FromStr for UserAgent<_FN> {
     type Err = ParseError;
 
     fn from_str(user_agent: &str) -> Result<Self, Self::Err> {
@@ -419,7 +419,7 @@ impl FromStr for UserAgent {
 
 /// Formatted as per OCF specification (2020) section 1.3.2 for the `USER-AGENT` *value*,
 /// does NOT include the header key
-impl Display for UserAgent {
+impl<const _FN: &'static str> Display for UserAgent<_FN> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self {
             os,
