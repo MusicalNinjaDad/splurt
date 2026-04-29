@@ -15,11 +15,13 @@ rust-version = "1.90.0"
 [dependencies]
 async-datagram = "3.0.0"
 async-ready = "3.0.0"
+chrono = "0.4.44"
 futures = "0.3.32"
 futures-net = "0.6.0"
 futures-timer = "3.0.3"
 osinfo = "1.0.0"
 socket2 = { version = "0.6.3", features = ["all"] }
+url = "2.5.8"
 uuid = { version = "1.23.1", features = ["v4"] }
 
 [build-dependencies]

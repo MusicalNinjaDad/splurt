@@ -14,11 +14,14 @@ use std::{
     io,
     net::{AddrParseError, SocketAddr, SocketAddrV4, SocketAddrV6},
     str::FromStr,
+    time::Duration,
 };
 
+use chrono::{DateTime, Utc};
+use url::Url;
 use uuid::Uuid;
 
-use crate::MULTICAST;
+use crate::{MULTICAST, SSDP_PORT};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ParseError {
@@ -81,11 +84,17 @@ impl FromStr for Method {
 ///
 /// Create with `Message::parse()`
 #[derive(Debug, Clone, PartialEq)]
+#[allow(clippy::large_enum_variant)]
+// TODO: #39 Consider boxing `Message::Response`
+//       Contents are `Box`ed as they contain many large pointers to heap-allocated
+//       information e.g. `String`s (each is a 24b pointer to data that is on the heap anyway)
 pub enum Message {
     /// NTS: ssdp:alive
     Alive(Notification),
     /// MAN: ssdp:discover
     Search(MSearch),
+    /// A direct response to an `M-SEARCH` request
+    Response(Response),
 }
 
 impl Message {
@@ -147,6 +156,7 @@ impl Display for Message {
             Message::Search(msearch) => {
                 write!(f, "{msearch}")
             }
+            Message::Response(_response) => todo!("display response messages"),
         }
     }
 }
@@ -509,6 +519,83 @@ impl From<&str> for FriendlyName {
 
 impl Header for Uuid {
     const HEADER_KEY: &'static str = "CPUUID.UPNP.ORG";
+}
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+/// A direct response to an `M-SEARCH` message.
+///
+/// "To be found by a network search, a device shall send a unicast UDP response to the source IP
+/// address and port that sent the request to the multicast address." <- This represents one of
+/// these messages.
+pub struct Response {
+    /// `CACHE-CONTROL`: Duration until advertisement expires
+    max_age: Duration,
+    /// `DATE`: when response was generated
+    date: Option<DateTime<Utc>>,
+    /// `EXT`: Required for backwards compatibility with UPnP 1.0. (Header field name only; no field value.)
+    ext: Option<!>,
+    /// `URL` for UPnP description for root device
+    location: Url,
+    /// `SERVER`: OS/version UPnP/2.0 product/version
+    server: UserAgent,
+    /// `ST`: search target
+    st: ST,
+    /// `USN`: composite identifier for the advertisement
+    usn: !,
+    /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
+    /// increasing value. Control points can use this header field to detect the case when a device
+    /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
+    /// control points for a number of purposes such as re-establishing desired event subscriptions,
+    /// checking for changes to the device state that were not evented since the device was off-line.
+    boot_id: u32,
+    /// `CONFIGID.UPNP.ORG`: number used for caching description information.
+    /// If a device sends out two messages with a `CONFIGID.UPNP.ORG` header field with the same field
+    /// value, the configuration shall be the same at the moments that these messages were sent.
+    /// This reduces peak loads on UPnP devices during startup and during network hiccups. Only if a
+    /// control point receives an announcement of an unknown configuration is downloading required.
+    config_id: Option<u32>,
+    /// `SEARCHPORT.UPNP.ORG`: number identifies port on which device responds to unicast M-SEARCH
+    port: UpnpPort,
+    /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
+    /// Required when device protection is implemented.
+    secure_location: Option<Url>,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+/// The port specified in a Upnp message.
+///
+/// Treat this like a semantically specific `Option<u16>` with a valuable implementation of
+/// `Default`, `From<Option<u16>>` & `Into<u16>`.
+enum UpnpPort {
+    /// Specifically defined value.
+    ///
+    /// If this is set to the default [SSDP_PORT], then it means the message specifically
+    /// defined that value.
+    Defined(u16),
+    /// A value was not defined. Conversion to a `u16` will provide the default [SSDP_PORT]
+    #[default]
+    Default,
+}
+
+/// Provides:
+/// - `Defined(port)`: the defined port
+/// - `Default`: [SSDP_PORT]
+impl From<UpnpPort> for u16 {
+    fn from(port: UpnpPort) -> Self {
+        match port {
+            UpnpPort::Defined(p) => p,
+            UpnpPort::Default => SSDP_PORT,
+        }
+    }
+}
+
+/// `None` maps to `Default`
+impl From<Option<u16>> for UpnpPort {
+    fn from(port: Option<u16>) -> Self {
+        match port {
+            Some(port) => Self::Defined(port),
+            None => Self::Default,
+        }
+    }
 }
 
 /// Marker trait for Upnp header fields, with details of the relevant key
