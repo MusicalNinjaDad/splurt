@@ -352,7 +352,6 @@ enum ST {
     /// `ssdp:all`: Search for all devices and services.
     All,
     /// `upnp:rootdevice`: Search for root devices only.
-    #[expect(unused)]
     Root,
     /// uuid:device-UUID: Search for a particular device.
     #[expect(unused)]
