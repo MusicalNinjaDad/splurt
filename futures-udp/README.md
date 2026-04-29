@@ -22,6 +22,10 @@ downstream crate, I'll add them here soon so to make sure this never breaks)
 - Despite the docs `futures_net::UdpSocket` creates a blocking socket, which is locked
   for exclusive use. (Opening a ticket TBD)
 
+## Where this started
+
+I wanted to create a simple SSDP-repeater ([splurt](https://github.com/MusicalNinjaDad/splurt)) to allow me to run DLNA services in docker containers. I looked at the crates available and couldn't find anything that gave me a usable API for UDP where I felt confident in the code and it did what I needed. So I ended up building it myself and decided to split it out into a separate crate.
+
 ## Stability & MSRV
 
 I've chosen to rely on two experimental features, while this crate is in v0.x.y, as I feel they
