@@ -33,6 +33,7 @@ pub enum ParseError {
     InvalidLocation(String),
     InvalidMethod(String),
     InvalidST(String),
+    InvalidUserAgent(String),
     MissingField(String),
 }
 
@@ -57,6 +58,9 @@ impl Display for ParseError {
             ParseError::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
             ParseError::InvalidLocation(location) => write!(f, "{location} is not a valid url"),
             ParseError::InvalidST(st) => write!(f, "{} is not a valid upnp search type", st),
+            ParseError::InvalidUserAgent(user_agent) => {
+                write!(f, "{user_agent} is not a valid user agent")
+            }
             ParseError::MissingField(field) => write!(f, "header is missing field {field}"),
         }
     }
@@ -221,14 +225,15 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
         let location = location
             .parse()
             .map_err(|_| ParseError::InvalidLocation(location.to_string()))?;
+        let server = header.try_get("SERVER")?.parse()?;
         let rtn = Self {
             max_age,
             date,
             ext,
             location,
-            server: todo!("server"),
+            server,
             st,
-            usn: todo!(),
+            usn: todo!("usn"),
             boot_id: todo!(),
             config_id: todo!(),
             port: todo!(),
@@ -592,6 +597,29 @@ impl Display for UserAgent {
             f,
             "{os}/{os_version} UPnP/2.0 {product_name}/{product_version}"
         )
+    }
+}
+
+impl FromStr for UserAgent {
+    type Err = ParseError;
+
+    fn from_str(user_agent: &str) -> Result<Self, Self::Err> {
+        let err = || ParseError::InvalidUserAgent(user_agent.to_string());
+        let (os, product) = user_agent.split_once(" UPnP/2.0 ").ok_or_else(err)?;
+        let (os, os_version) = os
+            .split_once("/")
+            .map(|(name, ver)| (name.to_string(), ver.to_string()))
+            .ok_or_else(err)?;
+        let (product_name, product_version) = product
+            .split_once("/")
+            .map(|(name, ver)| (name.to_string(), ver.to_string()))
+            .ok_or_else(err)?;
+        Ok(Self {
+            os,
+            os_version,
+            product_name,
+            product_version,
+        })
     }
 }
 
