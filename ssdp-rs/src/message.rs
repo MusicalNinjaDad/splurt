@@ -23,6 +23,8 @@ use uuid::Uuid;
 
 use crate::{MULTICAST, SSDP_PORT};
 
+const UPNP_VERSION: &str = "2.0";
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ParseError {
     EmptyMessage,
@@ -150,6 +152,7 @@ impl Message {
         let user_agent = UserAgent {
             os: os.to_string(),
             os_version: os_version.to_string(),
+            upnp_version: UPNP_VERSION.to_string(),
             product_name: product_name.to_string(),
             product_version: product_version.to_string(),
         };
@@ -575,6 +578,7 @@ impl From<Mx> for u8 {
 struct UserAgent {
     os: String,
     os_version: String,
+    upnp_version: String,
     product_name: String,
     product_version: String,
 }
@@ -590,12 +594,13 @@ impl Display for UserAgent {
         let Self {
             os,
             os_version,
+            upnp_version,
             product_name,
             product_version,
         } = self;
         write!(
             f,
-            "{os}/{os_version} UPnP/2.0 {product_name}/{product_version}"
+            "{os}/{os_version} UPnP/{upnp_version} {product_name}/{product_version}"
         )
     }
 }
@@ -605,18 +610,30 @@ impl FromStr for UserAgent {
 
     fn from_str(user_agent: &str) -> Result<Self, Self::Err> {
         let err = || ParseError::InvalidUserAgent(user_agent.to_string());
-        let (os, product) = user_agent.split_once(" UPnP/2.0 ").ok_or_else(err)?;
+        let mut tokens = user_agent.split_whitespace();
+        let os = tokens.next().ok_or_else(err)?;
         let (os, os_version) = os
             .split_once("/")
             .map(|(name, ver)| (name.to_string(), ver.to_string()))
             .ok_or_else(err)?;
+        let upnp_version = tokens
+            .next()
+            .ok_or_else(err)?
+            .strip_prefix("UPnP/")
+            .ok_or_else(err)?
+            .to_string();
+        let product = tokens.next().ok_or_else(err)?;
         let (product_name, product_version) = product
             .split_once("/")
             .map(|(name, ver)| (name.to_string(), ver.to_string()))
             .ok_or_else(err)?;
+        if tokens.next().is_some() {
+            return Err(err());
+        };
         Ok(Self {
             os,
             os_version,
+            upnp_version,
             product_name,
             product_version,
         })
