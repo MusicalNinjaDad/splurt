@@ -21,26 +21,26 @@ use uuid::Uuid;
 use crate::MULTICAST;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Error {
+pub enum ParseError {
     InvalidMethod(String),
     InvalidST(String),
     InvalidDevice(String),
     InvalidDeviceDetails(String),
 }
 
-impl error::Error for Error {}
+impl error::Error for ParseError {}
 
-impl Display for Error {
+impl Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
-            Error::InvalidST(st) => write!(f, "{} is not a valid upnp search type", st),
-            Error::InvalidDevice(device) => writeln!(
+            ParseError::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
+            ParseError::InvalidST(st) => write!(f, "{} is not a valid upnp search type", st),
+            ParseError::InvalidDevice(device) => writeln!(
                 f,
                 "{} is not a valid upnp device specification (valid forms are `urn:domain-name:device:deviceType:ver` & `urn:schemas-upnp-org:device:deviceType:ver`)",
                 device
             ),
-            Error::InvalidDeviceDetails(device) => {
+            ParseError::InvalidDeviceDetails(device) => {
                 writeln!(f, "{} is not a valid upnp device:ver specification", device)
             }
         }
@@ -65,14 +65,14 @@ impl Display for Method {
 }
 
 impl FromStr for Method {
-    type Err = Error;
+    type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "M-SEARCH * HTTP/1.1" => Ok(Self::MSearch),
             "NOTIFY * HTTP/1.1" => Ok(Self::Notify),
             "HTTP/1.1 200 OK" => Ok(Self::Response),
-            _ => Err(Error::InvalidMethod(s.to_string())),
+            _ => Err(ParseError::InvalidMethod(s.to_string())),
         }
     }
 }
@@ -218,10 +218,10 @@ impl Display for DeviceDetails {
 }
 
 impl FromStr for DeviceDetails {
-    type Err = Error;
+    type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let err = || Error::InvalidDevice(s.to_string());
+        let err = || ParseError::InvalidDevice(s.to_string());
         let mut parts = s.split(":");
         match parts.next() {
             Some("urn") => (),
@@ -278,12 +278,12 @@ impl Display for Device {
 }
 
 impl FromStr for Device {
-    type Err = Error;
+    type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (device_type, ver) = s
             .split_once(":")
-            .ok_or(Error::InvalidDeviceDetails(s.to_string()))?;
+            .ok_or(ParseError::InvalidDeviceDetails(s.to_string()))?;
         Ok(Self::Other {
             device_type: device_type.to_string(),
             ver: ver.to_string(),
