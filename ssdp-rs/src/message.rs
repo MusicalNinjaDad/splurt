@@ -208,6 +208,7 @@ impl FromStr for Message {
 
 struct UpnpHeader<'h>(HashMap<&'h str, &'h str>);
 
+// TODO: #42 handle header key case sensitivity and maintain round-tripping
 impl<'h> FromIterator<&'h str> for UpnpHeader<'h> {
     fn from_iter<T: IntoIterator<Item = &'h str>>(iter: T) -> Self {
         let hashmap = iter
