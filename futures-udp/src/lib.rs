@@ -20,13 +20,13 @@
 //!   Adding `Stream` & `Sink` semantics makes it "nice".
 //! - Despite the docs [futures_net::UdpSocket] creates a blocking socket, which is locked
 //!   for exclusive use. (Opening a ticket TBD)
-//! 
+//!
 //! ## Stability & MSRV
 //!
 //! I've chosen to rely on two experimental features, while this crate is in v0.x.y, as I feel they
 //! add significant value to the API. I also believe in supporting language development and
 //! generating feedback to features as they near stabilisation.
-//! 
+//!
 //! This crate will not move to v1.x.y until both features are stabilised, or I decide to stop using
 //! them. Realistically, however, they will be stable while I allow this API to go through a
 //! "settling-in" phase before fixing it at v1.0.0
@@ -61,11 +61,10 @@
 //!
 //! We deliberately keep the dependency list short and pay attention to any transitive dependencies
 //! we bring in.
-//! 
+//!
 //! - `futures-rs` (for the Stream & Sink traits)
 //! - `futures-net` (for the underlying UdpSocket)
 //! - `socket2` (to set the socket to non-blocking, non-exclusive)
-//! ```
 
 use std::{
     io,
