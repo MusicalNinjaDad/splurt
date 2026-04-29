@@ -29,6 +29,7 @@ pub enum ParseError {
     EmptyMessage,
     InvalidDevice(String),
     InvalidDeviceDetails(String),
+    InvalidDuration(String),
     InvalidMethod(String),
     InvalidST(String),
     MissingField(String),
@@ -40,6 +41,9 @@ impl Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ParseError::EmptyMessage => write!(f, "empty message"),
+            ParseError::InvalidDuration(duration) => {
+                write!(f, "{duration} is not a valid duration")
+            }
             ParseError::InvalidDevice(device) => write!(
                 f,
                 "{} is not a valid upnp device specification (valid forms are `urn:domain-name:device:deviceType:ver` & `urn:schemas-upnp-org:device:deviceType:ver`)",
@@ -189,11 +193,14 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             .get(ST::HEADER_KEY)
             .ok_or_else(|| ParseError::MissingField(ST::HEADER_KEY.to_string()))?
             .parse()?;
-
+        let max_age = header
+            .get(MaxAge::HEADER_KEY)
+            .ok_or_else(|| ParseError::MissingField((MaxAge::HEADER_KEY).to_string()))?
+            .parse()?;
         let rtn = Self {
-            max_age: todo!("max_age"),
-            date: todo!(),
-            ext: todo!(),
+            max_age,
+            date: todo!("date"),
+            ext: todo!("ext"),
             location: todo!(),
             server: todo!(),
             st,
@@ -593,8 +600,8 @@ impl Header for Uuid {
 /// address and port that sent the request to the multicast address." <- This represents one of
 /// these messages.
 pub struct Response {
-    /// `CACHE-CONTROL`: Duration until advertisement expires
-    max_age: Duration,
+    /// `CACHE-CONTROL`: Duration (in seconds) until advertisement expires
+    max_age: MaxAge,
     /// `DATE`: when response was generated
     date: Option<DateTime<Utc>>,
     /// `EXT`: Required for backwards compatibility with UPnP 1.0. (Header field name only; no field value.)
@@ -624,6 +631,28 @@ pub struct Response {
     /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
     /// Required when device protection is implemented.
     secure_location: Option<Url>,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct MaxAge(Duration);
+
+impl Header for MaxAge {
+    const HEADER_KEY: &'static str = "CACHE-CONTROL";
+}
+
+impl FromStr for MaxAge {
+    type Err = ParseError;
+
+    fn from_str(max_age: &str) -> Result<Self, Self::Err> {
+        let (_, secs) = max_age
+            .split_once("max-age=")
+            .ok_or_else(|| ParseError::InvalidDuration(max_age.to_string()))?;
+        let duration = Duration::from_secs(
+            secs.parse()
+                .map_err(|_| ParseError::InvalidDuration(max_age.to_string()))?,
+        );
+        Ok(Self(duration))
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
