@@ -17,9 +17,8 @@ mod error;
 mod header;
 
 pub use error::ParseError;
-pub use header::{Header, HeaderExt, Host, Man, MaxAge, Mx, ST, UpnpHeader};
+pub use header::{Header, HeaderExt, Host, Man, MaxAge, Mx, ST, UpnpHeader, UpnpPort};
 
-use crate::SSDP_PORT;
 const UPNP_VERSION: &str = "2.0";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -516,63 +515,6 @@ pub struct Response {
     /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
     /// Required when device protection is implemented.
     secure_location: Option<Url>,
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-/// The port specified in a Upnp message.
-///
-/// Treat this like a semantically specific `Option<u16>` with a valuable implementation of
-/// `Default`, `From<Option<u16>>` & `Into<u16>`.
-enum UpnpPort {
-    /// Specifically defined value.
-    ///
-    /// If this is set to the default [SSDP_PORT], then it means the message specifically
-    /// defined that value.
-    Defined(u16),
-    /// A value was not defined. Conversion to a `u16` will provide the default [SSDP_PORT]
-    #[default]
-    Default,
-}
-
-/// Provides:
-/// - `Defined(port)`: the defined port
-/// - `Default`: [SSDP_PORT]
-impl From<UpnpPort> for u16 {
-    fn from(port: UpnpPort) -> Self {
-        match port {
-            UpnpPort::Defined(p) => p,
-            UpnpPort::Default => SSDP_PORT,
-        }
-    }
-}
-
-/// `None` maps to `Default`
-impl From<Option<u16>> for UpnpPort {
-    fn from(port: Option<u16>) -> Self {
-        match port {
-            Some(port) => Self::Defined(port),
-            None => Self::Default,
-        }
-    }
-}
-
-/// `None` maps to `Default`
-impl TryFrom<Option<&str>> for UpnpPort {
-    type Error = ParseError;
-
-    fn try_from(port: Option<&str>) -> Result<Self, Self::Error> {
-        Ok(port
-            .map(|port| {
-                port.parse::<u16>()
-                    .map_err(|_| ParseError::InvalidPort(port.to_string()))
-            })
-            .transpose()?
-            .into())
-    }
-}
-
-impl Header for UpnpPort {
-    const HEADER_KEY: &'static str = "SEARCHPORT.UPNP.ORG";
 }
 
 #[derive(Debug, Clone, PartialEq)]
