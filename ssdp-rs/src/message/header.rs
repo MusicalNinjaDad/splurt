@@ -97,6 +97,10 @@ pub enum Man {
     Discover,
 }
 
+impl Header for Man {
+    const HEADER_KEY: &'static str = "MAN";
+}
+
 impl Display for Man {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let str = match self {
@@ -105,10 +109,6 @@ impl Display for Man {
         // MAN values are enclosed in double-quotes
         write!(f, r#""{}""#, str)
     }
-}
-
-impl Header for Man {
-    const HEADER_KEY: &'static str = "MAN";
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
