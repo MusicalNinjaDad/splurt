@@ -21,8 +21,10 @@ use url::Url;
 use uuid::Uuid;
 
 mod error;
+mod header;
 
 pub use error::ParseError;
+pub use header::UpnpHeader;
 
 use crate::{MULTICAST, SSDP_PORT};
 const UPNP_VERSION: &str = "2.0";
@@ -138,37 +140,6 @@ impl FromStr for Message {
             Method::Notify => todo!("parse Notify"),
             Method::Response => Ok(Message::Response(header.try_into()?)),
         }
-    }
-}
-
-struct UpnpHeader<'h>(HashMap<&'h str, &'h str>);
-
-// TODO: #42 handle header key case sensitivity and maintain round-tripping
-//   at the same time, also handle split_once(": ") skips headers without a value (like EXT:)
-//   via split(":") & trim
-impl<'h> FromIterator<&'h str> for UpnpHeader<'h> {
-    fn from_iter<T: IntoIterator<Item = &'h str>>(iter: T) -> Self {
-        let hashmap = iter
-            .into_iter()
-            .filter_map(|line| line.split_once(": "))
-            .collect();
-        Self(hashmap)
-    }
-}
-
-impl<'h> UpnpHeader<'h> {
-    /// Attempt to get the corresponding value for `key`, returning a [ParseError::MissingField]
-    /// if unsuccessful.
-    fn try_get(&self, key: &str) -> Result<&str, ParseError> {
-        self.0
-            .get(key)
-            .ok_or_else(|| ParseError::MissingField(key.to_string()))
-            .copied()
-    }
-
-    /// Attempt to get the value for `key`, returning `None` if unsuccessful.
-    fn get(&self, key: &str) -> Option<&str> {
-        self.0.get(key).copied()
     }
 }
 
