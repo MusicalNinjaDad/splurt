@@ -235,7 +235,7 @@ impl Display for Message {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-enum Vendor {
+pub enum Vendor {
     Standard,
     Custom(String),
 }
