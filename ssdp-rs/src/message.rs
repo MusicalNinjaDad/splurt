@@ -511,12 +511,17 @@ impl Header for Uuid {
     const HEADER_KEY: &'static str = "CPUUID.UPNP.ORG";
 }
 
+/// Marker trait for Upnp header fields, with details of the relevant key
 trait Header {
+    /// Key as per spec
     const HEADER_KEY: &'static str;
 }
 
+/// Handles constructing valid header lines.
+/// 
+/// This is a separate trait from [Header] to allow for it to also be implemented on `Option<H>`
 trait HeaderExt {
-    /// Output as a valid header line
+    /// Generate a valid header line
     fn to_header(&self) -> String;
 
     /// Write a valid header line to `f` including new-line
@@ -524,18 +529,22 @@ trait HeaderExt {
 }
 
 impl<H: Header + Display> HeaderExt for H {
-    /// Output as a valid header line
     fn to_header(&self) -> String {
         format!("{}: {}", Self::HEADER_KEY, self)
     }
 
-    /// Write a valid header line to `f` including new-line
     fn write_header(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.to_header())
     }
 }
 
 impl<H: Header + HeaderExt> HeaderExt for Option<H> {
+    /// Generate a valid header line
+    /// 
+    /// #### Note
+    /// - This will output an empty `String` for `None`.
+    ///   If this is not what you want consider using `.map(|h| h.to_header())` which
+    ///   will give you an `Option<String>` instead.
     fn to_header(&self) -> String {
         match self {
             Some(header) => header.to_header(),
@@ -543,6 +552,10 @@ impl<H: Header + HeaderExt> HeaderExt for Option<H> {
         }
     }
 
+    /// Write a valid header line to `f` including new-line
+    /// 
+    /// #### Note
+    /// - `None` entries are handled nicely (no-op) *without* generating a blank line 
     fn write_header(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Some(header) => header.write_header(f),
