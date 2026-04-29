@@ -5,6 +5,7 @@
 use std::{
     collections::HashMap,
     fmt::Display,
+    io,
     net::{AddrParseError, SocketAddr, SocketAddrV4, SocketAddrV6},
     str::FromStr,
 };
@@ -160,6 +161,41 @@ impl Display for Man {
         };
         // MAN values are enclosed in double-quotes
         write!(f, r#""{}""#, str)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+/// A valid MX value (0..=5) (see UPnP spec para 1.3.2)
+///
+/// - Construct via `TryFrom<u8>`
+/// - Desconstruct via `Into<u8>`
+/// - Invalid values will result in an `io::ErrorKind::InvalidInput`.
+pub struct Mx(u8);
+
+impl Header for Mx {
+    const HEADER_KEY: &'static str = "MX";
+}
+
+impl Display for Mx {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl TryFrom<u8> for Mx {
+    type Error = io::Error;
+
+    fn try_from(mx: u8) -> Result<Self, Self::Error> {
+        match mx {
+            0..=5 => Ok(Self(mx)),
+            _ => Err(io::Error::from(io::ErrorKind::InvalidInput)),
+        }
+    }
+}
+
+impl From<Mx> for u8 {
+    fn from(mx: Mx) -> Self {
+        mx.0
     }
 }
 
