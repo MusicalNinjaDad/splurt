@@ -42,14 +42,6 @@ pub enum Device {
     Other { device_type: String, ver: String },
 }
 
-impl Display for Device {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Device::Other { device_type, ver } => write!(f, "{}:{}", device_type, ver),
-        }
-    }
-}
-
 impl FromStr for Device {
     type Err = ParseError;
 
@@ -61,5 +53,13 @@ impl FromStr for Device {
             device_type: device_type.to_string(),
             ver: ver.to_string(),
         })
+    }
+}
+
+impl Display for Device {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Device::Other { device_type, ver } => write!(f, "{}:{}", device_type, ver),
+        }
     }
 }

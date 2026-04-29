@@ -21,10 +21,9 @@ use std::{
 
 use uuid::Uuid;
 
-use crate::{
-    MULTICAST, SSDP_PORT,
-    message::{DeviceDetails, ParseError, ServiceDetails},
-};
+use crate::{MULTICAST, SSDP_PORT};
+
+use super::{DeviceDetails, ParseError, ServiceDetails};
 
 pub struct UpnpHeader<'h>(HashMap<&'h str, &'h str>);
 
