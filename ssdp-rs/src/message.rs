@@ -156,11 +156,24 @@ impl FromStr for Message {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut lines = s.lines();
         let method: Method = lines.next().ok_or(ParseError::EmptyMessage)?.parse()?;
+        let header: UpnpHeader = lines.collect();
         match method {
             Method::MSearch => todo!("parse MSearch"),
             Method::Notify => todo!("parse Notify"),
             Method::Response => todo!("parse Response"),
         }
+    }
+}
+
+struct UpnpHeader<'h>(HashMap<&'h str, &'h str>);
+
+impl<'h> FromIterator<&'h str> for UpnpHeader<'h> {
+    fn from_iter<T: IntoIterator<Item = &'h str>>(iter: T) -> Self {
+        let hashmap = iter
+            .into_iter()
+            .filter_map(|line| line.split_once(": "))
+            .collect();
+        Self(hashmap)
     }
 }
 
