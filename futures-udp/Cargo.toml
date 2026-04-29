@@ -1,6 +1,6 @@
 [package]
 name = "futures-udp"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2024"
 readme = "README.md"
 description = "Non-blocking async UDPSocket, Stream & Sink. Runtime agnostic: works with tokio & futures-rs. Minimal dependencies."
