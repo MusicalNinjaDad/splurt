@@ -449,9 +449,6 @@ impl FromStr for UserAgent {
     }
 }
 
-impl Header for Uuid {
-    const HEADER_KEY: &'static str = "CPUUID.UPNP.ORG";
-}
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 /// A direct response to an `M-SEARCH` message.
 ///

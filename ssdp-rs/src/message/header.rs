@@ -368,3 +368,7 @@ impl From<UpnpPort> for u16 {
         }
     }
 }
+
+impl Header for Uuid {
+    const HEADER_KEY: &'static str = "CPUUID.UPNP.ORG";
+}
