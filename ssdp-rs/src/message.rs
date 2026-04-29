@@ -196,9 +196,10 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             .get(MaxAge::HEADER_KEY)
             .ok_or_else(|| ParseError::MissingField((MaxAge::HEADER_KEY).to_string()))?
             .parse()?;
+        let date = None;
         let rtn = Self {
             max_age,
-            date: todo!("date"),
+            date,
             ext: todo!("ext"),
             location: todo!(),
             server: todo!(),
