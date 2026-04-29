@@ -18,7 +18,7 @@ mod header;
 
 pub use error::ParseError;
 pub use header::{
-    FriendlyName, Header, HeaderExt, Host, Man, MaxAge, Mx, ST, UpnpHeader, UpnpPort,
+    FriendlyName, Header, HeaderExt, Host, Man, MaxAge, Mx, ST, UpnpHeader, UpnpPort, UserAgent,
 };
 
 const UPNP_VERSION: &str = "2.0";
@@ -380,72 +380,6 @@ impl Display for MSearch {
         //   "Note: No body is present in requests with method M-SEARCH, but note that the
         //          message shall have a blank line following the last header field."
         writeln!(f)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct UserAgent {
-    os: String,
-    os_version: String,
-    upnp_version: String,
-    product_name: String,
-    product_version: String,
-}
-
-impl Header for UserAgent {
-    const HEADER_KEY: &'static str = "USER-AGENT";
-}
-
-/// Formatted as per OCF specification (2020) section 1.3.2 for the `USER-AGENT` *value*,
-/// does NOT include the header key
-impl Display for UserAgent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self {
-            os,
-            os_version,
-            upnp_version,
-            product_name,
-            product_version,
-        } = self;
-        write!(
-            f,
-            "{os}/{os_version} UPnP/{upnp_version} {product_name}/{product_version}"
-        )
-    }
-}
-
-impl FromStr for UserAgent {
-    type Err = ParseError;
-
-    fn from_str(user_agent: &str) -> Result<Self, Self::Err> {
-        let err = || ParseError::InvalidUserAgent(user_agent.to_string());
-        let mut tokens = user_agent.split_whitespace();
-        let os = tokens.next().ok_or_else(err)?;
-        let (os, os_version) = os
-            .split_once("/")
-            .map(|(name, ver)| (name.to_string(), ver.to_string()))
-            .ok_or_else(err)?;
-        let upnp_version = tokens
-            .next()
-            .ok_or_else(err)?
-            .strip_prefix("UPnP/")
-            .ok_or_else(err)?
-            .to_string();
-        let product = tokens.next().ok_or_else(err)?;
-        let (product_name, product_version) = product
-            .split_once("/")
-            .map(|(name, ver)| (name.to_string(), ver.to_string()))
-            .ok_or_else(err)?;
-        if tokens.next().is_some() {
-            return Err(err());
-        };
-        Ok(Self {
-            os,
-            os_version,
-            upnp_version,
-            product_name,
-            product_version,
-        })
     }
 }
 

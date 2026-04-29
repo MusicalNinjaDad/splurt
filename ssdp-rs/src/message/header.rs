@@ -369,6 +369,72 @@ impl From<UpnpPort> for u16 {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct UserAgent {
+    pub os: String,
+    pub os_version: String,
+    pub upnp_version: String,
+    pub product_name: String,
+    pub product_version: String,
+}
+
+impl Header for UserAgent {
+    const HEADER_KEY: &'static str = "USER-AGENT";
+}
+
+impl FromStr for UserAgent {
+    type Err = ParseError;
+
+    fn from_str(user_agent: &str) -> Result<Self, Self::Err> {
+        let err = || ParseError::InvalidUserAgent(user_agent.to_string());
+        let mut tokens = user_agent.split_whitespace();
+        let os = tokens.next().ok_or_else(err)?;
+        let (os, os_version) = os
+            .split_once("/")
+            .map(|(name, ver)| (name.to_string(), ver.to_string()))
+            .ok_or_else(err)?;
+        let upnp_version = tokens
+            .next()
+            .ok_or_else(err)?
+            .strip_prefix("UPnP/")
+            .ok_or_else(err)?
+            .to_string();
+        let product = tokens.next().ok_or_else(err)?;
+        let (product_name, product_version) = product
+            .split_once("/")
+            .map(|(name, ver)| (name.to_string(), ver.to_string()))
+            .ok_or_else(err)?;
+        if tokens.next().is_some() {
+            return Err(err());
+        };
+        Ok(Self {
+            os,
+            os_version,
+            upnp_version,
+            product_name,
+            product_version,
+        })
+    }
+}
+
+/// Formatted as per OCF specification (2020) section 1.3.2 for the `USER-AGENT` *value*,
+/// does NOT include the header key
+impl Display for UserAgent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            os,
+            os_version,
+            upnp_version,
+            product_name,
+            product_version,
+        } = self;
+        write!(
+            f,
+            "{os}/{os_version} UPnP/{upnp_version} {product_name}/{product_version}"
+        )
+    }
+}
+
 impl Header for Uuid {
     const HEADER_KEY: &'static str = "CPUUID.UPNP.ORG";
 }
