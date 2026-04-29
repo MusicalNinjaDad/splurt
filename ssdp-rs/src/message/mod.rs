@@ -24,7 +24,7 @@ mod error;
 mod header;
 
 pub use error::ParseError;
-pub use header::{Header, HeaderExt, UpnpHeader};
+pub use header::{Header, HeaderExt, Man, UpnpHeader};
 
 use crate::{MULTICAST, SSDP_PORT};
 const UPNP_VERSION: &str = "2.0";
@@ -236,25 +236,6 @@ impl Display for Message {
             Message::Response(_response) => todo!("display response messages"),
         }
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Man {
-    Discover,
-}
-
-impl Display for Man {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let str = match self {
-            Man::Discover => "ssdp:discover",
-        };
-        // MAN values are enclosed in double-quotes
-        write!(f, r#""{}""#, str)
-    }
-}
-
-impl Header for Man {
-    const HEADER_KEY: &'static str = "MAN";
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]

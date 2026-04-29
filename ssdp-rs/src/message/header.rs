@@ -90,3 +90,21 @@ impl<H: Header + HeaderExt> HeaderExt for Option<H> {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Man {
+    Discover,
+}
+
+impl Display for Man {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            Man::Discover => "ssdp:discover",
+        };
+        // MAN values are enclosed in double-quotes
+        write!(f, r#""{}""#, str)
+    }
+}
+
+impl Header for Man {
+    const HEADER_KEY: &'static str = "MAN";
+}
