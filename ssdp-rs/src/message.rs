@@ -84,7 +84,7 @@ impl FromStr for Method {
 ///
 /// Create with `Message::parse()`
 #[derive(Debug, Clone, PartialEq)]
-#[allow(clippy::large_enum_variant)]
+#[expect(clippy::large_enum_variant)]
 // TODO: #39 Consider boxing `Message::Response`
 //       Contents are `Box`ed as they contain many large pointers to heap-allocated
 //       information e.g. `String`s (each is a 24b pointer to data that is on the heap anyway)
