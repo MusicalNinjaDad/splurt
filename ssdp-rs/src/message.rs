@@ -13,7 +13,6 @@ use std::{
     fmt::Display,
     io,
     net::{AddrParseError, SocketAddr, SocketAddrV4, SocketAddrV6},
-    ops::Deref,
     str::FromStr,
     time::Duration,
 };
