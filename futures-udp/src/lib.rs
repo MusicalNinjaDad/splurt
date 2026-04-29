@@ -8,7 +8,7 @@
 //! - [UdpSink] for sending data via a UDP Socket
 //!
 //! These structs implement the `futures-rs` traits [Stream] & [Sink] respectively but are tested
-//! and known to work with both `tokio` & `futures`-rs runtimes. (tokio tests performed in a
+//! and known to work with both `tokio` & `futures-rs` runtimes. (tokio tests performed in a
 //! downstream crate, I'll add them here soon so to make sure this never breaks)
 //!
 //! ## Why?
@@ -16,7 +16,7 @@
 //!   to use it as my runtime. I think the runtime choice should be left to the final binary.
 //! - `futures-rs` is a lot lighter weight and provided by rust-lang, so I chose that for the base
 //!   traits. They are cross-compatible with `tokio`.
-//! - Working with a bare UdpSocket is "a bit hard", doing it async is "a bit more hard".
+//! - Working with a bare `UdpSocket` is "a bit hard", doing it async is "a bit more hard".
 //!   Adding `Stream` & `Sink` semantics makes it "nice".
 //! - Despite the docs [futures_net::UdpSocket] creates a blocking socket, which is locked
 //!   for exclusive use. (Opening a ticket TBD)
@@ -42,7 +42,8 @@
 //! >
 //! > Both are so close to being part of stable rust that I chose to use them here.
 //!
-//! You do not need to enable these in your own code, the list is for information only.
+//! You do not need to enable these in your own code, the list is for information only. But currently
+//! you do need to use nightly to take advantage of this crate.
 //!
 //! ### Stability guarantees
 //!
@@ -97,8 +98,8 @@ use socket2::{Domain, Type};
 ///
 /// #### Note
 /// - This does NOT have exclusive access to the bound port. If you want to guarantee that
-///   no other processes bind to the same socket use a [UdpConnectedStream], which will exclusively
-///   claim the port (or vote thumbs up on issue #22 TODO: implement `bind_exclusive` etc.)
+///   no other processes bind to the same socket vote thumbs up on issue #22 TODO: implement
+///   `bind_exclusive` etc.)
 pub struct UdpStream<const BUF_SIZE: usize> {
     /// The underlying, evented Socket.
     ///
@@ -113,7 +114,7 @@ pub struct UdpStream<const BUF_SIZE: usize> {
     io: PollEvented<sys::net::UdpSocket>,
 }
 
-/// Basic functions on a struct wrapping a PollEvented<sys::net::UdpSocket>
+/// Basic functions on a struct wrapping a `PollEvented<sys::net::UdpSocket>`
 ///
 /// Right now this is lazy for my own use, so makes assumptions about internal structure.
 ///
@@ -123,7 +124,7 @@ pub trait EventedUdpSocket
 where
     Self: Sized,
 {
-    /// Create a new `Self` from a PollEvented<sys::net::UdpSocket>
+    /// Create a new `Self` from a `PollEvented<sys::net::UdpSocket>`
     fn from_evented_socket(evented_socket: PollEvented<sys::net::UdpSocket>) -> io::Result<Self>;
 
     /// Create a new `Self` by binding it to a given [SocketAddr].
@@ -307,8 +308,8 @@ impl<const BUF_SIZE: usize> Stream for UdpStream<BUF_SIZE> {
 ///
 /// #### Note
 /// - This does NOT have exclusive access to the bound port. If you want to guarantee that
-///   no other processes bind to the same socket use a [UdpConnectedStream], which will exclusively
-///   claim the port (or vote thumbs up on issue #22 TODO: implement `bind_exclusive` etc.)
+///   no other processes bind to the same socket vote thumbs up on issue #22 TODO: implement
+///   `bind_exclusive` etc.
 pub struct UdpSink {
     /// The underlying, evented Socket.
     ///
@@ -363,9 +364,11 @@ impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
     /// If this method returns Poll::Pending, the current task is registered to be notified
     /// (via cx.waker().wake_by_ref()) when poll_ready should be called again.
     ///
-    /// If the attempt to poll readiness fails this method will properly handle
-    /// it by calling [Self::clear_ready]/[Self::unblock] to ensure the underlying socket does not
-    /// remain blocked.
+    /// #### Note
+    /// 
+    /// - If the attempt to poll readiness fails this method **will properly handle
+    ///   it** by calling [Self::clear_ready]/[Self::unblock] to ensure the underlying socket
+    ///   does not remain blocked.
     fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         let evented_socket = self.as_mut().as_evented_socket_pin();
         match evented_socket.poll_write_ready(cx) {
