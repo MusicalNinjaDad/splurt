@@ -13,9 +13,11 @@ use chrono::{DateTime, Utc};
 use url::Url;
 use uuid::Uuid;
 
+mod devices;
 mod error;
 mod header;
 
+pub use devices::DeviceDetails;
 pub use error::ParseError;
 pub use header::{
     FriendlyName, Header, HeaderExt, Host, Man, MaxAge, Mx, ST, UpnpHeader, UpnpPort, UserAgent,
@@ -229,39 +231,6 @@ impl Display for Message {
             }
             Message::Response(_response) => todo!("display response messages"),
         }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct DeviceDetails {
-    vendor: Vendor,
-    device: Device,
-}
-
-impl Display for DeviceDetails {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:device:{}", self.vendor, self.device)
-    }
-}
-
-impl FromStr for DeviceDetails {
-    type Err = ParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let err = || ParseError::InvalidDevice(s.to_string());
-        let mut parts = s.split(":");
-        match parts.next() {
-            Some("urn") => (),
-            _ => return Err(err()),
-        };
-        let Ok(vendor) = parts.next().ok_or_else(err)?.parse::<Vendor>();
-        match parts.next() {
-            Some("device") => (),
-            _ => return Err(err()),
-        };
-        let device: String = parts.collect();
-        let device: Device = device.parse()?;
-        Ok(Self { vendor, device })
     }
 }
 
