@@ -13,6 +13,7 @@ use std::{
     fmt::Display,
     io,
     net::{AddrParseError, SocketAddr, SocketAddrV4, SocketAddrV6},
+    ops::Deref,
     str::FromStr,
     time::Duration,
 };
@@ -26,10 +27,11 @@ use crate::{MULTICAST, SSDP_PORT};
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ParseError {
     EmptyMessage,
-    InvalidMethod(String),
-    InvalidST(String),
     InvalidDevice(String),
     InvalidDeviceDetails(String),
+    InvalidMethod(String),
+    InvalidST(String),
+    MissingField(String),
 }
 
 impl error::Error for ParseError {}
@@ -38,8 +40,6 @@ impl Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ParseError::EmptyMessage => write!(f, "empty message"),
-            ParseError::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
-            ParseError::InvalidST(st) => write!(f, "{} is not a valid upnp search type", st),
             ParseError::InvalidDevice(device) => write!(
                 f,
                 "{} is not a valid upnp device specification (valid forms are `urn:domain-name:device:deviceType:ver` & `urn:schemas-upnp-org:device:deviceType:ver`)",
@@ -48,6 +48,9 @@ impl Display for ParseError {
             ParseError::InvalidDeviceDetails(device) => {
                 write!(f, "{} is not a valid upnp device:ver specification", device)
             }
+            ParseError::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
+            ParseError::InvalidST(st) => write!(f, "{} is not a valid upnp search type", st),
+            ParseError::MissingField(field) => write!(f, "header is missing field {field}"),
         }
     }
 }
@@ -160,7 +163,7 @@ impl FromStr for Message {
         match method {
             Method::MSearch => todo!("parse MSearch"),
             Method::Notify => todo!("parse Notify"),
-            Method::Response => todo!("parse Response"),
+            Method::Response => Ok(Message::Response(header.try_into()?)),
         }
     }
 }
@@ -174,6 +177,33 @@ impl<'h> FromIterator<&'h str> for UpnpHeader<'h> {
             .filter_map(|line| line.split_once(": "))
             .collect();
         Self(hashmap)
+    }
+}
+
+impl<'h> TryFrom<UpnpHeader<'h>> for Response {
+    type Error = ParseError;
+
+    fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
+        let header = header.0;
+        let st = header
+            .get(ST::HEADER_KEY)
+            .ok_or_else(|| ParseError::MissingField(ST::HEADER_KEY.to_string()))?
+            .parse()?;
+
+        let rtn = Self {
+            max_age: todo!("max_age"),
+            date: todo!(),
+            ext: todo!(),
+            location: todo!(),
+            server: todo!(),
+            st,
+            usn: todo!(),
+            boot_id: todo!(),
+            config_id: todo!(),
+            port: todo!(),
+            secure_location: todo!(),
+        };
+        todo!("try_from header for response")
     }
 }
 
@@ -372,13 +402,13 @@ impl Display for ST {
     }
 }
 
-//TODO: impl FromStr for ST {
-//     type Err = Error;
-//
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         todo!("from str ST")
-//     }
-// }
+impl FromStr for ST {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        todo!("from str ST")
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MSearch {
