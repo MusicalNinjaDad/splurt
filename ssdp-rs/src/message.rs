@@ -406,7 +406,14 @@ impl FromStr for ST {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        todo!("from str ST")
+        match s {
+            "ssdp:all" => Ok(ST::All),
+            "upnp:rootdevice" => Ok(ST::Root),
+            _ => todo!("parse other ST"),
+            // "uuid:device-{}"
+            // "urn:{device_details}"
+            // "urn:{service_details}"
+        }
     }
 }
 
@@ -849,16 +856,14 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003
     fn parse_response() {
         // TODO: Will likely need indexmap = "2.14.0" for round-trip conversion with non-std entries
         let raw_response = r#"HTTP/1.1 200 OK
-CACHE-CONTROL: max-age=1900
-DATE: Tue, 28 Apr 2026 12:56:35 GMT
+HOST: 239.255.255.250:1900
 EXT:
-LOCATION: http://192.168.0.129:50001/desc/device.xml
-OPT: "http://schemas.upnp.org/upnp/1/0/"; ns=01
-01-NLS: 88ccb70e-32ec-11f1-8533-ec2b50e32df5
-SERVER: Linux/2.6.32.12, UPnP/1.0, Portable SDK for UPnP devices/1.6.21
-X-User-Agent: redsonic
-ST: urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1
-USN: uuid:00113214-9943-0011-4399-439914321100::urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1
+CACHE-CONTROL: max-age=100
+LOCATION: http://192.168.0.71:80/description.xml
+SERVER: Hue/1.0 UPnP/1.0 IpBridge/1.76.0
+hue-bridgeid: ECB55AF4FE12E2C4
+ST: upnp:rootdevice
+USN: uuid:2f402f80-da50-11e1-9b23-ecb55af4fe12e2c4::upnp:rootdevice
 "#;
         let response: Message = raw_response.parse().expect("parsed as response");
         assert_matches!(response, Message::Response(_));
