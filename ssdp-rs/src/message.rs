@@ -246,6 +246,8 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
         let date = header
             .get("DATE")
             .map(|date| {
+                // TODO: find something that can parse rfc1123-date = wkday "," SP date1 SP time SP "GMT"
+                //   https://datatracker.ietf.org/doc/html/rfc2616#section-3.3
                 date.parse()
                     .map_err(|_| ParseError::InvalidDate(date.to_string()))
             })
