@@ -224,7 +224,7 @@ impl<'h> FromIterator<&'h str> for UpnpHeader<'h> {
 impl<'h> UpnpHeader<'h> {
     /// Attempt to get the corresponding value for `key`, returning a [ParseError::MissingField]
     /// if unsuccessful.
-    fn try_get(&'h self, key: &'h str) -> Result<&'h str, ParseError> {
+    fn try_get(&self, key: &str) -> Result<&str, ParseError> {
         self.0
             .get(key)
             .ok_or_else(|| ParseError::MissingField(key.to_string()))
@@ -232,7 +232,7 @@ impl<'h> UpnpHeader<'h> {
     }
 
     /// Attempt to get the value for `key`, returning `None` if unsuccessful.
-    fn get(&'h self, key: &'h str) -> Option<&'h str> {
+    fn get(&self, key: &str) -> Option<&str> {
         self.0.get(key).copied()
     }
 }
