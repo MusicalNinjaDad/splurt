@@ -17,7 +17,7 @@ mod devices;
 mod error;
 mod header;
 
-pub use devices::DeviceDetails;
+pub use devices::{Device, DeviceDetails};
 pub use error::ParseError;
 pub use header::{
     FriendlyName, Header, HeaderExt, Host, Man, MaxAge, Mx, ST, UpnpHeader, UpnpPort, UserAgent,
@@ -257,33 +257,6 @@ impl FromStr for Vendor {
             "schemas-upnp-org" => Ok(Self::Standard),
             _ => Ok(Self::Custom(s.to_string())),
         }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-enum Device {
-    Other { device_type: String, ver: String },
-}
-
-impl Display for Device {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Device::Other { device_type, ver } => write!(f, "{}:{}", device_type, ver),
-        }
-    }
-}
-
-impl FromStr for Device {
-    type Err = ParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (device_type, ver) = s
-            .split_once(":")
-            .ok_or(ParseError::InvalidDeviceDetails(s.to_string()))?;
-        Ok(Self::Other {
-            device_type: device_type.to_string(),
-            ver: ver.to_string(),
-        })
     }
 }
 

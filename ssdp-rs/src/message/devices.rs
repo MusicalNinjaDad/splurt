@@ -2,7 +2,7 @@
 
 use std::{fmt::Display, str::FromStr};
 
-use super::{Device, ParseError, Vendor};
+use super::{ParseError, Vendor};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DeviceDetails {
@@ -34,5 +34,32 @@ impl FromStr for DeviceDetails {
 impl Display for DeviceDetails {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}:device:{}", self.vendor, self.device)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Device {
+    Other { device_type: String, ver: String },
+}
+
+impl Display for Device {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Device::Other { device_type, ver } => write!(f, "{}:{}", device_type, ver),
+        }
+    }
+}
+
+impl FromStr for Device {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (device_type, ver) = s
+            .split_once(":")
+            .ok_or(ParseError::InvalidDeviceDetails(s.to_string()))?;
+        Ok(Self::Other {
+            device_type: device_type.to_string(),
+            ver: ver.to_string(),
+        })
     }
 }
