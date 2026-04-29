@@ -46,7 +46,9 @@ impl Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ParseError::EmptyMessage => write!(f, "empty message"),
-            ParseError::InvalidBootId(boot_id) => write!(f, "{boot_id} is not a valid boot instance"),
+            ParseError::InvalidBootId(boot_id) => {
+                write!(f, "{boot_id} is not a valid boot instance")
+            }
             ParseError::InvalidDate(date) => write!(f, "{date} is not a valid date"),
             ParseError::InvalidDuration(duration) => {
                 write!(f, "{duration} is not a valid duration")
@@ -232,8 +234,14 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             .map_err(|_| ParseError::InvalidLocation(location.to_string()))?;
         let server = header.try_get("SERVER")?.parse()?;
         let usn = header.try_get("USN")?.to_string();
-        let boot_id = header.try_get("BOOTID.UPNP.ORG")?;
-        let boot_id = boot_id.parse().map_err(|_| ParseError::InvalidBootId(boot_id.to_string()))?;
+        let boot_id = header
+            .get("BOOTID.UPNP.ORG")
+            .map(|boot_id| {
+                boot_id
+                    .parse()
+                    .map_err(|_| ParseError::InvalidBootId(boot_id.to_string()))
+            })
+            .transpose()?;
         let rtn = Self {
             max_age,
             date,
@@ -687,7 +695,7 @@ pub struct Response {
     /// `ST`: search target
     st: ST,
     /// `USN`: composite identifier for the advertisement
-    /// 
+    ///
     /// **TODO** handle USN nicely
     usn: String,
     /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
@@ -695,7 +703,9 @@ pub struct Response {
     /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
     /// control points for a number of purposes such as re-establishing desired event subscriptions,
     /// checking for changes to the device state that were not evented since the device was off-line.
-    boot_id: u32,
+    ///
+    /// Required for UPnPv2, not present in UPnPv1
+    boot_id: Option<u32>,
     /// `CONFIGID.UPNP.ORG`: number used for caching description information.
     /// If a device sends out two messages with a `CONFIGID.UPNP.ORG` header field with the same field
     /// value, the configuration shall be the same at the moments that these messages were sent.
@@ -703,6 +713,8 @@ pub struct Response {
     /// control point receives an announcement of an unknown configuration is downloading required.
     config_id: Option<u32>,
     /// `SEARCHPORT.UPNP.ORG`: number identifies port on which device responds to unicast M-SEARCH
+    ///
+    /// Optional (handled semantically in [UpnpPort])
     port: UpnpPort,
     /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
     /// Required when device protection is implemented.
