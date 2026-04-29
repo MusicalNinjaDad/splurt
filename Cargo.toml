@@ -1,6 +1,6 @@
 [package]
 name = "splurt"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2024"
 readme = "README.md"
 description = "A tiny ssdp/upnp repeater"
@@ -12,6 +12,7 @@ categories = ["Command line utilities", "Network programming"]
 license = "MIT"
 rust-version = "1.94.1"
 exclude = [".github", ".devcontainer"]
+publish = false
 
 [workspace]
 members = ["ssdp-rs", "xtask"]

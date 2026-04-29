@@ -11,6 +11,7 @@ repository = "https://github.com/MusicalNinjaDad/splurt"
 categories = ["Command line utilities", "Network programming"]
 license = "MIT"
 rust-version = "1.90.0"
+publish = false
 
 [dependencies]
 

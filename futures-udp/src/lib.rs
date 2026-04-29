@@ -1,7 +1,71 @@
-#![cfg_attr(all(test, unstable_assert_matches), feature(assert_matches))]
 #![cfg_attr(unstable_bool_to_result, feature(bool_to_result))]
-#![cfg_attr(unstable_let_chains, feature(let_chains))]
 #![cfg_attr(unstable_never_type, feature(never_type))]
+
+//! Runtime agnostic, non-blocking, non-exclusive async UDP networking.
+//!
+//! `futures-udp` provides two key structs:
+//! - [UdpStream] for reading data from a UDP Socket
+//! - [UdpSink] for sending data via a UDP Socket
+//!
+//! These structs implement the `futures-rs` traits [Stream] & [Sink] respectively but are tested
+//! and known to work with both `tokio` & `futures-rs` runtimes. (tokio tests performed in a
+//! downstream crate, I'll add them here soon so to make sure this never breaks)
+//!
+//! ## Why?
+//! - I usually don't want to be forced to bring `tokio` into my dependency tree unless I want
+//!   to use it as my runtime. I think the runtime choice should be left to the final binary.
+//! - `futures-rs` is a lot lighter weight and provided by rust-lang, so I chose that for the base
+//!   traits. They are cross-compatible with `tokio`.
+//! - Working with a bare `UdpSocket` is "a bit hard", doing it async is "a bit more hard".
+//!   Adding `Stream` & `Sink` semantics makes it "nice".
+//! - Despite the docs [futures_net::UdpSocket] creates a blocking socket, which is locked
+//!   for exclusive use. (Opening a ticket TBD)
+//!
+//! ## Stability & MSRV
+//!
+//! I've chosen to rely on two experimental features, while this crate is in v0.x.y, as I feel they
+//! add significant value to the API. I also believe in supporting language development and
+//! generating feedback to features as they near stabilisation.
+//!
+//! This crate will not move to v1.x.y until both features are stabilised, or I decide to stop using
+//! them. Realistically, however, they will be stable while I allow this API to go through a
+//! "settling-in" phase before fixing it at v1.0.0
+//!
+//! > 🔬 **Experimental Features**
+//! >
+//! > This crate makes use of the following experimental features:
+//! >
+//! > - [`#![feature(never_type)]`](https://github.com/rust-lang/rust/issues/35121) [final stages of stabilisation]
+//! > - [`#![feature(bool_to_result)]`](https://github.com/rust-lang/rust/issues/142748) [in FCP as of 2026-04-25]
+//! >
+//! > This list includes any unstable features used by direct & transitive dependencies (currently, none).
+//! >
+//! > Both are so close to being part of stable rust that I chose to use them here.
+//!
+//! You do not need to enable these in your own code, the list is for information only. But currently
+//! you do need to use nightly to take advantage of this crate.
+//!
+//! ### Stability guarantees
+//!
+//! We run automated tests **every month** to ensure no fundamental changes affect this crate and
+//! test every PR against the current nightly, as well as the current equivalent beta & stable.
+//! If you find an issue before we do, please
+//! [raise an issue on github](https://github.com/MusicalNinjaDad/splurt/issues).
+//!
+//! ### MSRV
+//!
+//! For those of you working with a pinned nightly (etc.) this crate supports the equivalent of
+//! 1.90.0 onwards. We use [autocfg](https://crates.io/crates/autocfg/) to seamlessly handle
+//! features which have been stabilised since then.
+//!
+//! ### Dependencies
+//!
+//! We deliberately keep the dependency list short and pay attention to any transitive dependencies
+//! we bring in.
+//!
+//! - `futures-rs` (for the Stream & Sink traits)
+//! - `futures-net` (for the underlying UdpSocket)
+//! - `socket2` (to set the socket to non-blocking, non-exclusive)
 
 use std::{
     io,
@@ -34,8 +98,8 @@ use socket2::{Domain, Type};
 ///
 /// #### Note
 /// - This does NOT have exclusive access to the bound port. If you want to guarantee that
-///   no other processes bind to the same socket use a [UdpConnectedStream], which will exclusively
-///   claim the port (or vote thumbs up on issue #22 TODO: implement `bind_exclusive` etc.)
+///   no other processes bind to the same socket vote thumbs up on issue #22 TODO: implement
+///   `bind_exclusive` etc.)
 pub struct UdpStream<const BUF_SIZE: usize> {
     /// The underlying, evented Socket.
     ///
@@ -50,7 +114,7 @@ pub struct UdpStream<const BUF_SIZE: usize> {
     io: PollEvented<sys::net::UdpSocket>,
 }
 
-/// Basic functions on a struct wrapping a PollEvented<sys::net::UdpSocket>
+/// Basic functions on a struct wrapping a `PollEvented<sys::net::UdpSocket>`
 ///
 /// Right now this is lazy for my own use, so makes assumptions about internal structure.
 ///
@@ -60,7 +124,7 @@ pub trait EventedUdpSocket
 where
     Self: Sized,
 {
-    /// Create a new `Self` from a PollEvented<sys::net::UdpSocket>
+    /// Create a new `Self` from a `PollEvented<sys::net::UdpSocket>`
     fn from_evented_socket(evented_socket: PollEvented<sys::net::UdpSocket>) -> io::Result<Self>;
 
     /// Create a new `Self` by binding it to a given [SocketAddr].
@@ -244,8 +308,8 @@ impl<const BUF_SIZE: usize> Stream for UdpStream<BUF_SIZE> {
 ///
 /// #### Note
 /// - This does NOT have exclusive access to the bound port. If you want to guarantee that
-///   no other processes bind to the same socket use a [UdpConnectedStream], which will exclusively
-///   claim the port (or vote thumbs up on issue #22 TODO: implement `bind_exclusive` etc.)
+///   no other processes bind to the same socket vote thumbs up on issue #22 TODO: implement
+///   `bind_exclusive` etc.
 pub struct UdpSink {
     /// The underlying, evented Socket.
     ///
@@ -300,9 +364,11 @@ impl<A: ToSocketAddrs> Sink<(&[u8], &A)> for UdpSink {
     /// If this method returns Poll::Pending, the current task is registered to be notified
     /// (via cx.waker().wake_by_ref()) when poll_ready should be called again.
     ///
-    /// If the attempt to poll readiness fails this method will properly handle
-    /// it by calling [Self::clear_ready]/[Self::unblock] to ensure the underlying socket does not
-    /// remain blocked.
+    /// #### Note
+    ///
+    /// - If the attempt to poll readiness fails this method **will properly handle
+    ///   it** by calling [Self::clear_ready]/[Self::unblock] to ensure the underlying socket
+    ///   does not remain blocked.
     fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         let evented_socket = self.as_mut().as_evented_socket_pin();
         match evented_socket.poll_write_ready(cx) {

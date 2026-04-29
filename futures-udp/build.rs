@@ -5,14 +5,7 @@ use autocfg::AutoCfg;
 fn main() -> Result<(), BuildError> {
     let ac = autocfg::new();
     ac.emit_unstable_feature("bool_to_result");
-    ac.emit_unstable_feature("let_chains");
     ac.emit_unstable_feature("never_type");
-    ac.emit_unstable_feature("assert_matches");
-    AssertMatchesLocation::emit_possibilities();
-    if let Some(location) = ac.assert_matches_location() {
-        autocfg::emit(&location.to_string())
-    }
-
     Ok(())
 }
 
@@ -49,6 +42,7 @@ impl From<std::io::Error> for BuildError {
 
 /// Location of assert_matches!() macro. Stabilisation was reverted at last minute
 /// on 2026-04-10, leaving the macro in the new planned location.
+#[allow(unused, reason = "will consolidate to own crate soon")]
 enum AssertMatchesLocation {
     /// Macro is at `std::assert_matches`
     Root,
@@ -65,6 +59,7 @@ impl Display for AssertMatchesLocation {
     }
 }
 
+#[allow(unused, reason = "will consolidate to own create soon")]
 impl AssertMatchesLocation {
     fn emit_possibilities() {
         autocfg::emit_possibility(&AssertMatchesLocation::Root.to_string());
@@ -72,6 +67,7 @@ impl AssertMatchesLocation {
     }
 }
 
+#[allow(unused, reason = "will consolidate to own create soon")]
 trait Nightly {
     /// Identify whether a an experimental feature flag is available _and_ required on nightly.
     /// Always fails if feature flags are unavailable.
