@@ -26,6 +26,7 @@ use crate::{MULTICAST, SSDP_PORT};
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ParseError {
     EmptyMessage,
+    InvalidDate(String),
     InvalidDevice(String),
     InvalidDeviceDetails(String),
     InvalidDuration(String),
@@ -40,6 +41,7 @@ impl Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ParseError::EmptyMessage => write!(f, "empty message"),
+            ParseError::InvalidDate(date) => write!(f, "{date} is not a valid date"),
             ParseError::InvalidDuration(duration) => {
                 write!(f, "{duration} is not a valid duration")
             }
@@ -192,6 +194,11 @@ impl<'h> UpnpHeader<'h> {
             .ok_or_else(|| ParseError::MissingField(key.to_string()))
             .copied()
     }
+
+    /// Attempt to get the value for `key`, returning `None` if unsuccessful.
+    fn get(&'h self, key: &'h str) -> Option<&'h str> {
+        self.0.get(key).copied()
+    }
 }
 
 impl<'h> TryFrom<UpnpHeader<'h>> for Response {
@@ -200,7 +207,13 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
         let st = header.try_get(ST::HEADER_KEY)?.parse()?;
         let max_age = header.try_get(MaxAge::HEADER_KEY)?.parse()?;
-        let date = None;
+        let date = header
+            .get("DATE")
+            .map(|date| {
+                date.parse()
+                    .map_err(|_| ParseError::InvalidDate(date.to_string()))
+            })
+            .transpose()?;
         let rtn = Self {
             max_age,
             date,
