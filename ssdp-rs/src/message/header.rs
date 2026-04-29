@@ -2,6 +2,14 @@
 //! - [UpnpHeader] for storing & finding values
 //! - enums / structs for all standard header fields with standard key name, parsing & display logic
 
+// impl ordering:
+// - Header
+// - Default
+// - FromStr
+// - (Try_)From T for Self (alphabetical)
+// - (Try_)From Self for T (alphabetical)
+// - Display
+
 use std::{
     collections::HashMap,
     fmt::Display,
@@ -118,12 +126,12 @@ impl Default for Host {
     }
 }
 
-impl Display for Host {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Host::V4(socket_addr_v4) => write!(f, "{socket_addr_v4}"),
-            Host::_V6(socket_addr_v6) => write!(f, "{socket_addr_v6}"),
-        }
+impl FromStr for Host {
+    type Err = AddrParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let addr = SocketAddr::from_str(s)?;
+        Ok(addr.into())
     }
 }
 
@@ -136,12 +144,12 @@ impl From<SocketAddr> for Host {
     }
 }
 
-impl FromStr for Host {
-    type Err = AddrParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let addr = SocketAddr::from_str(s)?;
-        Ok(addr.into())
+impl Display for Host {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Host::V4(socket_addr_v4) => write!(f, "{socket_addr_v4}"),
+            Host::_V6(socket_addr_v6) => write!(f, "{socket_addr_v6}"),
+        }
     }
 }
 
@@ -176,12 +184,6 @@ impl Header for Mx {
     const HEADER_KEY: &'static str = "MX";
 }
 
-impl Display for Mx {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 impl TryFrom<u8> for Mx {
     type Error = io::Error;
 
@@ -196,6 +198,12 @@ impl TryFrom<u8> for Mx {
 impl From<Mx> for u8 {
     fn from(mx: Mx) -> Self {
         mx.0
+    }
+}
+
+impl Display for Mx {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
@@ -234,18 +242,6 @@ impl Header for ST {
     const HEADER_KEY: &'static str = "ST";
 }
 
-impl Display for ST {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ST::All => write!(f, "ssdp:all"),
-            ST::Root => write!(f, "upnp:rootdevice"),
-            ST::Uuid(uuid) => write!(f, "uuid:device-{}", uuid),
-            ST::Device(device_details) => write!(f, "urn:{device_details}"),
-            ST::Service(service_details) => write!(f, "urn:{service_details}"),
-        }
-    }
-}
-
 impl FromStr for ST {
     type Err = ParseError;
 
@@ -257,6 +253,18 @@ impl FromStr for ST {
             // "uuid:device-{}"
             // "urn:{device_details}"
             // "urn:{service_details}"
+        }
+    }
+}
+
+impl Display for ST {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ST::All => write!(f, "ssdp:all"),
+            ST::Root => write!(f, "upnp:rootdevice"),
+            ST::Uuid(uuid) => write!(f, "uuid:device-{}", uuid),
+            ST::Device(device_details) => write!(f, "urn:{device_details}"),
+            ST::Service(service_details) => write!(f, "urn:{service_details}"),
         }
     }
 }
