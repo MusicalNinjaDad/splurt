@@ -12,6 +12,7 @@ categories = ["Command line utilities", "Network programming"]
 license = "MIT"
 rust-version = "1.94.1"
 exclude = [".github", ".devcontainer"]
+publish = false
 
 [workspace]
 members = ["ssdp-rs", "xtask"]
