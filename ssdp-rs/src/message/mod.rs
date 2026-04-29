@@ -17,7 +17,9 @@ mod error;
 mod header;
 
 pub use error::ParseError;
-pub use header::{Header, HeaderExt, Host, Man, MaxAge, Mx, ST, UpnpHeader, UpnpPort};
+pub use header::{
+    FriendlyName, Header, HeaderExt, Host, Man, MaxAge, Mx, ST, UpnpHeader, UpnpPort,
+};
 
 const UPNP_VERSION: &str = "2.0";
 
@@ -444,25 +446,6 @@ impl FromStr for UserAgent {
             product_name,
             product_version,
         })
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct FriendlyName(String);
-
-impl Header for FriendlyName {
-    const HEADER_KEY: &'static str = "CPFN.UPNP.ORG";
-}
-
-impl Display for FriendlyName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl From<&str> for FriendlyName {
-    fn from(s: &str) -> Self {
-        Self(s.to_string())
     }
 }
 

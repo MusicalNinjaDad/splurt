@@ -110,6 +110,27 @@ impl<H: Header + HeaderExt> HeaderExt for Option<H> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+// TODO make private inner when impl FromStr
+pub struct FriendlyName(pub String);
+
+impl Header for FriendlyName {
+    const HEADER_KEY: &'static str = "CPFN.UPNP.ORG";
+}
+
+// TODO Replace with FromStr
+impl From<&str> for FriendlyName {
+    fn from(s: &str) -> Self {
+        Self(s.to_string())
+    }
+}
+
+impl Display for FriendlyName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Host {
     V4(SocketAddrV4),
