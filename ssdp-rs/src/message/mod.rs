@@ -35,17 +35,6 @@ pub enum Method {
     Notify,
     Response,
 }
-
-impl Display for Method {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Method::MSearch => write!(f, "M-SEARCH * HTTP/1.1"),
-            Method::Notify => write!(f, "NOTIFY * HTTP/1.1"),
-            Method::Response => write!(f, "HTTP/1.1 200 OK"),
-        }
-    }
-}
-
 impl FromStr for Method {
     type Err = ParseError;
 
@@ -55,6 +44,16 @@ impl FromStr for Method {
             "NOTIFY * HTTP/1.1" => Ok(Self::Notify),
             "HTTP/1.1 200 OK" => Ok(Self::Response),
             _ => Err(ParseError::InvalidMethod(s.to_string())),
+        }
+    }
+}
+
+impl Display for Method {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Method::MSearch => write!(f, "M-SEARCH * HTTP/1.1"),
+            Method::Notify => write!(f, "NOTIFY * HTTP/1.1"),
+            Method::Response => write!(f, "HTTP/1.1 200 OK"),
         }
     }
 }
@@ -162,15 +161,6 @@ pub enum Vendor {
     Custom(String),
 }
 
-impl Display for Vendor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Vendor::Standard => write!(f, "schemas-upnp-org"),
-            Vendor::Custom(s) => write!(f, "{}", s),
-        }
-    }
-}
-
 impl FromStr for Vendor {
     type Err = !;
 
@@ -178,6 +168,15 @@ impl FromStr for Vendor {
         match s {
             "schemas-upnp-org" => Ok(Self::Standard),
             _ => Ok(Self::Custom(s.to_string())),
+        }
+    }
+}
+
+impl Display for Vendor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Vendor::Standard => write!(f, "schemas-upnp-org"),
+            Vendor::Custom(s) => write!(f, "{}", s),
         }
     }
 }
