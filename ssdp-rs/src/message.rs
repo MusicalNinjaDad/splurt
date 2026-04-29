@@ -14,18 +14,35 @@ use std::{
     io,
     net::{AddrParseError, SocketAddr, SocketAddrV4, SocketAddrV6},
     str::FromStr,
+    time::Duration,
 };
 
+use chrono::{DateTime, Utc};
+use url::Url;
 use uuid::Uuid;
 
-use crate::MULTICAST;
+use crate::{MULTICAST, SSDP_PORT};
+
+const UPNP_VERSION: &str = "2.0";
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ParseError {
-    InvalidMethod(String),
-    InvalidST(String),
+    EmptyMessage,
+    InvalidBootId(String),
+    InvalidConfigId(String),
+    InvalidDate(String),
     InvalidDevice(String),
     InvalidDeviceDetails(String),
+    InvalidDuration(String),
+    InvalidLocation(String),
+    InvalidMethod(String),
+    InvalidPort(String),
+    InvalidSecureLocation(String),
+    InvalidST(String),
+    InvalidUserAgent(String),
+    MissingBootId,
+    MissingConfigId,
+    MissingField(String),
 }
 
 impl error::Error for ParseError {}
@@ -33,8 +50,17 @@ impl error::Error for ParseError {}
 impl Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ParseError::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
-            ParseError::InvalidST(st) => write!(f, "{} is not a valid upnp search type", st),
+            ParseError::EmptyMessage => write!(f, "empty message"),
+            ParseError::InvalidBootId(boot_id) => {
+                write!(f, "{boot_id} is not a valid boot instance")
+            }
+            ParseError::InvalidConfigId(config_id) => {
+                write!(f, "{config_id} is not a valid configuration number")
+            }
+            ParseError::InvalidDate(date) => write!(f, "{date} is not a valid date"),
+            ParseError::InvalidDuration(duration) => {
+                write!(f, "{duration} is not a valid duration")
+            }
             ParseError::InvalidDevice(device) => write!(
                 f,
                 "{} is not a valid upnp device specification (valid forms are `urn:domain-name:device:deviceType:ver` & `urn:schemas-upnp-org:device:deviceType:ver`)",
@@ -43,6 +69,25 @@ impl Display for ParseError {
             ParseError::InvalidDeviceDetails(device) => {
                 write!(f, "{} is not a valid upnp device:ver specification", device)
             }
+            ParseError::InvalidLocation(location) => write!(f, "{location} is not a valid url"),
+            ParseError::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
+            ParseError::InvalidPort(port) => write!(f, "{port} is not a valid IP port"),
+            ParseError::InvalidSecureLocation(location) => write!(
+                f,
+                "{location} is not a valid secure location (must be a valid URL beginning with `https://` and containing a port number)"
+            ),
+            ParseError::InvalidST(st) => write!(f, "{} is not a valid upnp search type", st),
+            ParseError::InvalidUserAgent(user_agent) => {
+                write!(f, "{user_agent} is not a valid user agent")
+            }
+            ParseError::MissingBootId => {
+                write!(f, "a boot instance is required from UPnp/2.0 onwards")
+            }
+            ParseError::MissingConfigId => write!(
+                f,
+                "a configuration number is required from UPnp/2.0 onwards"
+            ),
+            ParseError::MissingField(field) => write!(f, "header is missing field {field}"),
         }
     }
 }
@@ -81,11 +126,17 @@ impl FromStr for Method {
 ///
 /// Create with `Message::parse()`
 #[derive(Debug, Clone, PartialEq)]
+#[expect(clippy::large_enum_variant)]
+// TODO: #39 Consider boxing `Message::Response`
+//       Contents are `Box`ed as they contain many large pointers to heap-allocated
+//       information e.g. `String`s (each is a 24b pointer to data that is on the heap anyway)
 pub enum Message {
     /// NTS: ssdp:alive
     Alive(Notification),
     /// MAN: ssdp:discover
     Search(MSearch),
+    /// A direct response to an `M-SEARCH` request
+    Response(Response),
 }
 
 impl Message {
@@ -125,6 +176,7 @@ impl Message {
         let user_agent = UserAgent {
             os: os.to_string(),
             os_version: os_version.to_string(),
+            upnp_version: UPNP_VERSION.to_string(),
             product_name: product_name.to_string(),
             product_version: product_version.to_string(),
         };
@@ -139,6 +191,134 @@ impl Message {
     }
 }
 
+impl FromStr for Message {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut lines = s.lines();
+        let method: Method = lines.next().ok_or(ParseError::EmptyMessage)?.parse()?;
+        let header: UpnpHeader = lines.collect();
+        match method {
+            Method::MSearch => todo!("parse MSearch"),
+            Method::Notify => todo!("parse Notify"),
+            Method::Response => Ok(Message::Response(header.try_into()?)),
+        }
+    }
+}
+
+struct UpnpHeader<'h>(HashMap<&'h str, &'h str>);
+
+// TODO: #42 handle header key case sensitivity and maintain round-tripping
+//   at the same time, also handle split_once(": ") skips headers without a value (like EXT:)
+//   via split(":") & trim
+impl<'h> FromIterator<&'h str> for UpnpHeader<'h> {
+    fn from_iter<T: IntoIterator<Item = &'h str>>(iter: T) -> Self {
+        let hashmap = iter
+            .into_iter()
+            .filter_map(|line| line.split_once(": "))
+            .collect();
+        Self(hashmap)
+    }
+}
+
+impl<'h> UpnpHeader<'h> {
+    /// Attempt to get the corresponding value for `key`, returning a [ParseError::MissingField]
+    /// if unsuccessful.
+    fn try_get(&self, key: &str) -> Result<&str, ParseError> {
+        self.0
+            .get(key)
+            .ok_or_else(|| ParseError::MissingField(key.to_string()))
+            .copied()
+    }
+
+    /// Attempt to get the value for `key`, returning `None` if unsuccessful.
+    fn get(&self, key: &str) -> Option<&str> {
+        self.0.get(key).copied()
+    }
+}
+
+impl<'h> TryFrom<UpnpHeader<'h>> for Response {
+    type Error = ParseError;
+
+    fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
+        let st = header.try_get(ST::HEADER_KEY)?.parse()?;
+        let max_age = header.try_get(MaxAge::HEADER_KEY)?.parse()?;
+        let date = header
+            .get("DATE")
+            .map(|date| {
+                // TODO: find something that can parse rfc1123-date = wkday "," SP date1 SP time SP "GMT"
+                //   https://datatracker.ietf.org/doc/html/rfc2616#section-3.3
+                date.parse()
+                    .map_err(|_| ParseError::InvalidDate(date.to_string()))
+            })
+            .transpose()?;
+        let ext = None;
+        let location = header.try_get("LOCATION")?;
+        let location = location
+            .parse()
+            .map_err(|_| ParseError::InvalidLocation(location.to_string()))?;
+        let server: UserAgent = header.try_get("SERVER")?.parse()?;
+        let usn = header.try_get("USN")?.to_string();
+        let boot_id = header
+            .get("BOOTID.UPNP.ORG")
+            .map(|boot_id| {
+                boot_id
+                    .parse()
+                    .map_err(|_| ParseError::InvalidBootId(boot_id.to_string()))
+            })
+            .transpose()?;
+        let config_id = header
+            .get("CONFIGID.UPNP.ORG")
+            .map(|config_id| {
+                config_id
+                    .parse()
+                    .map_err(|_| ParseError::InvalidConfigId(config_id.to_string()))
+            })
+            .transpose()?;
+        match server.upnp_version.as_str() {
+            // TODO parse the version number into Major,Minor
+            "1.0" => (),
+            _ => {
+                if boot_id.is_none() {
+                    return Err(ParseError::MissingBootId);
+                }
+                if config_id.is_none() {
+                    return Err(ParseError::MissingConfigId);
+                }
+            }
+        };
+        let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
+        let secure_location: Option<Url> = header
+            .get("SECURELOCATION.UPNP.ORG")
+            .map(|location| {
+                location
+                    .parse()
+                    .map_err(|_| ParseError::InvalidSecureLocation(location.to_string()))
+            })
+            .transpose()?;
+        if let Some(ref secure_location) = secure_location
+            && (secure_location.scheme() != "https" || secure_location.port().is_none())
+        {
+            return Err(ParseError::InvalidSecureLocation(
+                secure_location.to_string(),
+            ));
+        };
+        Ok(Self {
+            max_age,
+            date,
+            ext,
+            location,
+            server,
+            st,
+            usn,
+            boot_id,
+            config_id,
+            port,
+            secure_location,
+        })
+    }
+}
+
 /// Formats Message as per OCF specification (2020)
 impl Display for Message {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -147,6 +327,7 @@ impl Display for Message {
             Message::Search(msearch) => {
                 write!(f, "{msearch}")
             }
+            Message::Response(_response) => todo!("display response messages"),
         }
     }
 }
@@ -176,7 +357,6 @@ enum ST {
     /// `ssdp:all`: Search for all devices and services.
     All,
     /// `upnp:rootdevice`: Search for root devices only.
-    #[expect(unused)]
     Root,
     /// uuid:device-UUID: Search for a particular device.
     #[expect(unused)]
@@ -333,13 +513,20 @@ impl Display for ST {
     }
 }
 
-//TODO: impl FromStr for ST {
-//     type Err = Error;
-//
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         todo!("from str ST")
-//     }
-// }
+impl FromStr for ST {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "ssdp:all" => Ok(ST::All),
+            "upnp:rootdevice" => Ok(ST::Root),
+            _ => todo!("parse other ST"),
+            // "uuid:device-{}"
+            // "urn:{device_details}"
+            // "urn:{service_details}"
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MSearch {
@@ -463,6 +650,7 @@ impl From<Mx> for u8 {
 struct UserAgent {
     os: String,
     os_version: String,
+    upnp_version: String,
     product_name: String,
     product_version: String,
 }
@@ -478,13 +666,49 @@ impl Display for UserAgent {
         let Self {
             os,
             os_version,
+            upnp_version,
             product_name,
             product_version,
         } = self;
         write!(
             f,
-            "{os}/{os_version} UPnP/2.0 {product_name}/{product_version}"
+            "{os}/{os_version} UPnP/{upnp_version} {product_name}/{product_version}"
         )
+    }
+}
+
+impl FromStr for UserAgent {
+    type Err = ParseError;
+
+    fn from_str(user_agent: &str) -> Result<Self, Self::Err> {
+        let err = || ParseError::InvalidUserAgent(user_agent.to_string());
+        let mut tokens = user_agent.split_whitespace();
+        let os = tokens.next().ok_or_else(err)?;
+        let (os, os_version) = os
+            .split_once("/")
+            .map(|(name, ver)| (name.to_string(), ver.to_string()))
+            .ok_or_else(err)?;
+        let upnp_version = tokens
+            .next()
+            .ok_or_else(err)?
+            .strip_prefix("UPnP/")
+            .ok_or_else(err)?
+            .to_string();
+        let product = tokens.next().ok_or_else(err)?;
+        let (product_name, product_version) = product
+            .split_once("/")
+            .map(|(name, ver)| (name.to_string(), ver.to_string()))
+            .ok_or_else(err)?;
+        if tokens.next().is_some() {
+            return Err(err());
+        };
+        Ok(Self {
+            os,
+            os_version,
+            upnp_version,
+            product_name,
+            product_version,
+        })
     }
 }
 
@@ -509,6 +733,132 @@ impl From<&str> for FriendlyName {
 
 impl Header for Uuid {
     const HEADER_KEY: &'static str = "CPUUID.UPNP.ORG";
+}
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+/// A direct response to an `M-SEARCH` message.
+///
+/// "To be found by a network search, a device shall send a unicast UDP response to the source IP
+/// address and port that sent the request to the multicast address." <- This represents one of
+/// these messages.
+pub struct Response {
+    /// `CACHE-CONTROL`: Duration (in seconds) until advertisement expires
+    max_age: MaxAge,
+    /// `DATE`: when response was generated
+    date: Option<DateTime<Utc>>,
+    /// `EXT`: Required for backwards compatibility with UPnP 1.0. (Header field name only; no field value.)
+    ext: Option<!>,
+    /// `URL` for UPnP description for root device
+    location: Url,
+    /// `SERVER`: OS/version UPnP/2.0 product/version
+    server: UserAgent,
+    /// `ST`: search target
+    st: ST,
+    /// `USN`: composite identifier for the advertisement
+    ///
+    /// **TODO** handle USN nicely
+    usn: String,
+    /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
+    /// increasing value. Control points can use this header field to detect the case when a device
+    /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
+    /// control points for a number of purposes such as re-establishing desired event subscriptions,
+    /// checking for changes to the device state that were not evented since the device was off-line.
+    ///
+    /// Required for UPnPv2, not present in UPnPv1
+    boot_id: Option<u32>,
+    /// `CONFIGID.UPNP.ORG`: number used for caching description information.
+    /// If a device sends out two messages with a `CONFIGID.UPNP.ORG` header field with the same field
+    /// value, the configuration shall be the same at the moments that these messages were sent.
+    /// This reduces peak loads on UPnP devices during startup and during network hiccups. Only if a
+    /// control point receives an announcement of an unknown configuration is downloading required.
+    ///
+    /// Required for UPnPv2, not present in UPnPv1
+    config_id: Option<u32>,
+    /// `SEARCHPORT.UPNP.ORG`: number identifies port on which device responds to unicast M-SEARCH
+    ///
+    /// Optional (handled semantically in [UpnpPort])
+    port: UpnpPort,
+    /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
+    /// Required when device protection is implemented.
+    secure_location: Option<Url>,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct MaxAge(Duration);
+
+impl Header for MaxAge {
+    const HEADER_KEY: &'static str = "CACHE-CONTROL";
+}
+
+impl FromStr for MaxAge {
+    type Err = ParseError;
+
+    fn from_str(max_age: &str) -> Result<Self, Self::Err> {
+        let (_, secs) = max_age
+            .split_once("max-age=")
+            .ok_or_else(|| ParseError::InvalidDuration(max_age.to_string()))?;
+        let duration = Duration::from_secs(
+            secs.parse()
+                .map_err(|_| ParseError::InvalidDuration(max_age.to_string()))?,
+        );
+        Ok(Self(duration))
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+/// The port specified in a Upnp message.
+///
+/// Treat this like a semantically specific `Option<u16>` with a valuable implementation of
+/// `Default`, `From<Option<u16>>` & `Into<u16>`.
+enum UpnpPort {
+    /// Specifically defined value.
+    ///
+    /// If this is set to the default [SSDP_PORT], then it means the message specifically
+    /// defined that value.
+    Defined(u16),
+    /// A value was not defined. Conversion to a `u16` will provide the default [SSDP_PORT]
+    #[default]
+    Default,
+}
+
+/// Provides:
+/// - `Defined(port)`: the defined port
+/// - `Default`: [SSDP_PORT]
+impl From<UpnpPort> for u16 {
+    fn from(port: UpnpPort) -> Self {
+        match port {
+            UpnpPort::Defined(p) => p,
+            UpnpPort::Default => SSDP_PORT,
+        }
+    }
+}
+
+/// `None` maps to `Default`
+impl From<Option<u16>> for UpnpPort {
+    fn from(port: Option<u16>) -> Self {
+        match port {
+            Some(port) => Self::Defined(port),
+            None => Self::Default,
+        }
+    }
+}
+
+/// `None` maps to `Default`
+impl TryFrom<Option<&str>> for UpnpPort {
+    type Error = ParseError;
+
+    fn try_from(port: Option<&str>) -> Result<Self, Self::Error> {
+        Ok(port
+            .map(|port| {
+                port.parse::<u16>()
+                    .map_err(|_| ParseError::InvalidPort(port.to_string()))
+            })
+            .transpose()?
+            .into())
+    }
+}
+
+impl Header for UpnpPort {
+    const HEADER_KEY: &'static str = "SEARCHPORT.UPNP.ORG";
 }
 
 /// Marker trait for Upnp header fields, with details of the relevant key
@@ -697,5 +1047,22 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003
         };
         let msg_text = msg.to_string();
         assert_eq!(msg_text, expected);
+    }
+
+    #[test]
+    fn parse_response() {
+        // TODO: Will likely need indexmap = "2.14.0" for round-trip conversion with non-std entries
+        let raw_response = r#"HTTP/1.1 200 OK
+HOST: 239.255.255.250:1900
+EXT:
+CACHE-CONTROL: max-age=100
+LOCATION: http://192.168.0.71:80/description.xml
+SERVER: Hue/1.0 UPnP/1.0 IpBridge/1.76.0
+hue-bridgeid: ECB55AF4FE12E2C4
+ST: upnp:rootdevice
+USN: uuid:2f402f80-da50-11e1-9b23-ecb55af4fe12e2c4::upnp:rootdevice
+"#;
+        let response: Message = raw_response.parse().expect("parsed as response");
+        assert_matches!(response, Message::Response(_));
     }
 }
