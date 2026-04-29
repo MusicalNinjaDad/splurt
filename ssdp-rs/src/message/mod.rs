@@ -7,14 +7,7 @@
 //!
 //! [spec]: https://openconnectivity.org/upnp-specs/UPnP-arch-DeviceArchitecture-v2.0-20200417.pdf
 
-use std::{
-    collections::HashMap,
-    fmt::Display,
-    io,
-    net::{AddrParseError, SocketAddr, SocketAddrV4, SocketAddrV6},
-    str::FromStr,
-    time::Duration,
-};
+use std::{collections::HashMap, fmt::Display, io, str::FromStr, time::Duration};
 
 use chrono::{DateTime, Utc};
 use url::Url;
@@ -24,9 +17,9 @@ mod error;
 mod header;
 
 pub use error::ParseError;
-pub use header::{Header, HeaderExt, Man, ST, UpnpHeader};
+pub use header::{Header, HeaderExt, Host, Man, ST, UpnpHeader};
 
-use crate::{MULTICAST, SSDP_PORT};
+use crate::SSDP_PORT;
 const UPNP_VERSION: &str = "2.0";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -386,50 +379,6 @@ impl Display for MSearch {
         //   "Note: No body is present in requests with method M-SEARCH, but note that the
         //          message shall have a blank line following the last header field."
         writeln!(f)
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Host {
-    V4(SocketAddrV4),
-    /// IPv6 is currently untested & largely unimplemented
-    _V6(SocketAddrV6),
-}
-
-impl Header for Host {
-    const HEADER_KEY: &'static str = "HOST";
-}
-
-impl Display for Host {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Host::V4(socket_addr_v4) => write!(f, "{socket_addr_v4}"),
-            Host::_V6(socket_addr_v6) => write!(f, "{socket_addr_v6}"),
-        }
-    }
-}
-
-impl From<SocketAddr> for Host {
-    fn from(addr: SocketAddr) -> Self {
-        match addr {
-            SocketAddr::V4(socket_addr_v4) => Self::V4(socket_addr_v4),
-            SocketAddr::V6(socket_addr_v6) => Self::_V6(socket_addr_v6),
-        }
-    }
-}
-
-impl FromStr for Host {
-    type Err = AddrParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let addr = SocketAddr::from_str(s)?;
-        Ok(addr.into())
-    }
-}
-
-impl Default for Host {
-    fn default() -> Self {
-        MULTICAST.into()
     }
 }
 

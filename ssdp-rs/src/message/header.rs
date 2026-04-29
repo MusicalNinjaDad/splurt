@@ -2,11 +2,19 @@
 //! - [UpnpHeader] for storing & finding values
 //! - enums / structs for all standard header fields with standard key name, parsing & display logic
 
-use std::{collections::HashMap, fmt::Display, str::FromStr};
+use std::{
+    collections::HashMap,
+    fmt::Display,
+    net::{AddrParseError, SocketAddr, SocketAddrV4, SocketAddrV6},
+    str::FromStr,
+};
 
 use uuid::Uuid;
 
-use crate::message::{DeviceDetails, ParseError, ServiceDetails};
+use crate::{
+    MULTICAST,
+    message::{DeviceDetails, ParseError, ServiceDetails},
+};
 
 pub struct UpnpHeader<'h>(HashMap<&'h str, &'h str>);
 
@@ -89,6 +97,50 @@ impl<H: Header + HeaderExt> HeaderExt for Option<H> {
             Some(header) => header.write_header(f),
             None => Ok(()),
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Host {
+    V4(SocketAddrV4),
+    /// IPv6 is currently untested & largely unimplemented
+    _V6(SocketAddrV6),
+}
+
+impl Header for Host {
+    const HEADER_KEY: &'static str = "HOST";
+}
+
+impl Default for Host {
+    fn default() -> Self {
+        MULTICAST.into()
+    }
+}
+
+impl Display for Host {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Host::V4(socket_addr_v4) => write!(f, "{socket_addr_v4}"),
+            Host::_V6(socket_addr_v6) => write!(f, "{socket_addr_v6}"),
+        }
+    }
+}
+
+impl From<SocketAddr> for Host {
+    fn from(addr: SocketAddr) -> Self {
+        match addr {
+            SocketAddr::V4(socket_addr_v4) => Self::V4(socket_addr_v4),
+            SocketAddr::V6(socket_addr_v6) => Self::_V6(socket_addr_v6),
+        }
+    }
+}
+
+impl FromStr for Host {
+    type Err = AddrParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let addr = SocketAddr::from_str(s)?;
+        Ok(addr.into())
     }
 }
 
