@@ -518,7 +518,7 @@ trait Header {
 }
 
 /// Handles constructing valid header lines.
-/// 
+///
 /// This is a separate trait from [Header] to allow for it to also be implemented on `Option<H>`
 trait HeaderExt {
     /// Generate a valid header line
@@ -540,7 +540,7 @@ impl<H: Header + Display> HeaderExt for H {
 
 impl<H: Header + HeaderExt> HeaderExt for Option<H> {
     /// Generate a valid header line
-    /// 
+    ///
     /// #### Note
     /// - This will output an empty `String` for `None`.
     ///   If this is not what you want consider using `.map(|h| h.to_header())` which
@@ -553,9 +553,9 @@ impl<H: Header + HeaderExt> HeaderExt for Option<H> {
     }
 
     /// Write a valid header line to `f` including new-line
-    /// 
+    ///
     /// #### Note
-    /// - `None` entries are handled nicely (no-op) *without* generating a blank line 
+    /// - `None` entries are handled nicely (no-op) *without* generating a blank line
     fn write_header(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Some(header) => header.write_header(f),
