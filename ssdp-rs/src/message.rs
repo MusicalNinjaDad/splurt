@@ -35,13 +35,13 @@ impl Display for ParseError {
         match self {
             ParseError::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
             ParseError::InvalidST(st) => write!(f, "{} is not a valid upnp search type", st),
-            ParseError::InvalidDevice(device) => writeln!(
+            ParseError::InvalidDevice(device) => write!(
                 f,
                 "{} is not a valid upnp device specification (valid forms are `urn:domain-name:device:deviceType:ver` & `urn:schemas-upnp-org:device:deviceType:ver`)",
                 device
             ),
             ParseError::InvalidDeviceDetails(device) => {
-                writeln!(f, "{} is not a valid upnp device:ver specification", device)
+                write!(f, "{} is not a valid upnp device:ver specification", device)
             }
         }
     }
