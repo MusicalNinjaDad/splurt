@@ -1,12 +1,12 @@
 # Contributing
 
-Feel free to raise an issue with any ideas. If you want to add something - the usual PR process applies. Please try to respect the feedback from the CI (linting, formatting, testing etc.). Make sure you have good meaningful tests in place. Your code will be read by people, not just machines - it's a lot easier to write code a machine understnads than code that another human can understand - most of [PEP20](https://peps.python.org/pep-0020/) applies to all languages!
+Feel free to raise an issue with any ideas. If you want to add something - the usual PR process applies. Please try to respect the feedback from the CI (linting, formatting, testing etc.). Make sure you have good meaningful tests in place. Your code will be read by people, not just machines - it's a lot easier to write code a machine understands than code that another human can understand - most of [PEP20](https://peps.python.org/pep-0020/) applies to all languages!
 
 Don't worry too much about your personal commit style - I will squash the PR, so do what works best for you while you are coding. Do try to be nice to me as a reviewer though with a decent PR title and clear PR description.
 
 If that sounds too much - raise a PR anyway, or a draft, @-tag me on it and start a discussion. I'm happy to help and co-author the final version.
 
-Don't worry about changing existing code - anecdotal evidence shows that any code more than two week's old was always written by "not me" whatever git-blame says ;)
+Don't worry about changing existing code - anecdotal evidence shows that any code more than two weeks' old was always written by "not me" whatever git-blame says ;)
 
 ## Contributor Accessibility
 
@@ -46,7 +46,7 @@ It's fine if you use an AI:
 
 - as a "sparring partner" to help you work out ideas and challenge your thinking
 - as a "researcher" to help you find information and make it accessible to you
-- to translate from your native language to english (but not to take a short prompt and make a lot of output)
+- to translate from your native language to English (but not to take a short prompt and make a lot of output)
 - to check your work and give you feedback
 - to make the codebase more accessible in any way
 

@@ -42,7 +42,7 @@ impl From<std::io::Error> for BuildError {
 
 /// Location of assert_matches!() macro. Stabilisation was reverted at last minute
 /// on 2026-04-10, leaving the macro in the new planned location.
-#[allow(unused, reason = "will consolidate to own create soon")]
+#[allow(unused, reason = "will consolidate to own crate soon")]
 enum AssertMatchesLocation {
     /// Macro is at `std::assert_matches`
     Root,
