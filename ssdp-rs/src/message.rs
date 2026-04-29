@@ -817,6 +817,7 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003
 
     #[test]
     fn parse_response() {
+        // TODO: Will likely need indexmap = "2.14.0" for round-trip conversion with non-std entries
         let raw_response = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age=1900
 DATE: Tue, 28 Apr 2026 12:56:35 GMT
