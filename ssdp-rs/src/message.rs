@@ -29,6 +29,7 @@ const UPNP_VERSION: &str = "2.0";
 pub enum ParseError {
     EmptyMessage,
     InvalidBootId(String),
+    InvalidConfigId(String),
     InvalidDate(String),
     InvalidDevice(String),
     InvalidDeviceDetails(String),
@@ -37,6 +38,8 @@ pub enum ParseError {
     InvalidMethod(String),
     InvalidST(String),
     InvalidUserAgent(String),
+    MissingBootId,
+    MissingConfigId,
     MissingField(String),
 }
 
@@ -48,6 +51,9 @@ impl Display for ParseError {
             ParseError::EmptyMessage => write!(f, "empty message"),
             ParseError::InvalidBootId(boot_id) => {
                 write!(f, "{boot_id} is not a valid boot instance")
+            }
+            ParseError::InvalidConfigId(config_id) => {
+                write!(f, "{config_id} is not a valid configuration number")
             }
             ParseError::InvalidDate(date) => write!(f, "{date} is not a valid date"),
             ParseError::InvalidDuration(duration) => {
@@ -67,6 +73,13 @@ impl Display for ParseError {
             ParseError::InvalidUserAgent(user_agent) => {
                 write!(f, "{user_agent} is not a valid user agent")
             }
+            ParseError::MissingBootId => {
+                write!(f, "a boot instance is required from UPnp/2.0 onwards")
+            }
+            ParseError::MissingConfigId => write!(
+                f,
+                "a configuration number is required from UPnp/2.0 onwards"
+            ),
             ParseError::MissingField(field) => write!(f, "header is missing field {field}"),
         }
     }
@@ -232,7 +245,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
         let location = location
             .parse()
             .map_err(|_| ParseError::InvalidLocation(location.to_string()))?;
-        let server = header.try_get("SERVER")?.parse()?;
+        let server: UserAgent = header.try_get("SERVER")?.parse()?;
         let usn = header.try_get("USN")?.to_string();
         let boot_id = header
             .get("BOOTID.UPNP.ORG")
@@ -242,6 +255,26 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
                     .map_err(|_| ParseError::InvalidBootId(boot_id.to_string()))
             })
             .transpose()?;
+        let config_id = header
+            .get("CONFIGID.UPNP.ORG")
+            .map(|config_id| {
+                config_id
+                    .parse()
+                    .map_err(|_| ParseError::InvalidConfigId(config_id.to_string()))
+            })
+            .transpose()?;
+        match server.upnp_version.as_str() {
+            // TODO parse the version number into Major,Minor
+            "1.0" => (),
+            _ => {
+                if boot_id.is_none() {
+                    return Err(ParseError::MissingBootId);
+                }
+                if config_id.is_none() {
+                    return Err(ParseError::MissingConfigId);
+                }
+            }
+        };
         let rtn = Self {
             max_age,
             date,
@@ -251,7 +284,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             st,
             usn,
             boot_id,
-            config_id: todo!("config id"),
+            config_id,
             port: todo!("port"),
             secure_location: todo!("secure_location"),
         };
@@ -711,6 +744,8 @@ pub struct Response {
     /// value, the configuration shall be the same at the moments that these messages were sent.
     /// This reduces peak loads on UPnP devices during startup and during network hiccups. Only if a
     /// control point receives an announcement of an unknown configuration is downloading required.
+    ///
+    /// Required for UPnPv2, not present in UPnPv1
     config_id: Option<u32>,
     /// `SEARCHPORT.UPNP.ORG`: number identifies port on which device responds to unicast M-SEARCH
     ///
