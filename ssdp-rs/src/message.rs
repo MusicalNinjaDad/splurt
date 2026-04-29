@@ -36,6 +36,7 @@ pub enum ParseError {
     InvalidDuration(String),
     InvalidLocation(String),
     InvalidMethod(String),
+    InvalidPort(String),
     InvalidST(String),
     InvalidUserAgent(String),
     MissingBootId,
@@ -67,8 +68,9 @@ impl Display for ParseError {
             ParseError::InvalidDeviceDetails(device) => {
                 write!(f, "{} is not a valid upnp device:ver specification", device)
             }
-            ParseError::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
             ParseError::InvalidLocation(location) => write!(f, "{location} is not a valid url"),
+            ParseError::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
+            ParseError::InvalidPort(port) => write!(f, "{port} is not a valid IP port"),
             ParseError::InvalidST(st) => write!(f, "{} is not a valid upnp search type", st),
             ParseError::InvalidUserAgent(user_agent) => {
                 write!(f, "{user_agent} is not a valid user agent")
@@ -275,6 +277,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
                 }
             }
         };
+        let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
         let rtn = Self {
             max_age,
             date,
@@ -285,7 +288,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             usn,
             boot_id,
             config_id,
-            port: todo!("port"),
+            port,
             secure_location: todo!("secure_location"),
         };
         todo!("try_from header for response")
@@ -814,6 +817,25 @@ impl From<Option<u16>> for UpnpPort {
             None => Self::Default,
         }
     }
+}
+
+/// `None` maps to `Default`
+impl TryFrom<Option<&str>> for UpnpPort {
+    type Error = ParseError;
+
+    fn try_from(port: Option<&str>) -> Result<Self, Self::Error> {
+        Ok(port
+            .map(|port| {
+                port.parse::<u16>()
+                    .map_err(|_| ParseError::InvalidPort(port.to_string()))
+            })
+            .transpose()?
+            .into())
+    }
+}
+
+impl Header for UpnpPort {
+    const HEADER_KEY: &'static str = "SEARCHPORT.UPNP.ORG";
 }
 
 /// Marker trait for Upnp header fields, with details of the relevant key
