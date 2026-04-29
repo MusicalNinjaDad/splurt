@@ -37,6 +37,7 @@ pub enum ParseError {
     InvalidLocation(String),
     InvalidMethod(String),
     InvalidPort(String),
+    InvalidSecureLocation(String),
     InvalidST(String),
     InvalidUserAgent(String),
     MissingBootId,
@@ -71,6 +72,10 @@ impl Display for ParseError {
             ParseError::InvalidLocation(location) => write!(f, "{location} is not a valid url"),
             ParseError::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
             ParseError::InvalidPort(port) => write!(f, "{port} is not a valid IP port"),
+            ParseError::InvalidSecureLocation(location) => write!(
+                f,
+                "{location} is not a valid secure location (must be a valid URL beginning with `https://` and containing a port number)"
+            ),
             ParseError::InvalidST(st) => write!(f, "{} is not a valid upnp search type", st),
             ParseError::InvalidUserAgent(user_agent) => {
                 write!(f, "{user_agent} is not a valid user agent")
@@ -278,7 +283,22 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             }
         };
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
-        let rtn = Self {
+        let secure_location: Option<Url> = header
+            .get("SECURELOCATION.UPNP.ORG")
+            .map(|location| {
+                location
+                    .parse()
+                    .map_err(|_| ParseError::InvalidSecureLocation(location.to_string()))
+            })
+            .transpose()?;
+        if let Some(ref secure_location) = secure_location
+            && (secure_location.scheme() != "https" || secure_location.port().is_none())
+        {
+            return Err(ParseError::InvalidSecureLocation(
+                secure_location.to_string(),
+            ));
+        };
+        Ok(Self {
             max_age,
             date,
             ext,
@@ -289,9 +309,8 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             boot_id,
             config_id,
             port,
-            secure_location: todo!("secure_location"),
-        };
-        todo!("try_from header for response")
+            secure_location,
+        })
     }
 }
 
