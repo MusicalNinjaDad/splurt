@@ -183,19 +183,23 @@ impl<'h> FromIterator<&'h str> for UpnpHeader<'h> {
     }
 }
 
+impl<'h> UpnpHeader<'h> {
+    /// Attempt to get the corresponding value for `key`, returning a [ParseError::MissingField]
+    /// if unsuccessful.
+    fn try_get(&'h self, key: &'h str) -> Result<&'h str, ParseError> {
+        self.0
+            .get(key)
+            .ok_or_else(|| ParseError::MissingField(key.to_string()))
+            .copied()
+    }
+}
+
 impl<'h> TryFrom<UpnpHeader<'h>> for Response {
     type Error = ParseError;
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
-        let header = header.0;
-        let st = header
-            .get(ST::HEADER_KEY)
-            .ok_or_else(|| ParseError::MissingField(ST::HEADER_KEY.to_string()))?
-            .parse()?;
-        let max_age = header
-            .get(MaxAge::HEADER_KEY)
-            .ok_or_else(|| ParseError::MissingField((MaxAge::HEADER_KEY).to_string()))?
-            .parse()?;
+        let st = header.try_get(ST::HEADER_KEY)?.parse()?;
+        let max_age = header.try_get(MaxAge::HEADER_KEY)?.parse()?;
         let date = None;
         let rtn = Self {
             max_age,
