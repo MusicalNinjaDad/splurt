@@ -4,11 +4,9 @@ use std::{
 };
 
 use futures::{Stream, StreamExt};
+use futures_udp::{EventedUdpSocket, UdpStream};
 
-use crate::{
-    MAX_MSG_SIZE, MULTICAST_IP, SSDP_PORT,
-    udp::{EventedUdpSocket, UdpStream},
-};
+use crate::{MAX_MSG_SIZE, MULTICAST_IP, SSDP_PORT};
 
 #[derive(Debug)]
 pub struct Listener {

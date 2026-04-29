@@ -15,7 +15,7 @@ exclude = [".github", ".devcontainer"]
 
 [workspace]
 members = ["ssdp-rs", "xtask"]
-default-members = [".", "ssdp-rs"]
+default-members = [".", "futures-udp", "ssdp-rs"]
 
 [workspace.dependencies]
 async-ready = "3.0.0"
@@ -29,7 +29,8 @@ futures = "0.3.32"
 futures-net = "0.6.0"
 try_v2 = "0.4.2"
 
-ssdp_rs = {path = "ssdp-rs"}
+futures-udp = { path = "futures-udp" }
+ssdp_rs = { path = "ssdp-rs" }
 
 [dependencies]
 clap = { workspace = true }

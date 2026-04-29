@@ -1,26 +1,21 @@
 [package]
-name = "ssdp_rs"
+name = "futures-udp"
 version = "0.0.1"
 edition = "2024"
 readme = "README.md"
 description = "SSDP message parsing, service announcement & subscription"
 authors = ["Mike Foster <https://github.com/MusicalNinjaDad>"]
-keywords = ["ssdp", "upnp", "dlna"]
+keywords = ["async", "udp", "net"]
 homepage = "https://github.com/MusicalNinjaDad/splurt"
 repository = "https://github.com/MusicalNinjaDad/splurt"
-categories = ["Command line utilities", "Network programming"]
+categories = ["Network programming"]
 license = "MIT"
 rust-version = "1.90.0"
 
 [dependencies]
-
-chrono = "0.4.44"
 futures = "0.3.32"
-futures-timer = "3.0.3"
-futures-udp = { workspace = true }
-osinfo = "1.0.0"
-url = "2.5.8"
-uuid = { version = "1.23.1", features = ["v4"] }
+futures-net = "0.6.0"
+socket2 = { version = "0.6.3", features = ["all"] }
 
 [build-dependencies]
 autocfg = { workspace = true }
