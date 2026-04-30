@@ -16,7 +16,7 @@ publish = false
 
 [workspace]
 members = ["ssdp-rs", "xtask"]
-default-members = [".", "futures-udp", "ssdp-rs"]
+default-members = [".", "ssdp-rs"]
 
 [workspace.dependencies]
 async-ready = "3.0.0"
@@ -28,9 +28,9 @@ clap_mangen = "0.3.0"
 exit_safely = "0.2.1"
 futures = "0.3.32"
 futures-net = "0.6.0"
+futures-udp = "0.1.0"
 try_v2 = "0.4.2"
 
-futures-udp = { path = "futures-udp" }
 ssdp_rs = { path = "ssdp-rs" }
 
 [dependencies]
