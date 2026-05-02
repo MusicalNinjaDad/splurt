@@ -15,7 +15,7 @@ exclude = [".github", ".devcontainer"]
 publish = false
 
 [workspace]
-members = ["ssdp-rs", "xtask"]
+members = ["ssdp-rs"]
 default-members = [".", "ssdp-rs"]
 
 [workspace.dependencies]
@@ -29,6 +29,7 @@ exit_safely = "0.2.1"
 futures = "0.3.32"
 futures-net = "0.6.0"
 futures-udp = "0.1.0"
+ninja-build_rs = "0.1.0"
 try_v2 = "0.4.2"
 
 ssdp_rs = { path = "ssdp-rs" }
@@ -54,3 +55,4 @@ clap = { workspace = true }
 clap_builder = { workspace = true }
 clap_complete = { workspace = true }
 clap_mangen = { workspace = true }
+ninja-build_rs = { workspace = true }

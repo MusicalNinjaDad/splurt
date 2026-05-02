@@ -1,0 +1,38 @@
+name: Publish to crates.io
+concurrency: Crates.io
+
+on:
+  release:
+    types: [published]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  quality-check:
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/rust-stability.yml
+
+  publish_lib:
+    needs: quality-check
+    environment: crates.io
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        ref: ${{ github.event.release.target_commitish }}
+    # Install manually as different crates may have custom toolchains defined
+    - name: install rust
+      run: rustup set profile default && rustup install
+    # Use OIDC for updating existing crates
+    - uses: rust-lang/crates-io-auth-action@bbd81622f20ce9e2dd9622e3218b975523e45bbe #v1.0.4
+      id: auth
+    - name: Publish
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+      run:
+        cargo publish

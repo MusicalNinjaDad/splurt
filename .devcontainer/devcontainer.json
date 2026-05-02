@@ -7,7 +7,6 @@
         "RUSTC_BOOTSTRAP": "1",
         "CARGO_INCREMENTAL": "1"
     },
-    "updateContentCommand": "rustup install",
     "customizations": {
         "vscode": {
             "extensions": [

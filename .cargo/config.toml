@@ -1,4 +1,3 @@
 [alias]
-x = "run --package try_v2_xtasks --"
-bld = "run --package try_v2_xtasks -- build"
-stage = "run --package try_v2_xtasks -- add"
+bld = "ninja build"
+stage = "ninja stage"
