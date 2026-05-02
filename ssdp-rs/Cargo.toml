@@ -25,3 +25,4 @@ uuid = { version = "1.23.1", features = ["v4"] }
 
 [build-dependencies]
 autocfg = { workspace = true }
+ninja-build_rs = { workspace = true }
