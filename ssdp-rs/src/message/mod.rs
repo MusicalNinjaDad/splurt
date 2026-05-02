@@ -333,4 +333,22 @@ USN: uuid:2f402f80-da50-11e1-9b23-ecb55af4fe12e2c4::upnp:rootdevice
         let response: Message = raw_response.parse().expect("parsed as response");
         assert_matches!(response, Message::Response(_));
     }
+
+    #[test]
+    fn parse_service() {
+        let raw_response = r#"HTTP/1.1 200 OK
+CACHE-CONTROL: max-age=1900
+DATE: Wed, 29 Apr 2026 08:22:03 GMT
+EXT:
+LOCATION: http://192.168.5.12:50001/desc/device.xml
+OPT: "http://schemas.upnp.org/upnp/1/0/"; ns=01
+01-NLS: 88ccb70e-32ec-11f1-8533-ec2b50e32df5
+SERVER: Linux/2.6.32.12, UPnP/1.0, Portable SDK for UPnP devices/1.6.21
+X-User-Agent: redsonic
+ST: urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1
+USN: uuid:00113214-9943-0011-4399-439914321100::urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1
+"#;
+        let response: Message = raw_response.parse().expect("parsed as response");
+        assert_matches!(response, Message::Response(_));
+    }
 }
