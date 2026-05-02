@@ -292,10 +292,13 @@ impl FromStr for ST {
         match s {
             "ssdp:all" => Ok(ST::All),
             "upnp:rootdevice" => Ok(ST::Root),
+            _ if s.starts_with("urn:") => match s.split(":").nth(2) {
+                Some("device") => todo!("urn:device_details"),
+                Some("service") => todo!("urn:service_details"),
+                _ => Err(ParseError::InvalidST(s.to_string())),
+            },
             _ => todo!("parse other ST"),
             // "uuid:device-{}"
-            // "urn:{device_details}"
-            // "urn:{service_details}"
         }
     }
 }
