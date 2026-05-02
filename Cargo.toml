@@ -15,7 +15,7 @@ exclude = [".github", ".devcontainer"]
 publish = false
 
 [workspace]
-members = ["ssdp-rs", "xtask"]
+members = ["ssdp-rs"]
 default-members = [".", "ssdp-rs"]
 
 [workspace.dependencies]
