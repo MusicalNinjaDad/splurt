@@ -100,5 +100,7 @@ mod tests {
         let st = "urn:schemas-upnp-org:device";
         let err = st.parse::<Target>().expect_err("no device details");
         assert_matches!(&err.kind, ErrorKind::InvalidUrn(s) if s == "urn:schemas-upnp-org:device");
+        let device_err = err.source();
+        assert_matches!(device_err, Some(_));
     }
 }
