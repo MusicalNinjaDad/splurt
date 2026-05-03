@@ -345,7 +345,6 @@ USN: uuid:2f402f80-da50-11e1-9b23-ecb55af4fe12e2c4::upnp:rootdevice
     }
 
     #[test]
-    #[should_panic(expected = r#"MissingBootId"#)]
     fn parse_service() {
         let raw_response = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age=1900

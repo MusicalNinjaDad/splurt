@@ -396,13 +396,25 @@ impl<const _FN: &'static str> FromStr for UserAgent<_FN> {
             .ok_or_else(err)?
             .split_once(" ")
             .ok_or_else(err)
-            .map(|(ver, upnp)| (ver.to_string(), upnp))?;
+            .map(|(ver, upnp)| {
+                (
+                    ver.trim_end_matches(|c: char| !c.is_alphanumeric())
+                        .to_string(),
+                    upnp,
+                )
+            })?;
         let (upnp_version, product_name) = token_ish
             .next()
             .ok_or_else(err)?
             .split_once(" ")
             .ok_or_else(err)
-            .map(|(ver, prod)| (ver.to_string(), prod.to_string()))?;
+            .map(|(ver, prod)| {
+                (
+                    ver.trim_end_matches(|c: char| !c.is_alphanumeric())
+                        .to_string(),
+                    prod.to_string(),
+                )
+            })?;
         let product_version = token_ish.next().ok_or_else(err)?.to_string();
         if token_ish.next().is_some() {
             return Err(err());
