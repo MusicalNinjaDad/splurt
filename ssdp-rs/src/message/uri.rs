@@ -25,23 +25,31 @@ impl FromStr for Target {
             _ => return Err(err()),
         };
         let vendor = parts.next().ok_or_else(err)?;
-        match parts.next().ok_or_else(err)?.parse() {
-            Ok(UriToken::Service) => (),
-            _ => return Err(err()),
-        };
+        let offering: UriToken = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
         let name = parts.next().ok_or_else(err)?;
         let ver = parts.next().ok_or_else(err)?;
         match parts.next() {
             None => (),
             Some(_) => return Err(err()),
         };
-        Ok(Target::Service(ServiceDetails {
-            vendor: super::Vendor::Custom(vendor.to_string()),
-            service: Service::Other {
-                service_type: name.to_string(),
-                ver: ver.to_string(),
-            },
-        }))
+        let target = match offering {
+            UriToken::Service => Target::Service(ServiceDetails {
+                vendor: super::Vendor::Custom(vendor.to_string()),
+                service: Service::Other {
+                    service_type: name.to_string(),
+                    ver: ver.to_string(),
+                },
+            }),
+            UriToken::Device => Target::Device(DeviceDetails {
+                vendor: super::Vendor::Standard,
+                device: super::Device::Other {
+                    device_type: name.to_string(),
+                    ver: ver.to_string(),
+                },
+            }),
+            _ => return Err(err()),
+        };
+        Ok(target)
     }
 }
 
@@ -49,6 +57,7 @@ impl FromStr for Target {
 /// Known valuable URI tokens.
 pub enum UriToken {
     Urn,
+    Device,
     Service,
 }
 
