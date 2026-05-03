@@ -2,6 +2,8 @@
 
 use std::str::FromStr;
 
+use derive_more::FromStr;
+
 use super::{DeviceDetails, ParseError, ServiceDetails};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -18,9 +20,22 @@ impl FromStr for Target {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, FromStr)]
+/// Known valuable URI tokens.
+enum UriToken {
+    Urn,
+    Service,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn known_uri_token() {
+        let prefix = "urn";
+        let token: UriToken = prefix.parse().expect("urn");
+    }
 
     #[test]
     fn urn() {
