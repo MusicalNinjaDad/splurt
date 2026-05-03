@@ -2,7 +2,7 @@
 
 use std::fmt::Display;
 
-use super::{ParseError, Vendor};
+use super::{ErrorKind, Vendor};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ServiceDetails {
@@ -22,11 +22,11 @@ pub enum Service {
 }
 
 impl Service {
-    pub fn from_parts<'s, P: IntoIterator<Item = &'s str>>(parts: P) -> Result<Self, ParseError> {
+    pub fn from_parts<'s, P: IntoIterator<Item = &'s str>>(parts: P) -> Result<Self, ErrorKind> {
         let mut parts = parts.into_iter();
         let service_type = parts
             .next()
-            .ok_or(ParseError::InvalidDevice("".to_string()))?
+            .ok_or(ErrorKind::InvalidDevice("".to_string()))?
             .to_string();
         let ver = parts.collect();
         Ok(Self::Other { service_type, ver })

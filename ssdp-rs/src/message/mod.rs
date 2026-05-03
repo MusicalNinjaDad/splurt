@@ -20,7 +20,7 @@ mod services;
 mod uri;
 
 pub use devices::{Device, DeviceDetails};
-pub use error::ParseError;
+pub use error::ErrorKind;
 pub use header::{
     FriendlyName, Header, HeaderExt, Host, Man, MaxAge, Mx, ST, UpnpHeader, UpnpPort, UserAgent,
 };
@@ -38,14 +38,14 @@ pub enum Method {
     Response,
 }
 impl FromStr for Method {
-    type Err = ParseError;
+    type Err = ErrorKind;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "M-SEARCH * HTTP/1.1" => Ok(Self::MSearch),
             "NOTIFY * HTTP/1.1" => Ok(Self::Notify),
             "HTTP/1.1 200 OK" => Ok(Self::Response),
-            _ => Err(ParseError::InvalidMethod(s.to_string())),
+            _ => Err(ErrorKind::InvalidMethod(s.to_string())),
         }
     }
 }
@@ -130,11 +130,11 @@ impl Message {
 }
 
 impl FromStr for Message {
-    type Err = ParseError;
+    type Err = ErrorKind;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut lines = s.lines();
-        let method: Method = lines.next().ok_or(ParseError::EmptyMessage)?.parse()?;
+        let method: Method = lines.next().ok_or(ErrorKind::EmptyMessage)?.parse()?;
         let header: UpnpHeader = lines.collect();
         match method {
             Method::MSearch => todo!("parse MSearch"),

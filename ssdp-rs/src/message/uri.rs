@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use derive_more::FromStr;
 
-use super::{Device, DeviceDetails, ParseError, Service, ServiceDetails};
+use super::{Device, DeviceDetails, ErrorKind, Service, ServiceDetails};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Target {
@@ -13,10 +13,10 @@ pub enum Target {
 }
 
 impl FromStr for Target {
-    type Err = ParseError;
+    type Err = ErrorKind;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let err = || ParseError::InvalidUrn(s.to_string());
+        let err = || ErrorKind::InvalidUrn(s.to_string());
         let mut parts = s.split(":");
 
         let prefix = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;

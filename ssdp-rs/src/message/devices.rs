@@ -2,7 +2,7 @@
 
 use std::fmt::Display;
 
-use super::{ParseError, Vendor};
+use super::{ErrorKind, Vendor};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DeviceDetails {
@@ -23,11 +23,11 @@ pub enum Device {
 }
 
 impl Device {
-    pub fn from_parts<'s, P: IntoIterator<Item = &'s str>>(parts: P) -> Result<Self, ParseError> {
+    pub fn from_parts<'s, P: IntoIterator<Item = &'s str>>(parts: P) -> Result<Self, ErrorKind> {
         let mut parts = parts.into_iter();
         let device_type = parts
             .next()
-            .ok_or(ParseError::InvalidDevice("".to_string()))?
+            .ok_or(ErrorKind::InvalidDevice("".to_string()))?
             .to_string();
         let ver = parts.collect();
         let device = match device_type.as_str() {
