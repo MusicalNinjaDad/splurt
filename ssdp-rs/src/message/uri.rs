@@ -20,9 +20,9 @@ impl FromStr for Target {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let err = || ParseError::InvalidUrn(s.to_string());
         let mut parts = s.split(":");
-        match parts.next().ok_or(ParseError::EmptyMessage)?.parse() {
-            Ok(UriToken::Urn) => (),
-            _ => return Err(err()),
+        let prefix = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
+        if !matches!(prefix, UriToken::Urn) {
+            return Err(err());
         };
         let vendor = parts.next().ok_or_else(err)?;
         let offering: UriToken = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
