@@ -26,7 +26,7 @@ impl Service {
         let mut parts = parts.into_iter();
         let service_type = parts
             .next()
-            .ok_or(ErrorKind::InvalidDevice("''".to_string()))?
+            .ok_or(ErrorKind::InvalidService("''".to_string()))?
             .to_string();
         let ver = parts.collect();
         Ok(Self::Other { service_type, ver })

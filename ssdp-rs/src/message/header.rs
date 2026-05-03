@@ -201,6 +201,7 @@ impl Header for MaxAge {
 }
 
 impl FromStr for MaxAge {
+    // TODO: #50 Move all FromStr impls to use Err = ParseError
     type Err = ErrorKind;
 
     fn from_str(max_age: &str) -> Result<Self, Self::Err> {

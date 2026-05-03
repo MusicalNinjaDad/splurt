@@ -8,6 +8,7 @@ pub enum ErrorKind {
     InvalidDate(String),
     InvalidDevice(String),
     InvalidDeviceDetails(String),
+    InvalidService(String),
     InvalidDuration(String),
     InvalidLocation(String),
     InvalidMethod(String),
@@ -74,11 +75,9 @@ impl Display for ErrorKind {
             ErrorKind::InvalidDuration(duration) => {
                 write!(f, "{duration} is not a valid duration")
             }
-            ErrorKind::InvalidDevice(device) => write!(
-                f,
-                "{} is not a valid upnp device specification (valid forms are `urn:domain-name:device:deviceType:ver` & `urn:schemas-upnp-org:device:deviceType:ver`)",
-                device
-            ),
+            ErrorKind::InvalidDevice(device) => {
+                write!(f, "{} is not a valid upnp device specification", device)
+            }
             ErrorKind::InvalidDeviceDetails(device) => {
                 write!(f, "{} is not a valid upnp device:ver specification", device)
             }
@@ -89,6 +88,9 @@ impl Display for ErrorKind {
                 f,
                 "{location} is not a valid secure location (must be a valid URL beginning with `https://` and containing a port number)"
             ),
+            ErrorKind::InvalidService(service) => {
+                write!(f, "{} is not a valid upnp service specification", service)
+            }
             ErrorKind::InvalidST(st) => write!(f, "{} is not a valid upnp search type", st),
             ErrorKind::InvalidUrn(urn) => {
                 write!(f, "{} is not a valid upnp universal resource name", urn)
