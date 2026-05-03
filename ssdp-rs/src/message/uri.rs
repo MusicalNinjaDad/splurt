@@ -73,6 +73,23 @@ impl FromStr for Uri {
                 let nss = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
                 Ok(Self::Ssdp(nss))
             }
+            UriToken::Urn => {
+                let Ok(vendor) = parts.next().ok_or_else(err)?.parse();
+                let offering = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
+
+                let target = match offering {
+                    UriToken::Service => Target::Service(ServiceDetails {
+                        vendor,
+                        service: Service::from_parts(parts).map_err(chain)?,
+                    }),
+                    UriToken::Device => Target::Device(DeviceDetails {
+                        vendor,
+                        device: Device::from_parts(parts).map_err(chain)?,
+                    }),
+                    _ => Err(err())?,
+                };
+                Ok(Self::Urn(target))
+            }
             _ => todo!("parse other types"),
         }
     }
