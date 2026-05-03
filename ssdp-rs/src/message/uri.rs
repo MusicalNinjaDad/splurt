@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use derive_more::FromStr;
 
-use super::{Device, DeviceDetails, ErrorKind, Service, ServiceDetails};
+use super::{Device, DeviceDetails, ErrorKind, Service, ServiceDetails, ParseError};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Target {
@@ -13,7 +13,7 @@ pub enum Target {
 }
 
 impl FromStr for Target {
-    type Err = ErrorKind;
+    type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let err = || ErrorKind::InvalidUrn(s.to_string());
@@ -21,7 +21,7 @@ impl FromStr for Target {
 
         let prefix = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
         if !matches!(prefix, UriToken::Urn) {
-            return Err(err());
+            Err(err())?;
         };
 
         let Ok(vendor) = parts.next().ok_or_else(err)?.parse();
@@ -36,7 +36,7 @@ impl FromStr for Target {
                 vendor,
                 device: Device::from_parts(parts)?,
             }),
-            _ => return Err(err()),
+            _ => Err(err())?,
         };
         Ok(target)
     }

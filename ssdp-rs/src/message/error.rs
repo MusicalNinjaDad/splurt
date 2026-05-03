@@ -27,8 +27,8 @@ pub struct ParseError {
     source: Option<Box<dyn Error>>,
 }
 
-impl ParseError {
-    pub fn new(kind: ErrorKind) -> Self {
+impl From<ErrorKind> for ParseError {
+    fn from(kind: ErrorKind) -> Self {
         Self { kind, source: None }
     }
 }

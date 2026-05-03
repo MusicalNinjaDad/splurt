@@ -20,7 +20,7 @@ mod services;
 mod uri;
 
 pub use devices::{Device, DeviceDetails};
-pub use error::ErrorKind;
+pub use error::{ErrorKind, ParseError};
 pub use header::{
     FriendlyName, Header, HeaderExt, Host, Man, MaxAge, Mx, ST, UpnpHeader, UpnpPort, UserAgent,
 };
