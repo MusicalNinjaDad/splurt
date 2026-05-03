@@ -4,6 +4,8 @@ use std::str::FromStr;
 
 use derive_more::FromStr;
 
+use crate::message::Service;
+
 use super::{DeviceDetails, ParseError, ServiceDetails};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -16,6 +18,7 @@ impl FromStr for Target {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let err = || ParseError::InvalidUrn(s.to_string());
         let mut parts = s.split(":");
         match parts.next() {
             Some(token) => match token.parse() {
@@ -23,8 +26,25 @@ impl FromStr for Target {
                 _ => return Err(ParseError::InvalidUrn(s.to_string())),
             },
             None => return Err(ParseError::EmptyMessage),
-        }
-        todo!("parse target from")
+        };
+        let vendor = parts.next().ok_or_else(err)?;
+        match parts.next().ok_or_else(err)?.parse() {
+            Ok(UriToken::Service) => (),
+            _ => return Err(err()),
+        };
+        let name = parts.next().ok_or_else(err)?;
+        let ver = parts.next().ok_or_else(err)?;
+        match parts.next() {
+            None => (),
+            Some(_) => return Err(err()),
+        };
+        Ok(Target::Service(ServiceDetails {
+            vendor: super::Vendor::Custom(vendor.to_string()),
+            service: Service::Other {
+                service_type: name.to_string(),
+                ver: ver.to_string(),
+            },
+        }))
     }
 }
 
