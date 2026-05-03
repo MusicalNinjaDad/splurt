@@ -10,6 +10,7 @@ use super::{Device, DeviceDetails, ErrorKind, ParseError, Service, ServiceDetail
 /// Known valuable URI tokens.
 pub enum UriToken {
     Ssdp,
+    Upnp,
     Urn,
     Device,
     Service,
@@ -19,6 +20,7 @@ pub enum UriToken {
 /// Known Urn schemes
 pub enum Uri {
     Ssdp(Ssdp),
+    Upnp(Upnp),
     Urn(Target),
 }
 
@@ -35,6 +37,10 @@ impl FromStr for Uri {
             UriToken::Ssdp => {
                 let nss = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
                 Ok(Self::Ssdp(nss))
+            }
+            UriToken::Upnp => {
+                let nss = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
+                Ok(Self::Upnp(nss))
             }
             UriToken::Urn => {
                 let Ok(vendor) = parts.next().ok_or_else(err)?.parse();
@@ -68,6 +74,12 @@ pub enum Ssdp {
 pub enum Target {
     Device(DeviceDetails),
     Service(ServiceDetails),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, FromStr)]
+/// Known upnp namespace specific strings
+pub enum Upnp {
+    RootDevice,
 }
 
 #[cfg(test)]
@@ -135,5 +147,12 @@ mod tests {
         let st = "ssdp:all";
         let uri = st.parse().expect("is urn");
         assert_matches!(uri, Uri::Ssdp(t) if matches!(t, Ssdp::All))
+    }
+
+    #[test]
+    fn test_upnp_rootdevice() {
+        let st = "upnp:rootdevice";
+        let uri = st.parse().expect("is urn");
+        assert_matches!(uri, Uri::Upnp(t) if matches!(t, Upnp::RootDevice))
     }
 }
