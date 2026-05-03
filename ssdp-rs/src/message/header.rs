@@ -386,24 +386,25 @@ impl<const _FN: &'static str> FromStr for UserAgent<_FN> {
 
     fn from_str(user_agent: &str) -> Result<Self, Self::Err> {
         let err = || ErrorKind::InvalidUserAgent(user_agent.to_string());
-        let mut tokens = user_agent.split_whitespace();
-        let os = tokens.next().ok_or_else(err)?;
-        let (os, os_version) = os
-            .split_once("/")
-            .map(|(name, ver)| (name.to_string(), ver.to_string()))
-            .ok_or_else(err)?;
-        let upnp_version = tokens
+        // Wierd & slightly backwards splitting as product_name may contain spaces
+        let mut token_ish = user_agent.split("/");
+        let os = token_ish.next().ok_or_else(err)?.to_string();
+        // TODO: Check there was a "Upnp" in the right place
+        // TODO: Handle cases with comma separation "Linux/2.6.32.12, UPnP/1.0, Portable SDK for UPnP devices/1.6.21"
+        let (os_version, _upnp) = token_ish
             .next()
             .ok_or_else(err)?
-            .strip_prefix("UPnP/")
+            .split_once(" ")
+            .ok_or_else(err)
+            .map(|(ver, upnp)| (ver.to_string(), upnp))?;
+        let (upnp_version, product_name) = token_ish
+            .next()
             .ok_or_else(err)?
-            .to_string();
-        let product = tokens.next().ok_or_else(err)?;
-        let (product_name, product_version) = product
-            .split_once("/")
-            .map(|(name, ver)| (name.to_string(), ver.to_string()))
-            .ok_or_else(err)?;
-        if tokens.next().is_some() {
+            .split_once(" ")
+            .ok_or_else(err)
+            .map(|(ver, prod)| (ver.to_string(), prod.to_string()))?;
+        let product_version = token_ish.next().ok_or_else(err)?.to_string();
+        if token_ish.next().is_some() {
             return Err(err());
         };
         Ok(Self {
