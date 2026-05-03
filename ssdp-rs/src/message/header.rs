@@ -390,7 +390,6 @@ impl<const _FN: &'static str> FromStr for UserAgent<_FN> {
         let mut token_ish = user_agent.split("/");
         let os = token_ish.next().ok_or_else(err)?.to_string();
         // TODO: Check there was a "Upnp" in the right place
-        // TODO: Handle cases with comma separation "Linux/2.6.32.12, UPnP/1.0, Portable SDK for UPnP devices/1.6.21"
         let (os_version, _upnp) = token_ish
             .next()
             .ok_or_else(err)?
