@@ -52,10 +52,11 @@ pub enum UriToken {
     Service,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// Known Urn schemes
 pub enum Uri {
     Ssdp(Ssdp),
+    Urn(Target),
 }
 
 impl FromStr for Uri {
@@ -106,13 +107,15 @@ mod tests {
     #[test]
     fn urn_for_service() {
         let st = "urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1";
-        let urn: Target = st.parse().expect("is urn");
-        assert_matches!(urn, Target::Service(ref s)
-            if matches!(&s.vendor, Vendor::Custom(v)
-                if v == "microsoft.com"
-            )
-            && matches!(&s.service, Service::Other { service_type, ver }
-                if service_type == "X_MS_MediaReceiverRegistrar" && ver == "1"
+        let urn = st.parse().expect("is urn");
+        assert_matches!(urn, Uri::Urn(target)
+            if matches!(target, Target::Service(ref s)
+                if matches!(&s.vendor, Vendor::Custom(v)
+                    if v == "microsoft.com"
+                )
+                && matches!(&s.service, Service::Other { service_type, ver }
+                    if service_type == "X_MS_MediaReceiverRegistrar" && ver == "1"
+                )
             )
         );
     }
@@ -120,17 +123,19 @@ mod tests {
     #[test]
     fn urn_for_std_device() {
         let st = "urn:schemas-upnp-org:device:MediaServer:1";
-        let urn: Target = st.parse().expect("is urn");
-        assert_matches!(urn, Target::Device(ref d)
-            if matches!(&d.vendor, Vendor::Standard)
-            && matches!(&d.device, Device::MediaServer { ver } if ver == "1")
+        let urn = st.parse().expect("is urn");
+        assert_matches!(urn, Uri::Urn(target)
+            if matches!(target, Target::Device(ref d)
+                if matches!(&d.vendor, Vendor::Standard)
+                && matches!(&d.device, Device::MediaServer { ver } if ver == "1")
+            )
         );
     }
 
     #[test]
     fn urn_no_device() {
         let st = "urn:schemas-upnp-org:device";
-        let err = st.parse::<Target>().expect_err("no device details");
+        let err = st.parse::<Uri>().expect_err("no device details");
         assert_matches!(&err.kind, ErrorKind::InvalidUrn(s) if s == "urn:schemas-upnp-org:device");
         let device_err = err.source().expect("inner error").downcast_ref();
         assert_matches!(device_err, Some(ParseError { kind, .. })
