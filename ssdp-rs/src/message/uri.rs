@@ -69,6 +69,7 @@ mod tests {
     fn known_uri_token() {
         let prefix = "urn";
         let token: UriToken = prefix.parse().expect("urn");
+        assert_matches!(token, UriToken::Urn);
     }
 
     #[test]
