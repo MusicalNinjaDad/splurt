@@ -20,18 +20,22 @@ impl FromStr for Target {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let err = || ParseError::InvalidUrn(s.to_string());
         let mut parts = s.split(":");
+
         let prefix = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
         if !matches!(prefix, UriToken::Urn) {
             return Err(err());
         };
+
         let vendor = parts.next().ok_or_else(err)?;
-        let offering: UriToken = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
+        let offering = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
         let name = parts.next().ok_or_else(err)?;
         let ver = parts.next().ok_or_else(err)?;
+
         match parts.next() {
             None => (),
             Some(_) => return Err(err()),
         };
+
         let target = match offering {
             UriToken::Service => Target::Service(ServiceDetails {
                 vendor: super::Vendor::Custom(vendor.to_string()),
