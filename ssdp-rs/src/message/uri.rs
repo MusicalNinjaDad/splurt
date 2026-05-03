@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use derive_more::FromStr;
 
-use super::{Device, DeviceDetails, ParseError, Service, ServiceDetails, Vendor};
+use super::{Device, DeviceDetails, ParseError, Service, ServiceDetails};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Target {
@@ -24,7 +24,7 @@ impl FromStr for Target {
             return Err(err());
         };
 
-        let vendor = parts.next().ok_or_else(err)?;
+        let vendor = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
         let offering = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
         let name = parts.next().ok_or_else(err)?;
         let ver = parts.next().ok_or_else(err)?;
@@ -36,14 +36,14 @@ impl FromStr for Target {
 
         let target = match offering {
             UriToken::Service => Target::Service(ServiceDetails {
-                vendor: Vendor::Custom(vendor.to_string()),
+                vendor,
                 service: Service::Other {
                     service_type: name.to_string(),
                     ver: ver.to_string(),
                 },
             }),
             UriToken::Device => Target::Device(DeviceDetails {
-                vendor: Vendor::Standard,
+                vendor,
                 device: Device::Other {
                     device_type: name.to_string(),
                     ver: ver.to_string(),
