@@ -59,6 +59,12 @@ enum UriToken {
 mod tests {
     use super::*;
 
+    #[cfg(assert_matches_in_root)]
+    use std::assert_matches;
+
+    #[cfg(assert_matches_in_module)]
+    use std::assert_matches::assert_matches;
+
     #[test]
     fn known_uri_token() {
         let prefix = "urn";
@@ -69,5 +75,6 @@ mod tests {
     fn urn() {
         let st = "urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1";
         let urn: Target = st.parse().expect("is urn");
+        assert_matches!(urn, Target::Service(_));
     }
 }
