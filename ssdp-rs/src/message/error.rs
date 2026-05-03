@@ -1,8 +1,7 @@
 use std::{error::Error, fmt::Display};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ErrorKind {
-    #[default]
     EmptyMessage,
     InvalidBootId(String),
     InvalidConfigId(String),
@@ -22,10 +21,16 @@ pub enum ErrorKind {
     MissingField(String),
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ParseError {
     kind: ErrorKind,
     source: Option<Box<dyn Error>>,
+}
+
+impl ParseError {
+    pub fn new(kind: ErrorKind) -> Self {
+        Self { kind, source: None }
+    }
 }
 
 impl std::error::Error for ParseError {
