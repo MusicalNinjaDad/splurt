@@ -57,6 +57,8 @@ pub enum UriToken {
 
 #[cfg(test)]
 mod tests {
+    use crate::message::Vendor;
+
     use super::*;
 
     #[cfg(assert_matches_in_root)]
@@ -76,6 +78,7 @@ mod tests {
     fn urn() {
         let st = "urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1";
         let urn: Target = st.parse().expect("is urn");
-        assert_matches!(urn, Target::Service(_));
+        assert_matches!(urn, Target::Service(ref s)
+            if matches!(&s.vendor, Vendor::Custom(v) if v == "microsoft.com"));
     }
 }
