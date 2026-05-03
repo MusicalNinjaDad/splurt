@@ -79,6 +79,12 @@ mod tests {
         let st = "urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1";
         let urn: Target = st.parse().expect("is urn");
         assert_matches!(urn, Target::Service(ref s)
-            if matches!(&s.vendor, Vendor::Custom(v) if v == "microsoft.com"));
+            if matches!(&s.vendor, Vendor::Custom(v)
+                if v == "microsoft.com"
+            )
+            && matches!(&s.service, Service::Other { service_type, ver }
+                if service_type == "X_MS_MediaReceiverRegistrar" && ver == "1"
+            )
+        );
     }
 }
