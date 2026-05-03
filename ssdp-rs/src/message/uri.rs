@@ -16,7 +16,15 @@ impl FromStr for Target {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        todo!("parse string as target")
+        let mut parts = s.split(":");
+        match parts.next() {
+            Some(token) => match token.parse() {
+                Ok(UriToken::Urn) => (),
+                _ => return Err(ParseError::InvalidUrn(s.to_string())),
+            },
+            None => return Err(ParseError::EmptyMessage),
+        }
+        todo!("parse target from")
     }
 }
 
