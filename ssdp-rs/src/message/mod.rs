@@ -17,17 +17,26 @@ mod header;
 mod msearch;
 mod response;
 mod services;
+mod uri;
 
 pub use devices::{Device, DeviceDetails};
-pub use error::ParseError;
+pub use error::{ErrorKind, ParseError};
 pub use header::{
     FriendlyName, Header, HeaderExt, Host, Man, MaxAge, Mx, ST, UpnpHeader, UpnpPort, UserAgent,
 };
 pub use msearch::MSearch;
 pub use response::Response;
 pub use services::{Service, ServiceDetails};
+pub use uri::{SsdpNss, Target, UpnpNss, Uri, UriToken};
 
 const UPNP_VERSION: &str = "2.0";
+/// RFC1123 date format, e.g.: "Wed, 29 Apr 2026 08:22:03 GMT"
+///
+/// ## Note
+/// - Will only parse to [chrono::NaiveDateTime]. Parsing MUST ignore timezone specified ("GMT" as
+///   per spec) as abbreviations are not standardised unique values.
+///   See: https://docs.rs/chrono/latest/chrono/format/strftime/index.html#fn6
+const RFC1123: &str = "%a, %d %b %Y %T %Z";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Method {
@@ -36,14 +45,14 @@ pub enum Method {
     Response,
 }
 impl FromStr for Method {
-    type Err = ParseError;
+    type Err = ErrorKind;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "M-SEARCH * HTTP/1.1" => Ok(Self::MSearch),
             "NOTIFY * HTTP/1.1" => Ok(Self::Notify),
             "HTTP/1.1 200 OK" => Ok(Self::Response),
-            _ => Err(ParseError::InvalidMethod(s.to_string())),
+            _ => Err(ErrorKind::InvalidMethod(s.to_string())),
         }
     }
 }
@@ -132,7 +141,7 @@ impl FromStr for Message {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut lines = s.lines();
-        let method: Method = lines.next().ok_or(ParseError::EmptyMessage)?.parse()?;
+        let method: Method = lines.next().ok_or(ErrorKind::EmptyMessage)?.parse()?;
         let header: UpnpHeader = lines.collect();
         match method {
             Method::MSearch => todo!("parse MSearch"),
@@ -155,7 +164,7 @@ impl Display for Message {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Vendor {
     Standard,
     Custom(String),
@@ -194,6 +203,7 @@ type RawHeader = HashMap<String, String>;
 
 #[cfg(test)]
 mod tests {
+
     use uuid::uuid;
 
     use super::*;
@@ -329,6 +339,24 @@ SERVER: Hue/1.0 UPnP/1.0 IpBridge/1.76.0
 hue-bridgeid: ECB55AF4FE12E2C4
 ST: upnp:rootdevice
 USN: uuid:2f402f80-da50-11e1-9b23-ecb55af4fe12e2c4::upnp:rootdevice
+"#;
+        let response: Message = raw_response.parse().expect("parsed as response");
+        assert_matches!(response, Message::Response(_));
+    }
+
+    #[test]
+    fn parse_service() {
+        let raw_response = r#"HTTP/1.1 200 OK
+CACHE-CONTROL: max-age=1900
+DATE: Wed, 29 Apr 2026 08:22:03 GMT
+EXT:
+LOCATION: http://192.168.5.12:50001/desc/device.xml
+OPT: "http://schemas.upnp.org/upnp/1/0/"; ns=01
+01-NLS: 88ccb70e-32ec-11f1-8533-ec2b50e32df5
+SERVER: Linux/2.6.32.12, UPnP/1.0, Portable SDK for UPnP devices/1.6.21
+X-User-Agent: redsonic
+ST: urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1
+USN: uuid:00113214-9943-0011-4399-439914321100::urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1
 "#;
         let response: Message = raw_response.parse().expect("parsed as response");
         assert_matches!(response, Message::Response(_));

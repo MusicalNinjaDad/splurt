@@ -2,9 +2,9 @@
 
 use std::fmt::Display;
 
-use super::Vendor;
+use super::{ErrorKind, Vendor};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ServiceDetails {
     pub vendor: Vendor,
     pub service: Service,
@@ -16,9 +16,21 @@ impl Display for ServiceDetails {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Service {
     Other { service_type: String, ver: String },
+}
+
+impl Service {
+    pub fn from_parts<'s, P: IntoIterator<Item = &'s str>>(parts: P) -> Result<Self, ErrorKind> {
+        let mut parts = parts.into_iter();
+        let service_type = parts
+            .next()
+            .ok_or(ErrorKind::InvalidService("''".to_string()))?
+            .to_string();
+        let ver = parts.collect();
+        Ok(Self::Other { service_type, ver })
+    }
 }
 
 impl Display for Service {

@@ -23,7 +23,7 @@ use uuid::Uuid;
 
 use crate::{MULTICAST, SSDP_PORT};
 
-use super::{DeviceDetails, ParseError, ServiceDetails};
+use super::{DeviceDetails, ErrorKind, ParseError, ServiceDetails, SsdpNss, Target, UpnpNss, Uri};
 
 pub struct UpnpHeader<'h>(HashMap<&'h str, &'h str>);
 
@@ -43,10 +43,10 @@ impl<'h> FromIterator<&'h str> for UpnpHeader<'h> {
 impl<'h> UpnpHeader<'h> {
     /// Attempt to get the corresponding value for `key`, returning a [ParseError::MissingField]
     /// if unsuccessful.
-    pub fn try_get(&self, key: &str) -> Result<&str, ParseError> {
+    pub fn try_get(&self, key: &str) -> Result<&str, ErrorKind> {
         self.0
             .get(key)
-            .ok_or_else(|| ParseError::MissingField(key.to_string()))
+            .ok_or_else(|| ErrorKind::MissingField(key.to_string()))
             .copied()
     }
 
@@ -201,15 +201,16 @@ impl Header for MaxAge {
 }
 
 impl FromStr for MaxAge {
-    type Err = ParseError;
+    // TODO: #50 Move all FromStr impls to use Err = ParseError
+    type Err = ErrorKind;
 
     fn from_str(max_age: &str) -> Result<Self, Self::Err> {
         let (_, secs) = max_age
             .split_once("max-age=")
-            .ok_or_else(|| ParseError::InvalidDuration(max_age.to_string()))?;
+            .ok_or_else(|| ErrorKind::InvalidDuration(max_age.to_string()))?;
         let duration = Duration::from_secs(
             secs.parse()
-                .map_err(|_| ParseError::InvalidDuration(max_age.to_string()))?,
+                .map_err(|_| ErrorKind::InvalidDuration(max_age.to_string()))?,
         );
         Ok(Self(duration))
     }
@@ -289,13 +290,13 @@ impl FromStr for ST {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "ssdp:all" => Ok(ST::All),
-            "upnp:rootdevice" => Ok(ST::Root),
-            _ => todo!("parse other ST"),
-            // "uuid:device-{}"
-            // "urn:{device_details}"
-            // "urn:{service_details}"
+        let uri = s.parse()?;
+        match uri {
+            Uri::Ssdp(SsdpNss::All) => Ok(ST::All),
+            Uri::Upnp(UpnpNss::RootDevice) => Ok(ST::Root),
+            Uri::Urn(Target::Device(device)) => Ok(ST::Device(device)),
+            Uri::Urn(Target::Service(service)) => Ok(ST::Service(service)),
+            // TODO: parse UUID
         }
     }
 }
@@ -334,13 +335,13 @@ impl Header for UpnpPort {
 
 /// `None` maps to `Default`
 impl TryFrom<Option<&str>> for UpnpPort {
-    type Error = ParseError;
+    type Error = ErrorKind;
 
     fn try_from(port: Option<&str>) -> Result<Self, Self::Error> {
         Ok(port
             .map(|port| {
                 port.parse::<u16>()
-                    .map_err(|_| ParseError::InvalidPort(port.to_string()))
+                    .map_err(|_| ErrorKind::InvalidPort(port.to_string()))
             })
             .transpose()?
             .into())
@@ -382,28 +383,40 @@ impl<const FIELD_NAME: &'static str> Header for UserAgent<FIELD_NAME> {
 }
 
 impl<const _FN: &'static str> FromStr for UserAgent<_FN> {
-    type Err = ParseError;
+    type Err = ErrorKind;
 
     fn from_str(user_agent: &str) -> Result<Self, Self::Err> {
-        let err = || ParseError::InvalidUserAgent(user_agent.to_string());
-        let mut tokens = user_agent.split_whitespace();
-        let os = tokens.next().ok_or_else(err)?;
-        let (os, os_version) = os
-            .split_once("/")
-            .map(|(name, ver)| (name.to_string(), ver.to_string()))
-            .ok_or_else(err)?;
-        let upnp_version = tokens
+        let err = || ErrorKind::InvalidUserAgent(user_agent.to_string());
+        // Wierd & slightly backwards splitting as product_name may contain spaces
+        let mut token_ish = user_agent.split("/");
+        let os = token_ish.next().ok_or_else(err)?.to_string();
+        // TODO: Check there was a "Upnp" in the right place
+        let (os_version, _upnp) = token_ish
             .next()
             .ok_or_else(err)?
-            .strip_prefix("UPnP/")
+            .split_once(" ")
+            .ok_or_else(err)
+            .map(|(ver, upnp)| {
+                (
+                    ver.trim_end_matches(|c: char| !c.is_alphanumeric())
+                        .to_string(),
+                    upnp,
+                )
+            })?;
+        let (upnp_version, product_name) = token_ish
+            .next()
             .ok_or_else(err)?
-            .to_string();
-        let product = tokens.next().ok_or_else(err)?;
-        let (product_name, product_version) = product
-            .split_once("/")
-            .map(|(name, ver)| (name.to_string(), ver.to_string()))
-            .ok_or_else(err)?;
-        if tokens.next().is_some() {
+            .split_once(" ")
+            .ok_or_else(err)
+            .map(|(ver, prod)| {
+                (
+                    ver.trim_end_matches(|c: char| !c.is_alphanumeric())
+                        .to_string(),
+                    prod.to_string(),
+                )
+            })?;
+        let product_version = token_ish.next().ok_or_else(err)?.to_string();
+        if token_ish.next().is_some() {
             return Err(err());
         };
         Ok(Self {

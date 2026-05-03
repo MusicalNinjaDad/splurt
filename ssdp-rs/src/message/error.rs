@@ -1,68 +1,111 @@
-use std::fmt::Display;
+use std::{error::Error, fmt::Display};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum ParseError {
+pub enum ErrorKind {
     EmptyMessage,
     InvalidBootId(String),
     InvalidConfigId(String),
     InvalidDate(String),
     InvalidDevice(String),
     InvalidDeviceDetails(String),
+    InvalidService(String),
     InvalidDuration(String),
     InvalidLocation(String),
     InvalidMethod(String),
     InvalidPort(String),
     InvalidSecureLocation(String),
     InvalidST(String),
+    InvalidUrn(String),
     InvalidUserAgent(String),
     MissingBootId,
     MissingConfigId,
     MissingField(String),
 }
 
-impl std::error::Error for ParseError {}
+#[derive(Debug)]
+pub struct ParseError {
+    pub kind: ErrorKind,
+    source: Option<Box<ParseError>>,
+}
+
+impl From<ErrorKind> for ParseError {
+    fn from(kind: ErrorKind) -> Self {
+        Self { kind, source: None }
+    }
+}
+
+impl ParseError {
+    pub fn chain_from(err: ParseError, kind: ErrorKind) -> Self {
+        Self {
+            kind,
+            source: Some(Box::new(err)),
+        }
+    }
+}
+
+impl std::error::Error for ParseError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self.source.as_deref() {
+            Some(parse_error) => Some(parse_error),
+            None => None,
+        }
+    }
+}
 
 impl Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.source {
+            None => write!(f, "{}", self.kind),
+            Some(source) => write!(f, "{}, {}", self.kind, source),
+        }
+    }
+}
+
+impl Display for ErrorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ParseError::EmptyMessage => write!(f, "empty message"),
-            ParseError::InvalidBootId(boot_id) => {
+            ErrorKind::EmptyMessage => write!(f, "empty message"),
+            ErrorKind::InvalidBootId(boot_id) => {
                 write!(f, "{boot_id} is not a valid boot instance")
             }
-            ParseError::InvalidConfigId(config_id) => {
+            ErrorKind::InvalidConfigId(config_id) => {
                 write!(f, "{config_id} is not a valid configuration number")
             }
-            ParseError::InvalidDate(date) => write!(f, "{date} is not a valid date"),
-            ParseError::InvalidDuration(duration) => {
+            ErrorKind::InvalidDate(date) => write!(f, "{date} is not a valid date"),
+            ErrorKind::InvalidDuration(duration) => {
                 write!(f, "{duration} is not a valid duration")
             }
-            ParseError::InvalidDevice(device) => write!(
-                f,
-                "{} is not a valid upnp device specification (valid forms are `urn:domain-name:device:deviceType:ver` & `urn:schemas-upnp-org:device:deviceType:ver`)",
-                device
-            ),
-            ParseError::InvalidDeviceDetails(device) => {
+            ErrorKind::InvalidDevice(device) => {
+                write!(f, "{} is not a valid upnp device specification", device)
+            }
+            ErrorKind::InvalidDeviceDetails(device) => {
                 write!(f, "{} is not a valid upnp device:ver specification", device)
             }
-            ParseError::InvalidLocation(location) => write!(f, "{location} is not a valid url"),
-            ParseError::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
-            ParseError::InvalidPort(port) => write!(f, "{port} is not a valid IP port"),
-            ParseError::InvalidSecureLocation(location) => write!(
+            ErrorKind::InvalidLocation(location) => write!(f, "{location} is not a valid url"),
+            ErrorKind::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
+            ErrorKind::InvalidPort(port) => write!(f, "{port} is not a valid IP port"),
+            ErrorKind::InvalidSecureLocation(location) => write!(
                 f,
                 "{location} is not a valid secure location (must be a valid URL beginning with `https://` and containing a port number)"
             ),
-            ParseError::InvalidST(st) => write!(f, "{} is not a valid upnp search type", st),
-            ParseError::InvalidUserAgent(user_agent) => {
+            ErrorKind::InvalidService(service) => {
+                write!(f, "{} is not a valid upnp service specification", service)
+            }
+            ErrorKind::InvalidST(st) => write!(f, "{} is not a valid upnp search type", st),
+            ErrorKind::InvalidUrn(urn) => {
+                write!(f, "{} is not a valid upnp universal resource name", urn)
+            }
+            ErrorKind::InvalidUserAgent(user_agent) => {
                 write!(f, "{user_agent} is not a valid user agent")
             }
-            ParseError::MissingBootId => {
+            ErrorKind::MissingBootId => {
                 write!(f, "a boot instance is required from UPnp/2.0 onwards")
             }
-            ParseError::MissingConfigId => write!(
+            ErrorKind::MissingConfigId => write!(
                 f,
                 "a configuration number is required from UPnp/2.0 onwards"
             ),
-            ParseError::MissingField(field) => write!(f, "header is missing field {field}"),
+            ErrorKind::MissingField(field) => write!(f, "header is missing field {field}"),
         }
     }
 }

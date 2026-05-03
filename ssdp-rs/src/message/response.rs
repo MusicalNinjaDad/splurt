@@ -1,7 +1,7 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use url::Url;
 
-use super::{Header, MaxAge, ParseError, ST, UpnpHeader, UpnpPort, UserAgent};
+use super::{ErrorKind, Header, MaxAge, ParseError, RFC1123, ST, UpnpHeader, UpnpPort, UserAgent};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 /// A direct response to an `M-SEARCH` message.
@@ -59,17 +59,16 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
         let date = header
             .get("DATE")
             .map(|date| {
-                // TODO: find something that can parse rfc1123-date = wkday "," SP date1 SP time SP "GMT"
-                //   https://datatracker.ietf.org/doc/html/rfc2616#section-3.3
-                date.parse()
-                    .map_err(|_| ParseError::InvalidDate(date.to_string()))
+                NaiveDateTime::parse_from_str(date, RFC1123)
+                    .map(|tz| tz.and_utc())
+                    .map_err(|_| ErrorKind::InvalidDate(date.to_string()))
             })
             .transpose()?;
         let ext = None;
         let location = header.try_get("LOCATION")?;
         let location = location
             .parse()
-            .map_err(|_| ParseError::InvalidLocation(location.to_string()))?;
+            .map_err(|_| ErrorKind::InvalidLocation(location.to_string()))?;
         let server: UserAgent<"SERVER"> = header.try_get("SERVER")?.parse()?;
         let usn = header.try_get("USN")?.to_string();
         let boot_id = header
@@ -77,7 +76,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             .map(|boot_id| {
                 boot_id
                     .parse()
-                    .map_err(|_| ParseError::InvalidBootId(boot_id.to_string()))
+                    .map_err(|_| ErrorKind::InvalidBootId(boot_id.to_string()))
             })
             .transpose()?;
         let config_id = header
@@ -85,7 +84,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             .map(|config_id| {
                 config_id
                     .parse()
-                    .map_err(|_| ParseError::InvalidConfigId(config_id.to_string()))
+                    .map_err(|_| ErrorKind::InvalidConfigId(config_id.to_string()))
             })
             .transpose()?;
         match server.upnp_version.as_str() {
@@ -93,10 +92,10 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             "1.0" => (),
             _ => {
                 if boot_id.is_none() {
-                    return Err(ParseError::MissingBootId);
+                    Err(ErrorKind::MissingBootId)?;
                 }
                 if config_id.is_none() {
-                    return Err(ParseError::MissingConfigId);
+                    Err(ErrorKind::MissingConfigId)?;
                 }
             }
         };
@@ -106,15 +105,15 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             .map(|location| {
                 location
                     .parse()
-                    .map_err(|_| ParseError::InvalidSecureLocation(location.to_string()))
+                    .map_err(|_| ErrorKind::InvalidSecureLocation(location.to_string()))
             })
             .transpose()?;
         if let Some(ref secure_location) = secure_location
             && (secure_location.scheme() != "https" || secure_location.port().is_none())
         {
-            return Err(ParseError::InvalidSecureLocation(
+            Err(ErrorKind::InvalidSecureLocation(
                 secure_location.to_string(),
-            ));
+            ))?;
         };
         Ok(Self {
             max_age,
