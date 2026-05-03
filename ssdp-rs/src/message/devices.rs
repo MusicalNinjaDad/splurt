@@ -1,6 +1,6 @@
 //! Device types (all known & handling for custom)
 
-use std::{fmt::Display, str::FromStr};
+use std::fmt::Display;
 
 use super::{ParseError, Vendor};
 
@@ -8,27 +8,6 @@ use super::{ParseError, Vendor};
 pub struct DeviceDetails {
     pub vendor: Vendor,
     pub device: Device,
-}
-
-impl FromStr for DeviceDetails {
-    type Err = ParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let err = || ParseError::InvalidDevice(s.to_string());
-        let mut parts = s.split(":");
-        match parts.next() {
-            Some("urn") => (),
-            _ => return Err(err()),
-        };
-        let Ok(vendor) = parts.next().ok_or_else(err)?.parse::<Vendor>();
-        match parts.next() {
-            Some("device") => (),
-            _ => return Err(err()),
-        };
-        let device: String = parts.collect();
-        let device: Device = device.parse()?;
-        Ok(Self { vendor, device })
-    }
 }
 
 impl Display for DeviceDetails {
@@ -51,20 +30,6 @@ impl Device {
             .to_string();
         let ver = parts.collect();
         Ok(Self::Other { device_type, ver })
-    }
-}
-
-impl FromStr for Device {
-    type Err = ParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (device_type, ver) = s
-            .split_once(":")
-            .ok_or(ParseError::InvalidDeviceDetails(s.to_string()))?;
-        Ok(Self::Other {
-            device_type: device_type.to_string(),
-            ver: ver.to_string(),
-        })
     }
 }
 
