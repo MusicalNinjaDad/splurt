@@ -4,9 +4,7 @@ use std::str::FromStr;
 
 use derive_more::FromStr;
 
-use crate::message::Service;
-
-use super::{DeviceDetails, ParseError, ServiceDetails};
+use super::{Device, DeviceDetails, ParseError, Service, ServiceDetails, Vendor};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Target {
@@ -38,15 +36,15 @@ impl FromStr for Target {
 
         let target = match offering {
             UriToken::Service => Target::Service(ServiceDetails {
-                vendor: super::Vendor::Custom(vendor.to_string()),
+                vendor: Vendor::Custom(vendor.to_string()),
                 service: Service::Other {
                     service_type: name.to_string(),
                     ver: ver.to_string(),
                 },
             }),
             UriToken::Device => Target::Device(DeviceDetails {
-                vendor: super::Vendor::Standard,
-                device: super::Device::Other {
+                vendor: Vendor::Standard,
+                device: Device::Other {
                     device_type: name.to_string(),
                     ver: ver.to_string(),
                 },
