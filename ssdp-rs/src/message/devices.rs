@@ -4,7 +4,7 @@ use std::{fmt::Display, str::FromStr};
 
 use super::{ParseError, Vendor};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DeviceDetails {
     pub vendor: Vendor,
     pub device: Device,
@@ -37,7 +37,7 @@ impl Display for DeviceDetails {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Device {
     Other { device_type: String, ver: String },
 }

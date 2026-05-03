@@ -4,7 +4,7 @@ use std::fmt::Display;
 
 use super::Vendor;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ServiceDetails {
     pub vendor: Vendor,
     pub service: Service,
@@ -16,7 +16,7 @@ impl Display for ServiceDetails {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Service {
     Other { service_type: String, ver: String },
 }

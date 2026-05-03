@@ -17,6 +17,7 @@ mod header;
 mod msearch;
 mod response;
 mod services;
+mod uri;
 
 pub use devices::{Device, DeviceDetails};
 pub use error::ParseError;
@@ -155,7 +156,7 @@ impl Display for Message {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Vendor {
     Standard,
     Custom(String),
