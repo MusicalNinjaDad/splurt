@@ -19,8 +19,8 @@ pub enum UriToken {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// Known Urn schemes
 pub enum Uri {
-    Ssdp(Ssdp),
-    Upnp(Upnp),
+    Ssdp(SsdpNss),
+    Upnp(UpnpNss),
     Urn(Target),
 }
 
@@ -66,7 +66,7 @@ impl FromStr for Uri {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, FromStr)]
 /// Known ssdp namespace specific strings
-pub enum Ssdp {
+pub enum SsdpNss {
     All,
 }
 
@@ -78,7 +78,7 @@ pub enum Target {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, FromStr)]
 /// Known upnp namespace specific strings
-pub enum Upnp {
+pub enum UpnpNss {
     RootDevice,
 }
 
@@ -146,13 +146,13 @@ mod tests {
     fn test_ssdp_all() {
         let st = "ssdp:all";
         let uri = st.parse().expect("is urn");
-        assert_matches!(uri, Uri::Ssdp(t) if matches!(t, Ssdp::All))
+        assert_matches!(uri, Uri::Ssdp(t) if matches!(t, SsdpNss::All))
     }
 
     #[test]
     fn test_upnp_rootdevice() {
         let st = "upnp:rootdevice";
         let uri = st.parse().expect("is urn");
-        assert_matches!(uri, Uri::Upnp(t) if matches!(t, Upnp::RootDevice))
+        assert_matches!(uri, Uri::Upnp(t) if matches!(t, UpnpNss::RootDevice))
     }
 }
