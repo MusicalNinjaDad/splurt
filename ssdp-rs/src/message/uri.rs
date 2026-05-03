@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use derive_more::FromStr;
 
-use super::{Device, DeviceDetails, ErrorKind, Service, ServiceDetails, ParseError};
+use super::{Device, DeviceDetails, ErrorKind, ParseError, Service, ServiceDetails};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Target {
@@ -98,6 +98,6 @@ mod tests {
     fn urn_no_device() {
         let st = "urn:schemas-upnp-org:device";
         let err = st.parse::<Target>().expect_err("no device details");
-        assert_matches!(err, ErrorKind::InvalidUrn(s) if s == "urn:schemas-upnp-org:device")
+        assert_matches!(err.kind, ErrorKind::InvalidUrn(s) if s == "urn:schemas-upnp-org:device")
     }
 }

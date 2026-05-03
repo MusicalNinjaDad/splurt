@@ -23,7 +23,7 @@ pub enum ErrorKind {
 
 #[derive(Debug)]
 pub struct ParseError {
-    kind: ErrorKind,
+    pub kind: ErrorKind,
     source: Option<Box<dyn Error>>,
 }
 
