@@ -46,9 +46,41 @@ impl FromStr for Target {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, FromStr)]
 /// Known valuable URI tokens.
 pub enum UriToken {
+    Ssdp,
     Urn,
     Device,
     Service,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// Known Urn schemes
+pub enum Uri {
+    Ssdp(Ssdp),
+}
+
+impl FromStr for Uri {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let err = || ErrorKind::InvalidUrn(s.to_string());
+        let chain = |e: ErrorKind| ParseError::chain_from(e.into(), err());
+        let mut parts = s.split(":");
+
+        let prefix = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
+        match prefix {
+            UriToken::Ssdp => {
+                let nss = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
+                Ok(Self::Ssdp(nss))
+            }
+            _ => todo!("parse other types"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, FromStr)]
+/// Known ssdp namespace specific strings
+pub enum Ssdp {
+    All,
 }
 
 #[cfg(test)]
@@ -105,5 +137,12 @@ mod tests {
             if matches!(kind, ErrorKind::InvalidDevice(d) if d == "''")
         );
         println!("{err}");
+    }
+
+    #[test]
+    fn test_ssdp_all() {
+        let st = "ssdp:all";
+        let uri = st.parse().expect("is urn");
+        assert_matches!(uri, Uri::Ssdp(t) if matches!(t, Ssdp::All))
     }
 }
