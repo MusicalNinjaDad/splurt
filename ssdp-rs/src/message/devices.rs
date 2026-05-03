@@ -18,6 +18,7 @@ impl Display for DeviceDetails {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Device {
+    MediaServer { ver: String },
     Other { device_type: String, ver: String },
 }
 
@@ -36,6 +37,7 @@ impl Device {
 impl Display for Device {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Device::MediaServer { ver } => write!(f, "MediaServer:{}", ver),
             Device::Other { device_type, ver } => write!(f, "{}:{}", device_type, ver),
         }
     }
