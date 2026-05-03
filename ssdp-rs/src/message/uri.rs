@@ -107,4 +107,9 @@ mod tests {
             )
         );
     }
+
+    #[test]
+    fn urn_no_device() {
+        // TODO check error chaining Invalid Devce "" -> InvalidUrn("foo")
+    }
 }
