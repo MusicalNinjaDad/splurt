@@ -20,12 +20,9 @@ impl FromStr for Target {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let err = || ParseError::InvalidUrn(s.to_string());
         let mut parts = s.split(":");
-        match parts.next() {
-            Some(token) => match token.parse() {
-                Ok(UriToken::Urn) => (),
-                _ => return Err(ParseError::InvalidUrn(s.to_string())),
-            },
-            None => return Err(ParseError::EmptyMessage),
+        match parts.next().ok_or(ParseError::EmptyMessage)?.parse() {
+            Ok(UriToken::Urn) => (),
+            _ => return Err(err()),
         };
         let vendor = parts.next().ok_or_else(err)?;
         match parts.next().ok_or_else(err)?.parse() {
@@ -75,7 +72,7 @@ mod tests {
     }
 
     #[test]
-    fn urn() {
+    fn urn_for_service() {
         let st = "urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1";
         let urn: Target = st.parse().expect("is urn");
         assert_matches!(urn, Target::Service(ref s)
@@ -86,5 +83,11 @@ mod tests {
                 if service_type == "X_MS_MediaReceiverRegistrar" && ver == "1"
             )
         );
+    }
+
+    #[test]
+    fn urn_for_std_device() {
+        let st = "urn:schemas-upnp-org:device:MediaServer:1";
+        let urn: Target = st.parse().expect("is urn");
     }
 }
