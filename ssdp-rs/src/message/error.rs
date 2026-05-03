@@ -24,7 +24,7 @@ pub enum ErrorKind {
 #[derive(Debug)]
 pub struct ParseError {
     pub kind: ErrorKind,
-    source: Option<Box<dyn Error>>,
+    source: Option<Box<ParseError>>,
 }
 
 impl From<ErrorKind> for ParseError {
@@ -33,9 +33,21 @@ impl From<ErrorKind> for ParseError {
     }
 }
 
+impl ParseError {
+    pub fn chain_from(err: ParseError, kind: ErrorKind) -> Self {
+        Self {
+            kind,
+            source: Some(Box::new(err)),
+        }
+    }
+}
+
 impl std::error::Error for ParseError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        self.source.as_deref()
+        match self.source.as_deref() {
+            Some(parse_error) => Some(parse_error),
+            None => None,
+        }
     }
 }
 

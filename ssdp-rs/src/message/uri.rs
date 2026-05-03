@@ -17,6 +17,7 @@ impl FromStr for Target {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let err = || ErrorKind::InvalidUrn(s.to_string());
+        let chain = |e: ErrorKind| ParseError::chain_from(e.into(), err());
         let mut parts = s.split(":");
 
         let prefix = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
@@ -30,11 +31,11 @@ impl FromStr for Target {
         let target = match offering {
             UriToken::Service => Target::Service(ServiceDetails {
                 vendor,
-                service: Service::from_parts(parts)?,
+                service: Service::from_parts(parts).map_err(chain)?,
             }),
             UriToken::Device => Target::Device(DeviceDetails {
                 vendor,
-                device: Device::from_parts(parts)?,
+                device: Device::from_parts(parts).map_err(chain)?,
             }),
             _ => Err(err())?,
         };
@@ -61,6 +62,7 @@ mod tests {
 
     #[cfg(assert_matches_in_module)]
     use std::assert_matches::assert_matches;
+    use std::error::Error;
 
     #[test]
     fn known_uri_token() {
@@ -94,10 +96,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "assertion `left matches right` failed")]
     fn urn_no_device() {
         let st = "urn:schemas-upnp-org:device";
         let err = st.parse::<Target>().expect_err("no device details");
-        assert_matches!(err.kind, ErrorKind::InvalidUrn(s) if s == "urn:schemas-upnp-org:device")
+        assert_matches!(&err.kind, ErrorKind::InvalidUrn(s) if s == "urn:schemas-upnp-org:device");
     }
 }
