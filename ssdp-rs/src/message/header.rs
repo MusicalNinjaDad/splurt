@@ -23,7 +23,7 @@ use uuid::Uuid;
 
 use crate::{MULTICAST, SSDP_PORT};
 
-use super::{DeviceDetails, ErrorKind, ServiceDetails};
+use super::{DeviceDetails, ParseError, ErrorKind, ServiceDetails, Uri, SsdpNss, UpnpNss};
 
 pub struct UpnpHeader<'h>(HashMap<&'h str, &'h str>);
 
@@ -286,19 +286,17 @@ impl Header for ST {
 }
 
 impl FromStr for ST {
-    type Err = ErrorKind;
+    type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "ssdp:all" => Ok(ST::All),
-            "upnp:rootdevice" => Ok(ST::Root),
-            _ if s.starts_with("urn:") => match s.split(":").nth(2) {
-                Some("device") => todo!("urn:device_details"),
-                Some("service") => todo!("urn:service_details"),
-                _ => Err(ErrorKind::InvalidST(s.to_string())),
-            },
-            _ => todo!("parse other ST"),
-            // "uuid:device-{}"
+        let uri = s.parse()?;
+        match uri {
+            #[expect(irrefutable_let_patterns, reason="other nss variants TODO")]
+            Uri::Ssdp(nss) if let SsdpNss::All = nss => Ok(ST::All),
+            #[expect(irrefutable_let_patterns, reason="other nss variants TODO")]
+            Uri::Upnp(nss) if let UpnpNss::RootDevice = nss => Ok(ST::Root),
+            Uri::Urn(target) => todo!("device or service"),
+            _ => Err(ErrorKind::InvalidST(s.to_string()))?,
         }
     }
 }
