@@ -1,7 +1,7 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use url::Url;
 
-use super::{ErrorKind, Header, MaxAge, ParseError, ST, UpnpHeader, UpnpPort, UserAgent};
+use super::{ErrorKind, Header, MaxAge, ParseError, RFC1123, ST, UpnpHeader, UpnpPort, UserAgent};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 /// A direct response to an `M-SEARCH` message.
@@ -59,9 +59,8 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
         let date = header
             .get("DATE")
             .map(|date| {
-                // TODO: find something that can parse rfc1123-date = wkday "," SP date1 SP time SP "GMT"
-                //   https://datatracker.ietf.org/doc/html/rfc2616#section-3.3
-                date.parse()
+                NaiveDateTime::parse_from_str(date, RFC1123)
+                    .map(|tz| tz.and_utc())
                     .map_err(|_| ErrorKind::InvalidDate(date.to_string()))
             })
             .transpose()?;

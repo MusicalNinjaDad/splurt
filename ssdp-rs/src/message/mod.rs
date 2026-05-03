@@ -30,6 +30,13 @@ pub use services::{Service, ServiceDetails};
 pub use uri::{SsdpNss, Target, UpnpNss, Uri, UriToken};
 
 const UPNP_VERSION: &str = "2.0";
+/// RFC1123 date format, e.g.: "Wed, 29 Apr 2026 08:22:03 GMT"
+///
+/// ## Note
+/// - Will only parse to [chrono::NaiveDateTime]. Parsing MUST ignore timezone specified ("GMT" as
+///   per spec) as abbreviations are not standardised unique values.
+///   See: https://docs.rs/chrono/latest/chrono/format/strftime/index.html#fn6
+const RFC1123: &str = "%a, %d %b %Y %T %Z";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Method {
@@ -196,6 +203,7 @@ type RawHeader = HashMap<String, String>;
 
 #[cfg(test)]
 mod tests {
+
     use uuid::uuid;
 
     use super::*;
@@ -337,7 +345,9 @@ USN: uuid:2f402f80-da50-11e1-9b23-ecb55af4fe12e2c4::upnp:rootdevice
     }
 
     #[test]
-    #[should_panic(expected = r#"InvalidDate("Wed, 29 Apr 2026 08:22:03 GMT")"#)]
+    #[should_panic(
+        expected = r#"InvalidUserAgent("Linux/2.6.32.12, UPnP/1.0, Portable SDK for UPnP devices/1.6.21")"#
+    )]
     fn parse_service() {
         let raw_response = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age=1900
