@@ -130,7 +130,7 @@ impl Message {
 }
 
 impl FromStr for Message {
-    type Err = ErrorKind;
+    type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut lines = s.lines();

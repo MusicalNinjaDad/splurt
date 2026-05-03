@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use url::Url;
 
-use super::{ErrorKind, Header, MaxAge, ST, UpnpHeader, UpnpPort, UserAgent};
+use super::{ErrorKind, Header, MaxAge, ST, UpnpHeader, UpnpPort, UserAgent, ParseError};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 /// A direct response to an `M-SEARCH` message.
@@ -51,7 +51,7 @@ pub struct Response {
     secure_location: Option<Url>,
 }
 impl<'h> TryFrom<UpnpHeader<'h>> for Response {
-    type Error = ErrorKind;
+    type Error = ParseError;
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
         let st = header.try_get(ST::HEADER_KEY)?.parse()?;
@@ -93,10 +93,10 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             "1.0" => (),
             _ => {
                 if boot_id.is_none() {
-                    return Err(ErrorKind::MissingBootId);
+                    Err(ErrorKind::MissingBootId)?;
                 }
                 if config_id.is_none() {
-                    return Err(ErrorKind::MissingConfigId);
+                    Err(ErrorKind::MissingConfigId)?;
                 }
             }
         };
@@ -112,9 +112,9 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
         if let Some(ref secure_location) = secure_location
             && (secure_location.scheme() != "https" || secure_location.port().is_none())
         {
-            return Err(ErrorKind::InvalidSecureLocation(
+            Err(ErrorKind::InvalidSecureLocation(
                 secure_location.to_string(),
-            ));
+            ))?;
         };
         Ok(Self {
             max_age,
