@@ -12,37 +12,6 @@ pub enum Target {
     Service(ServiceDetails),
 }
 
-impl FromStr for Target {
-    type Err = ParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let err = || ErrorKind::InvalidUrn(s.to_string());
-        let chain = |e: ErrorKind| ParseError::chain_from(e.into(), err());
-        let mut parts = s.split(":");
-
-        let prefix = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
-        if !matches!(prefix, UriToken::Urn) {
-            Err(err())?;
-        };
-
-        let Ok(vendor) = parts.next().ok_or_else(err)?.parse();
-        let offering = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
-
-        let target = match offering {
-            UriToken::Service => Target::Service(ServiceDetails {
-                vendor,
-                service: Service::from_parts(parts).map_err(chain)?,
-            }),
-            UriToken::Device => Target::Device(DeviceDetails {
-                vendor,
-                device: Device::from_parts(parts).map_err(chain)?,
-            }),
-            _ => Err(err())?,
-        };
-        Ok(target)
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, FromStr)]
 /// Known valuable URI tokens.
 pub enum UriToken {
