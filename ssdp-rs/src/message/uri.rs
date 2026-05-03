@@ -50,7 +50,7 @@ impl FromStr for Target {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, FromStr)]
 /// Known valuable URI tokens.
-enum UriToken {
+pub enum UriToken {
     Urn,
     Service,
 }

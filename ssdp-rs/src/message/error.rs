@@ -53,7 +53,9 @@ impl Display for ParseError {
                 "{location} is not a valid secure location (must be a valid URL beginning with `https://` and containing a port number)"
             ),
             ParseError::InvalidST(st) => write!(f, "{} is not a valid upnp search type", st),
-            ParseError::InvalidUrn(urn) => write!(f, "{} is not a valid upnp universal resource name", urn),
+            ParseError::InvalidUrn(urn) => {
+                write!(f, "{} is not a valid upnp universal resource name", urn)
+            }
             ParseError::InvalidUserAgent(user_agent) => {
                 write!(f, "{user_agent} is not a valid user agent")
             }

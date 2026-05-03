@@ -27,6 +27,7 @@ pub use header::{
 pub use msearch::MSearch;
 pub use response::Response;
 pub use services::{Service, ServiceDetails};
+pub use uri::{Target, UriToken};
 
 const UPNP_VERSION: &str = "2.0";
 
