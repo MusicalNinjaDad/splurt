@@ -291,12 +291,9 @@ impl FromStr for ST {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let uri = s.parse()?;
         match uri {
-            #[expect(irrefutable_let_patterns, reason="other nss variants TODO")]
-            Uri::Ssdp(nss) if let SsdpNss::All = nss => Ok(ST::All),
-            #[expect(irrefutable_let_patterns, reason="other nss variants TODO")]
-            Uri::Upnp(nss) if let UpnpNss::RootDevice = nss => Ok(ST::Root),
-            Uri::Urn(target) => todo!("device or service"),
-            _ => Err(ErrorKind::InvalidST(s.to_string()))?,
+            Uri::Ssdp(SsdpNss::All) => Ok(ST::All),
+            Uri::Upnp(UpnpNss::RootDevice) => Ok(ST::Root),
+            Uri::Urn(_target) => todo!("device or service"),
         }
     }
 }
