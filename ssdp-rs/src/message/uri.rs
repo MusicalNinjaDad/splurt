@@ -24,7 +24,7 @@ impl FromStr for Target {
             return Err(err());
         };
 
-        let vendor = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
+        let Ok(vendor) = parts.next().ok_or_else(err)?.parse();
         let offering = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
         let name = parts.next().ok_or_else(err)?;
         let ver = parts.next().ok_or_else(err)?;
