@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use url::Url;
 
-use super::{ErrorKind, Header, MaxAge, ST, UpnpHeader, UpnpPort, UserAgent, ParseError};
+use super::{ErrorKind, Header, MaxAge, ParseError, ST, UpnpHeader, UpnpPort, UserAgent};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 /// A direct response to an `M-SEARCH` message.

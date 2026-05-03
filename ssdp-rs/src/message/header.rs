@@ -23,7 +23,7 @@ use uuid::Uuid;
 
 use crate::{MULTICAST, SSDP_PORT};
 
-use super::{DeviceDetails, ParseError, ErrorKind, ServiceDetails, Uri, SsdpNss, UpnpNss};
+use super::{DeviceDetails, ErrorKind, ParseError, ServiceDetails, SsdpNss, UpnpNss, Uri};
 
 pub struct UpnpHeader<'h>(HashMap<&'h str, &'h str>);
 
