@@ -1,7 +1,8 @@
-use std::fmt::Display;
+use std::{error::Error, fmt::Display};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum ErrorKind {
+    #[default]
     EmptyMessage,
     InvalidBootId(String),
     InvalidConfigId(String),
@@ -21,7 +22,23 @@ pub enum ErrorKind {
     MissingField(String),
 }
 
-impl std::error::Error for ErrorKind {}
+#[derive(Debug, Default)]
+pub struct ParseError {
+    kind: ErrorKind,
+    source: Option<Box<dyn Error>>,
+}
+
+impl std::error::Error for ParseError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        self.source.as_deref()
+    }
+}
+
+impl Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
+}
 
 impl Display for ErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
