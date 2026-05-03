@@ -94,7 +94,10 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "assertion `left matches right` failed")]
     fn urn_no_device() {
-        // TODO check error chaining Invalid Devce "" -> InvalidUrn("foo")
+        let st = "urn:schemas-upnp-org:device";
+        let err = st.parse::<Target>().expect_err("no device details");
+        assert_matches!(err, ErrorKind::InvalidUrn(s) if s == "urn:schemas-upnp-org:device")
     }
 }
