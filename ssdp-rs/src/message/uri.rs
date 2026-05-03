@@ -102,7 +102,8 @@ mod tests {
         assert_matches!(&err.kind, ErrorKind::InvalidUrn(s) if s == "urn:schemas-upnp-org:device");
         let device_err = err.source().expect("inner error").downcast_ref();
         assert_matches!(device_err, Some(ParseError { kind, .. })
-            if matches!(kind, ErrorKind::InvalidDevice(d) if d.is_empty())
+            if matches!(kind, ErrorKind::InvalidDevice(d) if d == "''")
         );
+        println!("{err}");
     }
 }

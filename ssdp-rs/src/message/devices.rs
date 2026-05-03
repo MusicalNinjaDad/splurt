@@ -27,7 +27,7 @@ impl Device {
         let mut parts = parts.into_iter();
         let device_type = parts
             .next()
-            .ok_or(ErrorKind::InvalidDevice("".to_string()))?
+            .ok_or(ErrorKind::InvalidDevice("''".to_string()))?
             .to_string();
         let ver = parts.collect();
         let device = match device_type.as_str() {
