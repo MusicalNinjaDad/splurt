@@ -63,7 +63,7 @@ pub enum UriToken {
 
 #[cfg(test)]
 mod tests {
-    use crate::message::Vendor;
+    use crate::message::{Device, Vendor};
 
     use super::*;
 
@@ -98,5 +98,11 @@ mod tests {
     fn urn_for_std_device() {
         let st = "urn:schemas-upnp-org:device:MediaServer:1";
         let urn: Target = st.parse().expect("is urn");
+        assert_matches!(urn, Target::Device(ref d)
+            if matches!(&d.vendor, Vendor::Standard)
+            && matches!(&d.device, Device::Other { device_type, ver }
+                if device_type == "MediaServer" && ver == "1"
+            )
+        );
     }
 }
