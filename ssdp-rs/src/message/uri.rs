@@ -6,12 +6,6 @@ use derive_more::FromStr;
 
 use super::{Device, DeviceDetails, ErrorKind, ParseError, Service, ServiceDetails};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Target {
-    Device(DeviceDetails),
-    Service(ServiceDetails),
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, FromStr)]
 /// Known valuable URI tokens.
 pub enum UriToken {
@@ -68,6 +62,12 @@ impl FromStr for Uri {
 /// Known ssdp namespace specific strings
 pub enum Ssdp {
     All,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Target {
+    Device(DeviceDetails),
+    Service(ServiceDetails),
 }
 
 #[cfg(test)]
