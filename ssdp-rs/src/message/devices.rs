@@ -30,7 +30,11 @@ impl Device {
             .ok_or(ParseError::InvalidDevice("".to_string()))?
             .to_string();
         let ver = parts.collect();
-        Ok(Self::Other { device_type, ver })
+        let device = match device_type.as_str() {
+            "MediaServer" => Device::MediaServer { ver },
+            _ => Device::Other { device_type, ver },
+        };
+        Ok(device)
     }
 }
 

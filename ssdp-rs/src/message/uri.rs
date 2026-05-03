@@ -89,9 +89,7 @@ mod tests {
         let urn: Target = st.parse().expect("is urn");
         assert_matches!(urn, Target::Device(ref d)
             if matches!(&d.vendor, Vendor::Standard)
-            && matches!(&d.device, Device::Other { device_type, ver }
-                if device_type == "MediaServer" && ver == "1"
-            )
+            && matches!(&d.device, Device::MediaServer { ver } if ver == "1")
         );
     }
 
