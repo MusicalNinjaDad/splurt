@@ -28,7 +28,10 @@ impl FromStr for Target {
         let offering = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
 
         let target = match offering {
-            UriToken::Service => todo!("service target"),
+            UriToken::Service => Target::Service(ServiceDetails {
+                vendor,
+                service: Service::from_parts(parts)?,
+            }),
             UriToken::Device => Target::Device(DeviceDetails {
                 vendor,
                 device: Device::from_parts(parts)?,

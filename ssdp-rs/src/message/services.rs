@@ -2,7 +2,7 @@
 
 use std::fmt::Display;
 
-use super::Vendor;
+use super::{ParseError, Vendor};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ServiceDetails {
@@ -19,6 +19,18 @@ impl Display for ServiceDetails {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Service {
     Other { service_type: String, ver: String },
+}
+
+impl Service {
+    pub fn from_parts<'s, P: IntoIterator<Item = &'s str>>(parts: P) -> Result<Self, ParseError> {
+        let mut parts = parts.into_iter();
+        let service_type = parts
+            .next()
+            .ok_or(ParseError::InvalidDevice("".to_string()))?
+            .to_string();
+        let ver = parts.collect();
+        Ok(Self::Other { service_type, ver })
+    }
 }
 
 impl Display for Service {
