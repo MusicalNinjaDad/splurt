@@ -23,7 +23,7 @@ use uuid::Uuid;
 
 use crate::{MULTICAST, SSDP_PORT};
 
-use super::{DeviceDetails, ErrorKind, ParseError, ServiceDetails, SsdpNss, UpnpNss, Uri};
+use super::{DeviceDetails, ErrorKind, ParseError, ServiceDetails, SsdpNss, Target, UpnpNss, Uri};
 
 pub struct UpnpHeader<'h>(HashMap<&'h str, &'h str>);
 
@@ -293,7 +293,9 @@ impl FromStr for ST {
         match uri {
             Uri::Ssdp(SsdpNss::All) => Ok(ST::All),
             Uri::Upnp(UpnpNss::RootDevice) => Ok(ST::Root),
-            Uri::Urn(_target) => todo!("device or service"),
+            Uri::Urn(Target::Device(device)) => Ok(ST::Device(device)),
+            Uri::Urn(Target::Service(service)) => Ok(ST::Service(service)),
+            // TODO: parse UUID
         }
     }
 }
