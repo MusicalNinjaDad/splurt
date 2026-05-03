@@ -42,6 +42,18 @@ pub enum Device {
     Other { device_type: String, ver: String },
 }
 
+impl Device {
+    pub fn from_parts<'s, P: IntoIterator<Item = &'s str>>(parts: P) -> Result<Self, ParseError> {
+        let mut parts = parts.into_iter();
+        let device_type = parts
+            .next()
+            .ok_or(ParseError::InvalidDevice("".to_string()))?
+            .to_string();
+        let ver = parts.collect();
+        Ok(Self::Other { device_type, ver })
+    }
+}
+
 impl FromStr for Device {
     type Err = ParseError;
 
