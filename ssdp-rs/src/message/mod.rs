@@ -15,6 +15,7 @@ mod devices;
 mod error;
 mod header;
 mod msearch;
+mod notify;
 mod response;
 mod services;
 mod uri;
@@ -25,6 +26,7 @@ pub use header::{
     FriendlyName, Header, HeaderExt, Host, Man, MaxAge, Mx, ST, UpnpHeader, UpnpPort, UserAgent,
 };
 pub use msearch::MSearch;
+pub use notify::Notify;
 pub use response::Response;
 pub use services::{Service, ServiceDetails};
 pub use uri::{SsdpNss, Target, UpnpNss, Uri, UriToken};
@@ -78,6 +80,8 @@ impl Display for Method {
 pub enum Message {
     /// NTS: ssdp:alive
     Alive(ZNotification),
+    /// NOTIFY *
+    Notify(Notify),
     /// MAN: ssdp:discover
     Search(MSearch),
     /// A direct response to an `M-SEARCH` request
@@ -136,6 +140,7 @@ impl Display for Message {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Message::Alive(_notification) => todo!("display alive messages"),
+            Message::Notify(_notify) => todo!("display notify messages"),
             Message::Search(msearch) => {
                 write!(f, "{msearch}")
             }
