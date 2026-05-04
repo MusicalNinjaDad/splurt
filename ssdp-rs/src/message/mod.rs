@@ -209,6 +209,7 @@ Location: yeelight://192.168.1.239:55443
 NT: urn:schemas-upnp-org:device:BinaryLight:1
 NTS: ssdp:alive
 Server: POSIX/1-2017, UPnP/1.0 YGLC/1
+usn: uuid:f351ef6b-d281-4413-b33a-a75fac0c5ea5::urn:schemas-upnp-org:device:BinaryLight:1
 id: 0x000000000015243f
 model: color
 fw_ver: 18

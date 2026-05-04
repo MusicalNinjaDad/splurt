@@ -3,7 +3,7 @@
 use std::{fmt::Display, net::SocketAddr, str::FromStr};
 
 use url::Url;
-use uuid::Uuid;
+use uuid::{Uuid, uuid};
 
 use crate::{
     MULTICAST,
@@ -38,12 +38,14 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
             .map_err(|_| ErrorKind::InvalidLocation(location.to_string()))?;
         let nt = header.try_get(NT::HEADER_KEY)?.parse()?;
         let server = header.try_get("SERVER")?.parse()?;
+        let _uuid: Uri = header.try_get("USN")?.parse()?;
         match nts {
             NTS::Alive => Ok(Self::Alive(Alive {
                 max_age,
                 location,
                 nt,
                 server,
+                uuid: uuid!("f351ef6b-d281-4413-b33a-a75fac0c5ba5"),
             })),
             #[expect(unreachable_patterns)]
             _ => todo!("tryfrom header for notify other NTS e.g. byebye"),
@@ -61,6 +63,9 @@ pub struct Alive {
     pub(crate) nt: NT,
     /// `SERVER`: OS/version UPnP/2.0 product/version
     pub(crate) server: UserAgent<"SERVER">,
+    /// UUID extracted from `USN`
+    /// TODO: Validate match for NT::Uuid
+    pub(crate) uuid: Uuid,
 }
 
 /// The NT values available for NOTIFY. This should usually be refered to as `notify::NT`
