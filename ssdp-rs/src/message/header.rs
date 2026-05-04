@@ -377,7 +377,7 @@ impl From<UpnpPort> for u16 {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct UserAgent<const FIELD_NAME: &'static str> {
     pub os: String,
     pub os_version: String,

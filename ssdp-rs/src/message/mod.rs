@@ -73,7 +73,6 @@ impl Display for Method {
 ///
 /// Create with `Message::parse()`
 #[derive(Debug, Clone, PartialEq)]
-#[expect(clippy::large_enum_variant)]
 // TODO: #39 Consider boxing `Message::Response`
 //       Contents are `Box`ed as they contain many large pointers to heap-allocated
 //       information e.g. `String`s (each is a 24b pointer to data that is on the heap anyway)
@@ -209,7 +208,7 @@ Cache-Control: max-age=3600
 Location: yeelight://192.168.1.239:55443
 NT: urn:schemas-upnp-org:device:BinaryLight:1
 NTS: ssdp:alive
-Server: POSIX, UPnP/1.0 YGLC/1
+Server: POSIX/1-2017, UPnP/1.0 YGLC/1
 id: 0x000000000015243f
 model: color
 fw_ver: 18
@@ -236,10 +235,16 @@ name: my_bulb
         assert_matches!(parsed.nt, notify::NT::Device(device)
             if matches!(device.vendor, Vendor::Standard)
             && matches!(&device.device, Device::BinaryLight { ver } if ver == "1")
-        )
+        );
+        assert_eq!(parsed.server.os, "POSIX");
+        assert_eq!(parsed.server.os_version, "1-2017");
+        assert_eq!(parsed.server.upnp_version, "1.0");
+        assert_eq!(parsed.server.product_name, "YGLC");
+        assert_eq!(parsed.server.product_version, "1");
     }
 
     #[test]
+    // TODO: Handle all the non-conform junk in this message
     fn parse_alive_invalid_host() {
         let alive = r#"NOTIFY * HTTP/1.1
 Host: 239.255.255.250:1982

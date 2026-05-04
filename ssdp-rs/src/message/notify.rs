@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::{
     MULTICAST,
-    message::{DeviceDetails, Header, MaxAge, ServiceDetails, Target, UpnpNss},
+    message::{DeviceDetails, Header, MaxAge, ServiceDetails, Target, UpnpNss, UserAgent},
 };
 
 use super::{ErrorKind, ParseError, SsdpNss, UpnpHeader, Uri};
@@ -37,11 +37,13 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
             .parse()
             .map_err(|_| ErrorKind::InvalidLocation(location.to_string()))?;
         let nt = header.try_get(NT::HEADER_KEY)?.parse()?;
+        let server = header.try_get("SERVER")?.parse()?;
         match nts {
             NTS::Alive => Ok(Self::Alive(Alive {
                 max_age,
                 location,
                 nt,
+                server,
             })),
             #[expect(unreachable_patterns)]
             _ => todo!("tryfrom header for notify other NTS e.g. byebye"),
@@ -57,6 +59,8 @@ pub struct Alive {
     pub(crate) location: Url,
     /// `NT`: notification type
     pub(crate) nt: NT,
+    /// `SERVER`: OS/version UPnP/2.0 product/version
+    pub(crate) server: UserAgent<"SERVER">,
 }
 
 /// The NT values available for NOTIFY. This should usually be refered to as `notify::NT`
