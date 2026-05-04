@@ -40,6 +40,14 @@ pub enum NT {
     Urn(Target),
 }
 
+impl NT {
+    /// Construct an NT from an iterator over the &str parts. Expecting this to be coming from a
+    /// call to `.split(":")`
+    pub fn from_parts<'s, P: IntoIterator<Item = &'s str>>(parts: P) -> Result<Self, ErrorKind> {
+        todo!("nt from parts")
+    }
+}
+
 /// Output includes leading `::` for non-None to allow direct concatenation with `Uri::Usn`
 impl Display for NT {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -92,7 +100,10 @@ impl FromStr for Uri {
                 }?;
                 match parts.next() {
                     None => Ok(Self::Usn { uuid, nt: NT::None }),
-                    Some("") => todo!("We have a double colon (and just ate it - yum!)"),
+                    Some("") => {
+                        let nt = NT::from_parts(parts);
+                        todo!("We have a double colon (and just ate it - yum!)")
+                    }
                     Some(_) => todo!("Err bad USN"),
                 }
             }
