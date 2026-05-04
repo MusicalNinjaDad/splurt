@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::{
     MULTICAST,
     message::{
-        DeviceDetails, Header, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort, UserAgent,
+        DeviceDetails, Header, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort, UserAgent, uri,
     },
 };
 
@@ -37,13 +37,12 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
         let location = location
             .parse()
             .map_err(|_| ErrorKind::InvalidLocation(location.to_string()))?;
-        let nt = header.try_get(NT::HEADER_KEY)?.parse()?;
+        let nt: NT = header.try_get(NT::HEADER_KEY)?.parse()?;
         let nts = header.try_get("NTS")?.parse::<Uri>()?.try_into()?;
         let server: UserAgent<"SERVER"> = header.try_get("SERVER")?.parse()?;
         let usn = header.try_get("USN")?.parse()?;
         let uuid = match usn {
-            // TODO validate nt matches
-            Uri::Usn { uuid, nt: _ } => uuid,
+            Uri::Usn { uuid, nt: usn_nt } if nt == usn_nt => uuid,
             _ => todo!("error handling incorrect USN"),
         };
         let boot_id = header
@@ -180,6 +179,28 @@ pub enum NT {
 
 impl Header for NT {
     const HEADER_KEY: &'static str = "NT";
+}
+
+// TODO: Reflexive version for uri::NT
+impl PartialEq<uri::NT> for NT {
+    fn eq(&self, uri_nt: &uri::NT) -> bool {
+        match self {
+            NT::RootDevice => matches!(uri_nt, uri::NT::RootDevice),
+            NT::Uuid(_uuid) => matches!(uri_nt, uri::NT::None),
+            NT::Device(DeviceDetails { vendor, device }) => matches!(
+                uri_nt,
+                uri::NT::Urn(uri::Target::Device(DeviceDetails {vendor: uri_vendor, device: uri_device }))
+                if vendor == uri_vendor
+                && device == uri_device
+            ),
+            NT::Service(ServiceDetails { vendor, service }) => matches!(
+                uri_nt,
+                uri::NT::Urn(uri::Target::Service(ServiceDetails {vendor: uri_vendor, service: uri_service }))
+                if vendor == uri_vendor
+                && service == uri_service
+            ),
+        }
+    }
 }
 
 impl FromStr for NT {
