@@ -25,34 +25,41 @@ use crate::{MULTICAST, SSDP_PORT};
 
 use super::{DeviceDetails, ErrorKind, ParseError, ServiceDetails, SsdpNss, Target, UpnpNss, Uri};
 
-pub struct UpnpHeader<'h>(HashMap<&'h str, &'h str>);
+pub struct UpnpHeader<'h>(HashMap<String, HeaderEntry<'h>>);
 
-// TODO: #42 handle header key case sensitivity and maintain round-tripping
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct HeaderEntry<'h> {
+    key: &'h str,
+    val: &'h str,
+}
+
+// TODO: #42 maintain round-tripping
 //   at the same time, also handle split_once(": ") skips headers without a value (like EXT:)
 //   via split(":") & trim
 impl<'h> FromIterator<&'h str> for UpnpHeader<'h> {
     fn from_iter<T: IntoIterator<Item = &'h str>>(iter: T) -> Self {
         let hashmap = iter
             .into_iter()
-            .filter_map(|line| line.split_once(": "))
+            .filter_map(|line| {
+                line.split_once(": ")
+                    .map(|(key, val)| (key.to_uppercase(), HeaderEntry { key, val }))
+            })
             .collect();
         Self(hashmap)
     }
 }
 
 impl<'h> UpnpHeader<'h> {
-    /// Attempt to get the corresponding value for `key`, returning a [ParseError::MissingField]
+    /// Attempt to get the corresponding value for `key`, returning an [ErrorKind::MissingField]
     /// if unsuccessful.
     pub fn try_get(&self, key: &str) -> Result<&str, ErrorKind> {
-        self.0
-            .get(key)
+        self.get(key)
             .ok_or_else(|| ErrorKind::MissingField(key.to_string()))
-            .copied()
     }
 
     /// Attempt to get the value for `key`, returning `None` if unsuccessful.
     pub fn get(&self, key: &str) -> Option<&str> {
-        self.0.get(key).copied()
+        self.0.get(&key.to_uppercase()).map(|entry| entry.val)
     }
 }
 
