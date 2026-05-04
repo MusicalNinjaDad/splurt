@@ -10,6 +10,7 @@ pub enum ErrorKind {
     InvalidDeviceDetails(String),
     InvalidService(String),
     InvalidDuration(String),
+    InvalidHost(String),
     InvalidLocation(String),
     InvalidMethod(String),
     InvalidNTS(String),
@@ -82,6 +83,7 @@ impl Display for ErrorKind {
             ErrorKind::InvalidDeviceDetails(device) => {
                 write!(f, "{} is not a valid upnp device:ver specification", device)
             }
+            ErrorKind::InvalidHost(host) => write!(f, "{host} is not a valid host in this context"),
             ErrorKind::InvalidLocation(location) => write!(f, "{location} is not a valid url"),
             ErrorKind::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
             ErrorKind::InvalidNTS(nts) => write!(f, "{} is not a valid NTS in this context", nts),

@@ -200,7 +200,38 @@ mod tests {
     #[cfg(assert_matches_in_module)]
     use std::assert_matches::assert_matches;
 
-    const ALIVE: &str = r#"NOTIFY * HTTP/1.1
+    #[test]
+    // #[should_panic(expected = "not yet implemented: tryfrom header for notify")]
+    fn parse_alive() {
+        let alive = r#"NOTIFY * HTTP/1.1
+Host: 239.255.255.250:1900
+Cache-Control: max-age=3600
+Location: yeelight://192.168.1.239:55443
+NTS: ssdp:alive
+Server: POSIX, UPnP/1.0 YGLC/1
+id: 0x000000000015243f
+model: color
+fw_ver: 18
+support: get_prop set_default set_power toggle set_bright start_cf stop_cf set_scene cron_add cron_get cron_del set_ct_abx set_rgb
+power: on
+bright: 100
+color_mode: 2
+ct: 4000
+rgb: 16711680
+hue: 100
+sat: 35
+name: my_bulb
+"#;
+        let msg: Message = alive.parse().expect("parsed as NOTIFY");
+        assert_matches!(msg, Message::Notify(notify)
+            if matches!(notify, Notify::Alive)
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "host with invalid port")]
+    fn parse_alive_invalid_host() {
+        let alive = r#"NOTIFY * HTTP/1.1
 Host: 239.255.255.250:1982
 Cache-Control: max-age=3600
 Location: yeelight://192.168.1.239:55443
@@ -219,14 +250,10 @@ hue: 100
 sat: 35
 name: my_bulb
 "#;
-
-    #[test]
-    // #[should_panic(expected = "not yet implemented: tryfrom header for notify")]
-    fn parse_alive() {
-        let msg: Message = ALIVE.parse().expect("parsed as NOTIFY");
-        assert_matches!(msg, Message::Notify(notify)
-            if matches!(notify, Notify::Alive)
-        );
+        let err = alive
+            .parse::<Message>()
+            .expect_err("host with invalid port");
+        assert_matches!(err.kind, ErrorKind::InvalidHost(h) if h == "239.255.255.250:1982");
     }
 
     #[test]
