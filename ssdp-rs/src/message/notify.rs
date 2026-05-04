@@ -21,7 +21,6 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
     type Error = ParseError;
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
-        let nts = header.try_get("NTS")?.parse::<Uri>()?.try_into()?;
         let host =
             try bikeshed Result<_, ErrorKind> { header.try_get("HOST")?.parse::<SocketAddr>()? };
         // Host MUST be Multicast address as per spec
@@ -37,6 +36,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
             .parse()
             .map_err(|_| ErrorKind::InvalidLocation(location.to_string()))?;
         let nt = header.try_get(NT::HEADER_KEY)?.parse()?;
+        let nts = header.try_get("NTS")?.parse::<Uri>()?.try_into()?;
         let server = header.try_get("SERVER")?.parse()?;
         let usn = header.try_get("USN")?.parse()?;
         let uuid = match usn {
