@@ -40,6 +40,18 @@ pub enum NT {
     Urn(Target),
 }
 
+impl TryFrom<Uri> for NT {
+    type Error = ErrorKind;
+
+    fn try_from(uri: Uri) -> Result<Self, Self::Error> {
+        match uri {
+            Uri::Upnp(UpnpNss::RootDevice) => Ok(Self::RootDevice),
+            Uri::Urn(target) => Ok(Self::Urn(target)),
+            _ => Err(ErrorKind::InvalidNT(uri.to_string())),
+        }
+    }
+}
+
 /// Output includes leading `::` for non-None to allow direct concatenation with `Uri::Usn`
 impl Display for NT {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -104,8 +116,8 @@ impl Uri {
                 match parts.next() {
                     None => Ok(Self::Usn { uuid, nt: NT::None }),
                     Some("") => {
-                        let nt = Uri::from_parts(parts, s)?;
-                        todo!("We have a double colon (and just ate it - yum!)")
+                        let nt = Uri::from_parts(parts, s)?.try_into().map_err(chain)?;
+                        Ok(Self::Usn { uuid, nt })
                     }
                     Some(_) => todo!("Err bad USN"),
                 }

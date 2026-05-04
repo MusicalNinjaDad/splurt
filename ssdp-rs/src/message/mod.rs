@@ -201,9 +201,6 @@ mod tests {
     use std::time::Duration;
 
     #[test]
-    #[should_panic(
-        expected = "not yet implemented: We have a double colon (and just ate it - yum!)"
-    )]
     fn parse_alive() {
         let alive = r#"NOTIFY * HTTP/1.1
 Host: 239.255.255.250:1900
@@ -245,6 +242,7 @@ name: my_bulb
         assert_eq!(parsed.server.upnp_version, "1.0");
         assert_eq!(parsed.server.product_name, "YGLC");
         assert_eq!(parsed.server.product_version, "1");
+        assert_eq!(parsed.uuid, uuid!("f351ef6b-d281-4413-b33a-a75fac0c5ea5"));
     }
 
     #[test]

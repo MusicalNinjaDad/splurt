@@ -3,7 +3,7 @@
 use std::{fmt::Display, net::SocketAddr, str::FromStr};
 
 use url::Url;
-use uuid::{Uuid, uuid};
+use uuid::Uuid;
 
 use crate::{
     MULTICAST,
@@ -38,14 +38,19 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
             .map_err(|_| ErrorKind::InvalidLocation(location.to_string()))?;
         let nt = header.try_get(NT::HEADER_KEY)?.parse()?;
         let server = header.try_get("SERVER")?.parse()?;
-        let _uuid: Uri = header.try_get("USN")?.parse()?;
+        let usn = header.try_get("USN")?.parse()?;
+        let uuid = match usn {
+            // TODO validate nt matches
+            Uri::Usn { uuid, nt: _ } => uuid,
+            _ => todo!("error handling incorrect USN"),
+        };
         match nts {
             NTS::Alive => Ok(Self::Alive(Alive {
                 max_age,
                 location,
                 nt,
                 server,
-                uuid: uuid!("f351ef6b-d281-4413-b33a-a75fac0c5ba5"),
+                uuid,
             })),
             #[expect(unreachable_patterns)]
             _ => todo!("tryfrom header for notify other NTS e.g. byebye"),
