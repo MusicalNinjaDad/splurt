@@ -1,6 +1,6 @@
 use std::{error::Error, fmt::Display};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ErrorKind {
     EmptyMessage,
     InvalidBootId(String),
@@ -18,6 +18,7 @@ pub enum ErrorKind {
     InvalidSecureLocation(String),
     InvalidST(String),
     InvalidUrn(String),
+    InvalidUrl(url::ParseError),
     InvalidUserAgent(String),
     MissingBootId,
     MissingConfigId,
@@ -33,6 +34,12 @@ pub struct ParseError {
 impl From<ErrorKind> for ParseError {
     fn from(kind: ErrorKind) -> Self {
         Self { kind, source: None }
+    }
+}
+
+impl From<url::ParseError> for ErrorKind {
+    fn from(err: url::ParseError) -> Self {
+        Self::InvalidUrl(err)
     }
 }
 
@@ -96,6 +103,7 @@ impl Display for ErrorKind {
                 write!(f, "{} is not a valid upnp service specification", service)
             }
             ErrorKind::InvalidST(st) => write!(f, "{} is not a valid upnp search type", st),
+            ErrorKind::InvalidUrl(parse_err) => write!(f, "{parse_err}"),
             ErrorKind::InvalidUrn(urn) => {
                 write!(f, "{} is not a valid upnp universal resource name", urn)
             }
