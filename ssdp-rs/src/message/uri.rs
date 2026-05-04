@@ -68,6 +68,7 @@ impl FromStr for Uri {
 /// Known ssdp namespace specific strings
 pub enum SsdpNss {
     All,
+    Alive,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
