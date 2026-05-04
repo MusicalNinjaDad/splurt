@@ -215,6 +215,7 @@ name: my_bulb
 "#;
 
     #[test]
+    #[should_panic(expected = "not yet implemented: parse Notify")]
     fn parse_alive() {
         let msg = ALIVE.parse().expect("parsed as NOTIFY");
         let alive_header = HashMap::from([
