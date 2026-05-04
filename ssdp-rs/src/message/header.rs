@@ -201,7 +201,7 @@ impl Display for Man {
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct MaxAge(Duration);
+pub struct MaxAge(pub(crate) Duration);
 
 impl Header for MaxAge {
     const HEADER_KEY: &'static str = "CACHE-CONTROL";

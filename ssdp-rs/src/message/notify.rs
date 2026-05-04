@@ -2,13 +2,16 @@
 
 use std::net::SocketAddr;
 
-use crate::{MULTICAST, message::MaxAge};
+use crate::{
+    MULTICAST,
+    message::{Header, MaxAge},
+};
 
 use super::{ErrorKind, ParseError, SsdpNss, UpnpHeader, Uri};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Notify {
-    Alive,
+    Alive(Alive),
 }
 
 impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
@@ -25,8 +28,9 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
             Err(err) if matches!(err, ErrorKind::MissingField(_)) => Err(err)?,
             Err(_err) => todo!("chain"),
         }
+        let max_age = header.try_get(MaxAge::HEADER_KEY)?.parse()?;
         match nts {
-            NTS::Alive => Ok(Self::Alive),
+            NTS::Alive => Ok(Self::Alive(Alive { max_age })),
             #[expect(unreachable_patterns)]
             _ => todo!("tryfrom header for notify other NTS e.g. byebye"),
         }
@@ -36,7 +40,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Alive {
     /// `CACHE-CONTROL`: Duration (in seconds) until advertisement expires
-    max_age: MaxAge,
+    pub(crate) max_age: MaxAge,
 }
 
 /// The NTS values available for NOTIFY. This should usually be refered to as `notify::NTS`

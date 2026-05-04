@@ -199,6 +199,7 @@ mod tests {
 
     #[cfg(assert_matches_in_module)]
     use std::assert_matches::assert_matches;
+    use std::time::Duration;
 
     #[test]
     fn parse_alive() {
@@ -222,9 +223,11 @@ sat: 35
 name: my_bulb
 "#;
         let msg: Message = alive.parse().expect("parsed as NOTIFY");
-        assert_matches!(msg, Message::Notify(notify)
-            if matches!(notify, Notify::Alive)
-        );
+        let Message::Notify(Notify::Alive(parsed)) = msg else {
+            panic!("{} is not an alive notification", msg)
+        };
+        let max_age = Duration::from_secs(3600);
+        assert_eq!(parsed.max_age, MaxAge(max_age));
     }
 
     #[test]
