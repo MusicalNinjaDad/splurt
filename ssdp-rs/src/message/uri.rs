@@ -40,14 +40,6 @@ pub enum NT {
     Urn(Target),
 }
 
-impl NT {
-    /// Construct an NT from an iterator over the &str parts. Expecting this to be coming from a
-    /// call to `.split(":")`
-    pub fn from_parts<'s, P: IntoIterator<Item = &'s str>>(parts: P) -> Result<Self, ErrorKind> {
-        todo!("nt from parts")
-    }
-}
-
 /// Output includes leading `::` for non-None to allow direct concatenation with `Uri::Usn`
 impl Display for NT {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -63,10 +55,21 @@ impl FromStr for Uri {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parts = s.split(":");
+        Self::from_parts(parts, s)
+    }
+}
+
+impl Uri {
+    ///Construct a Uri from an iterator over the &str parts. Expecting this to be coming from a
+    /// call to `.split(":")`
+    pub fn from_parts<'s, P: IntoIterator<Item = &'s str>>(
+        parts: P,
+        s: &'s str,
+    ) -> Result<Self, ParseError> {
         let err = || ErrorKind::InvalidUrn(s.to_string());
         let chain = |e: ErrorKind| ParseError::chain_from(e.into(), err());
-        let mut parts = s.split(":");
-
+        let mut parts = parts.into_iter();
         let prefix = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
         match prefix {
             UriToken::Ssdp => {
@@ -101,7 +104,7 @@ impl FromStr for Uri {
                 match parts.next() {
                     None => Ok(Self::Usn { uuid, nt: NT::None }),
                     Some("") => {
-                        let nt = NT::from_parts(parts);
+                        let nt = Uri::from_parts(parts, s)?;
                         todo!("We have a double colon (and just ate it - yum!)")
                     }
                     Some(_) => todo!("Err bad USN"),
