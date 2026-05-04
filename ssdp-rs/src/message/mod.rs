@@ -7,7 +7,7 @@
 //!
 //! [spec]: https://openconnectivity.org/upnp-specs/UPnP-arch-DeviceArchitecture-v2.0-20200417.pdf
 
-use std::{collections::HashMap, fmt::Display, str::FromStr};
+use std::{fmt::Display, str::FromStr};
 
 use uuid::Uuid;
 
@@ -77,8 +77,6 @@ impl Display for Method {
 //       Contents are `Box`ed as they contain many large pointers to heap-allocated
 //       information e.g. `String`s (each is a 24b pointer to data that is on the heap anyway)
 pub enum Message {
-    /// NTS: ssdp:alive
-    Alive(ZNotification),
     /// NOTIFY *
     Notify(Notify),
     /// MAN: ssdp:discover
@@ -138,7 +136,6 @@ impl FromStr for Message {
 impl Display for Message {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Message::Alive(_notification) => todo!("display alive messages"),
             Message::Notify(_notify) => todo!("display notify messages"),
             Message::Search(msearch) => {
                 write!(f, "{msearch}")
@@ -173,18 +170,6 @@ impl Display for Vendor {
         }
     }
 }
-
-#[derive(Debug, Clone, PartialEq)]
-// TODO remove
-pub struct ZNotification {
-    location: Option<String>,
-    header: RawHeader,
-}
-
-/// `key: value` pairings, ideally from a NOTIFY * HTTP/1.1
-///
-/// look at [Message::parse] to see how to safely construct this yourself
-type RawHeader = HashMap<String, String>;
 
 #[cfg(test)]
 mod tests {
