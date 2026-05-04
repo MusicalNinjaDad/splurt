@@ -223,38 +223,10 @@ name: my_bulb
     #[test]
     #[should_panic(expected = "not yet implemented: parse Notify")]
     fn parse_alive() {
-        let msg = ALIVE.parse().expect("parsed as NOTIFY");
-        let alive_header = HashMap::from([
-            ("Host", "239.255.255.250:1982"),
-            ("Cache-Control", "max-age=3600"),
-            ("Location", "yeelight://192.168.1.239:55443"),
-            ("NTS", "ssdp:alive"),
-            ("Server", "POSIX, UPnP/1.0 YGLC/1"),
-            ("id", "0x000000000015243f"),
-            ("model", "color"),
-            ("fw_ver", "18"),
-            (
-                "support",
-                "get_prop set_default set_power toggle set_bright start_cf stop_cf set_scene cron_add cron_get cron_del set_ct_abx set_rgb",
-            ),
-            ("power", "on"),
-            ("bright", "100"),
-            ("color_mode", "2"),
-            ("ct", "4000"),
-            ("rgb", "16711680"),
-            ("hue", "100"),
-            ("sat", "35"),
-            ("name", "my_bulb"),
-        ]);
-        let alive_header = alive_header
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect();
-        let expected_notification = ZNotification {
-            location: Some("yeelight://192.168.1.239:55443".to_string()),
-            header: alive_header,
-        };
-        assert_matches!(msg, Message::Alive(notification) if notification == expected_notification);
+        let msg: Message = ALIVE.parse().expect("parsed as NOTIFY");
+        assert_matches!(msg, Message::Notify(notify)
+            if matches!(notify, Notify::Alive)
+        );
     }
 
     #[test]
