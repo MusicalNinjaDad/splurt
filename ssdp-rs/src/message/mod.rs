@@ -229,7 +229,6 @@ name: my_bulb
     }
 
     #[test]
-    #[should_panic(expected = "host with invalid port")]
     fn parse_alive_invalid_host() {
         let alive = r#"NOTIFY * HTTP/1.1
 Host: 239.255.255.250:1982

@@ -2,6 +2,7 @@
 
 use std::net::SocketAddr;
 
+use crate::MULTICAST;
 
 use super::{ErrorKind, ParseError, SsdpNss, UpnpHeader, Uri};
 
@@ -15,7 +16,12 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
         let nts = header.try_get("NTS")?.parse::<Uri>()?.try_into()?;
-        let _host = try bikeshed Result<_, ErrorKind> { header.try_get("Host")?.parse::<SocketAddr>()? }?;
+        let host =
+            try bikeshed Result<_, ErrorKind> { header.try_get("Host")?.parse::<SocketAddr>()? }?;
+        // Host MUST be Multicast address as per spec
+        if host != MULTICAST {
+            Err(ErrorKind::InvalidHost(host.to_string()))?
+        }
         match nts {
             NTS::Alive => Ok(Self::Alive),
             #[expect(unreachable_patterns)]

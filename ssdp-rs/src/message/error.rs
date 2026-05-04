@@ -1,4 +1,8 @@
-use std::{error::Error, fmt::Display, net::{self, AddrParseError}};
+use std::{
+    error::Error,
+    fmt::Display,
+    net::{self, AddrParseError},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ErrorKind {
