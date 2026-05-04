@@ -11,8 +11,12 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
     type Error = ParseError;
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
-        let _nts: NTS = header.try_get("NTS")?.parse::<Uri>()?.try_into()?;
-        todo!("tryfrom header for notify")
+        let nts = header.try_get("NTS")?.parse::<Uri>()?.try_into()?;
+        match nts {
+            NTS::Alive => Ok(Self::Alive),
+            #[expect(unreachable_patterns)]
+            _ => todo!("tryfrom header for notify other NTS e.g. byebye"),
+        }
     }
 }
 
