@@ -25,7 +25,13 @@ use crate::{MULTICAST, SSDP_PORT};
 
 use super::{DeviceDetails, ErrorKind, ParseError, ServiceDetails, SsdpNss, Target, UpnpNss, Uri};
 
-pub struct UpnpHeader<'h>(HashMap<&'h str, &'h str>);
+pub struct UpnpHeader<'h>(HashMap<String, HeaderEntry<'h>>);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct HeaderEntry<'h> {
+    key: &'h str,
+    val: &'h str,
+}
 
 // TODO: #42 handle header key case sensitivity and maintain round-tripping
 //   at the same time, also handle split_once(": ") skips headers without a value (like EXT:)
@@ -34,7 +40,10 @@ impl<'h> FromIterator<&'h str> for UpnpHeader<'h> {
     fn from_iter<T: IntoIterator<Item = &'h str>>(iter: T) -> Self {
         let hashmap = iter
             .into_iter()
-            .filter_map(|line| line.split_once(": "))
+            .filter_map(|line| {
+                line.split_once(": ")
+                    .map(|(key, val)| (key.to_uppercase(), HeaderEntry { key, val }))
+            })
             .collect();
         Self(hashmap)
     }
