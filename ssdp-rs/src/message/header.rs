@@ -54,14 +54,15 @@ impl<'h> UpnpHeader<'h> {
     /// if unsuccessful.
     pub fn try_get(&self, key: &str) -> Result<&str, ErrorKind> {
         self.0
-            .get(key)
+            .get(&key.to_uppercase())
+            .map(|entry| entry.val)
             .ok_or_else(|| ErrorKind::MissingField(key.to_string()))
-            .copied()
     }
 
     /// Attempt to get the value for `key`, returning `None` if unsuccessful.
     pub fn get(&self, key: &str) -> Option<&str> {
-        self.0.get(key).copied()
+        self.0.get(&key.to_uppercase())
+            .map(|entry| entry.val)
     }
 }
 
