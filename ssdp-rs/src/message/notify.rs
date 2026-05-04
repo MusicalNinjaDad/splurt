@@ -17,13 +17,12 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
         let nts = header.try_get("NTS")?.parse::<Uri>()?.try_into()?;
         let host =
-            try bikeshed Result<_, ErrorKind> { header.try_get("Host")?.parse::<SocketAddr>()? };
+            try bikeshed Result<_, ErrorKind> { header.try_get("HOST")?.parse::<SocketAddr>()? };
         // Host MUST be Multicast address as per spec
-        #[expect(clippy::redundant_guards, reason = r#"todo!("missing host field")"#)]
         match host {
             Ok(addr) if addr == MULTICAST => (),
             Ok(addr) => Err(ErrorKind::InvalidHost(addr.to_string()))?,
-            Err(err) if matches!(err, ErrorKind::MissingField(_)) => todo!("missing host field"),
+            Err(err) if matches!(err, ErrorKind::MissingField(_)) => Err(err)?,
             Err(_err) => todo!("chain"),
         }
         match nts {
