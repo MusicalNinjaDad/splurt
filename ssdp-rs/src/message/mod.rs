@@ -85,26 +85,6 @@ pub enum Message {
 }
 
 impl Message {
-    /// Parse an ssdp message from given text
-    pub fn parse(contents: &str) -> Option<Message> {
-        let mut lines = contents.lines();
-        if lines.next()? != "NOTIFY * HTTP/1.1" {
-            return None;
-        };
-        let header: RawHeader = lines
-            .filter_map(|line| {
-                line.split_once(": ")
-                    .map(|(k, v)| (k.to_string(), v.to_string()))
-            })
-            .collect();
-        if *header.get("NTS")? == "ssdp:alive" {
-            //TODO: flaky - capitalisation
-            let location = header.get("Location").map(ToString::to_string);
-            return Some(Message::Alive(Notification { location, header }));
-        }
-        None
-    }
-
     /// Construct a new M-SEARCH message.
     ///
     /// While details of the user agent are technically optional we are going to include them
