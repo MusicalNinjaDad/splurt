@@ -33,7 +33,7 @@ pub struct HeaderEntry<'h> {
     val: &'h str,
 }
 
-// TODO: #42 handle header key case sensitivity and maintain round-tripping
+// TODO: #42 maintain round-tripping
 //   at the same time, also handle split_once(": ") skips headers without a value (like EXT:)
 //   via split(":") & trim
 impl<'h> FromIterator<&'h str> for UpnpHeader<'h> {
