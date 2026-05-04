@@ -1,6 +1,6 @@
-use std::{error::Error, fmt::Display};
+use std::{error::Error, fmt::Display, net::{self, AddrParseError}};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ErrorKind {
     EmptyMessage,
     InvalidBootId(String),
@@ -11,6 +11,7 @@ pub enum ErrorKind {
     InvalidService(String),
     InvalidDuration(String),
     InvalidHost(String),
+    InvalidIPAddress(net::AddrParseError),
     InvalidLocation(String),
     InvalidMethod(String),
     InvalidNTS(String),
@@ -28,6 +29,12 @@ pub enum ErrorKind {
 pub struct ParseError {
     pub kind: ErrorKind,
     source: Option<Box<ParseError>>,
+}
+
+impl From<AddrParseError> for ErrorKind {
+    fn from(err: AddrParseError) -> Self {
+        Self::InvalidIPAddress(err)
+    }
 }
 
 impl From<ErrorKind> for ParseError {
@@ -84,6 +91,7 @@ impl Display for ErrorKind {
                 write!(f, "{} is not a valid upnp device:ver specification", device)
             }
             ErrorKind::InvalidHost(host) => write!(f, "{host} is not a valid host in this context"),
+            ErrorKind::InvalidIPAddress(err) => write!(f, "{err}"),
             ErrorKind::InvalidLocation(location) => write!(f, "{location} is not a valid url"),
             ErrorKind::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
             ErrorKind::InvalidNTS(nts) => write!(f, "{} is not a valid NTS in this context", nts),

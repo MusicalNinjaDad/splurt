@@ -1,5 +1,8 @@
 //! `NOTIFY *` messages
 
+use std::net::SocketAddr;
+
+
 use super::{ErrorKind, ParseError, SsdpNss, UpnpHeader, Uri};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -12,6 +15,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
         let nts = header.try_get("NTS")?.parse::<Uri>()?.try_into()?;
+        let _host = try bikeshed Result<_, ErrorKind> { header.try_get("Host")?.parse::<SocketAddr>()? }?;
         match nts {
             NTS::Alive => Ok(Self::Alive),
             #[expect(unreachable_patterns)]

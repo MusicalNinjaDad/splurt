@@ -2,6 +2,7 @@
 #![cfg_attr(unstable_adt_const_params, feature(adt_const_params))]
 #![cfg_attr(unstable_let_chains, feature(let_chains))]
 #![cfg_attr(unstable_never_type, feature(never_type))]
+#![feature(try_blocks_heterogeneous)]
 #![allow(incomplete_features)]
 #![feature(unsized_const_params)]
 
