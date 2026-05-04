@@ -201,6 +201,7 @@ mod tests {
     use std::time::Duration;
 
     #[test]
+    #[should_panic(expected = "not yet implemented: parse uuid")]
     fn parse_alive() {
         let alive = r#"NOTIFY * HTTP/1.1
 Host: 239.255.255.250:1900

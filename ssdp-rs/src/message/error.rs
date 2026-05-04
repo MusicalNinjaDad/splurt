@@ -25,6 +25,7 @@ pub enum ErrorKind {
     InvalidST(String),
     InvalidUrn(String),
     InvalidUserAgent(String),
+    InvalidUUID(uuid::Error),
     MissingBootId,
     MissingConfigId,
     MissingField(String),
@@ -39,6 +40,12 @@ pub struct ParseError {
 impl From<AddrParseError> for ErrorKind {
     fn from(err: AddrParseError) -> Self {
         Self::InvalidIPAddress(err)
+    }
+}
+
+impl From<uuid::Error> for ErrorKind {
+    fn from(err: uuid::Error) -> Self {
+        Self::InvalidUUID(err)
     }
 }
 
@@ -116,6 +123,7 @@ impl Display for ErrorKind {
             ErrorKind::InvalidUserAgent(user_agent) => {
                 write!(f, "{user_agent} is not a valid user agent")
             }
+            ErrorKind::InvalidUUID(err) => write!(f, "{err}"),
             ErrorKind::MissingBootId => {
                 write!(f, "a boot instance is required from UPnp/2.0 onwards")
             }

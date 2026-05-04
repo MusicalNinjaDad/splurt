@@ -86,6 +86,12 @@ impl FromStr for Uri {
                 };
                 Ok(Self::Urn(target))
             }
+            UriToken::Uuid => {
+                let uuid = try bikeshed Result<_, ErrorKind> {
+                    parts.next().ok_or_else(err)?.parse::<Uuid>()?
+                }?;
+                todo!("parse uuid")
+            }
             _ => todo!("parse other types"),
         }
     }
