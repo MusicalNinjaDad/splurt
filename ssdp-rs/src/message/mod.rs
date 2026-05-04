@@ -236,7 +236,7 @@ name: my_bulb
 
     #[test]
     fn parse_alive() {
-        let msg = Message::parse(ALIVE).unwrap();
+        let msg = ALIVE.parse().expect("parsed as NOTIFY");
         let alive_header = HashMap::from([
             ("Host", "239.255.255.250:1982"),
             ("Cache-Control", "max-age=3600"),
