@@ -1,6 +1,6 @@
 //! `NOTIFY *` messages
 
-use super::{ErrorKind, ParseError, UpnpHeader, Uri};
+use super::{ErrorKind, ParseError, SsdpNss, UpnpHeader, Uri};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Notify {
@@ -27,7 +27,21 @@ pub enum NTS {
 impl TryFrom<Uri> for NTS {
     type Error = ErrorKind;
 
-    fn try_from(_uri: Uri) -> Result<Self, Self::Error> {
-        todo!("tryfrom uri for nts")
+    fn try_from(uri: Uri) -> Result<Self, Self::Error> {
+        match uri {
+            Uri::Ssdp(SsdpNss::Alive) => Ok(Self::Alive),
+            _ => Err(ErrorKind::InvalidNTS(uri.to_string())),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn display_ssdp_alive() {
+        let output = format!("{}", Uri::Ssdp(SsdpNss::Alive));
+        assert_eq!(output, "ssdp:alive");
     }
 }

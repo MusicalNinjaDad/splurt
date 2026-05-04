@@ -12,6 +12,7 @@ pub enum ErrorKind {
     InvalidDuration(String),
     InvalidLocation(String),
     InvalidMethod(String),
+    InvalidNTS(String),
     InvalidPort(String),
     InvalidSecureLocation(String),
     InvalidST(String),
@@ -83,6 +84,7 @@ impl Display for ErrorKind {
             }
             ErrorKind::InvalidLocation(location) => write!(f, "{location} is not a valid url"),
             ErrorKind::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
+            ErrorKind::InvalidNTS(nts) => write!(f, "{} is not a valid NTS in this context", nts),
             ErrorKind::InvalidPort(port) => write!(f, "{port} is not a valid IP port"),
             ErrorKind::InvalidSecureLocation(location) => write!(
                 f,

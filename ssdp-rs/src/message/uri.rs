@@ -2,7 +2,7 @@
 
 use std::str::FromStr;
 
-use derive_more::FromStr;
+use derive_more::{Display, FromStr};
 
 use super::{Device, DeviceDetails, ErrorKind, ParseError, Service, ServiceDetails};
 
@@ -16,7 +16,7 @@ pub enum UriToken {
     Service,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
 /// Known Urn schemes
 pub enum Uri {
     Ssdp(SsdpNss),
@@ -64,20 +64,25 @@ impl FromStr for Uri {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, FromStr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, FromStr, Display)]
+#[display("ssdp:{_variant}")]
+#[display(rename_all = "lowercase")]
 /// Known ssdp namespace specific strings
 pub enum SsdpNss {
     All,
     Alive,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+// TODO: Check derived Display output
 pub enum Target {
     Device(DeviceDetails),
     Service(ServiceDetails),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, FromStr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, FromStr, Display)]
+#[display("upnp:{_variant}")]
+#[display(rename_all = "lowercase")]
 /// Known upnp namespace specific strings
 pub enum UpnpNss {
     RootDevice,
