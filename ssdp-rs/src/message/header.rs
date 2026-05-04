@@ -61,8 +61,7 @@ impl<'h> UpnpHeader<'h> {
 
     /// Attempt to get the value for `key`, returning `None` if unsuccessful.
     pub fn get(&self, key: &str) -> Option<&str> {
-        self.0.get(&key.to_uppercase())
-            .map(|entry| entry.val)
+        self.0.get(&key.to_uppercase()).map(|entry| entry.val)
     }
 }
 
