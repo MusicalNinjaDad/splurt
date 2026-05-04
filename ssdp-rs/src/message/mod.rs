@@ -228,6 +228,10 @@ name: my_bulb
         };
         let max_age = Duration::from_secs(3600);
         assert_eq!(parsed.max_age, MaxAge(max_age));
+        assert_eq!(
+            parsed.location.to_string(),
+            "yeelight://192.168.1.239:55443"
+        );
     }
 
     #[test]
