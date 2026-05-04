@@ -50,7 +50,7 @@ impl<'h> FromIterator<&'h str> for UpnpHeader<'h> {
 }
 
 impl<'h> UpnpHeader<'h> {
-    /// Attempt to get the corresponding value for `key`, returning a [ParseError::MissingField]
+    /// Attempt to get the corresponding value for `key`, returning an [ErrorKind::MissingField]
     /// if unsuccessful.
     pub fn try_get(&self, key: &str) -> Result<&str, ErrorKind> {
         self.get(key)
