@@ -53,9 +53,7 @@ impl<'h> UpnpHeader<'h> {
     /// Attempt to get the corresponding value for `key`, returning a [ParseError::MissingField]
     /// if unsuccessful.
     pub fn try_get(&self, key: &str) -> Result<&str, ErrorKind> {
-        self.0
-            .get(&key.to_uppercase())
-            .map(|entry| entry.val)
+        self.get(key)
             .ok_or_else(|| ErrorKind::MissingField(key.to_string()))
     }
 
