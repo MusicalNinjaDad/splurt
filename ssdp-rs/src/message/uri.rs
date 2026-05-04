@@ -90,7 +90,11 @@ impl FromStr for Uri {
                 let uuid = try bikeshed Result<_, ErrorKind> {
                     parts.next().ok_or_else(err)?.parse::<Uuid>()?
                 }?;
-                todo!("parse uuid")
+                match parts.next() {
+                    None => Ok(Self::Usn { uuid, nt: NT::None }),
+                    Some("") => todo!("We have a double colon (and just ate it - yum!)"),
+                    Some(_) => todo!("Err bad USN"),
+                }
             }
             _ => todo!("parse other types"),
         }
