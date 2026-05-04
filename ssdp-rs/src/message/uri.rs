@@ -119,7 +119,7 @@ impl Uri {
                         let nt = Uri::from_parts(parts, s)?.try_into().map_err(chain)?;
                         Ok(Self::Usn { uuid, nt })
                     }
-                    Some(_) => todo!("Err bad USN"),
+                    Some(_) => Err(ErrorKind::InvalidUsn(s.to_string()))?,
                 }
             }
             _ => todo!("parse other types"),
