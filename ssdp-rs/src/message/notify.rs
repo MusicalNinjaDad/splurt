@@ -11,7 +11,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
     type Error = ParseError;
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
-        let _nts = header.try_get("NTS")?;
+        let _nts: NTS = header.try_get("NTS")?.parse::<Uri>()?.try_into()?;
         todo!("tryfrom header for notify")
     }
 }

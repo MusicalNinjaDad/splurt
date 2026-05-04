@@ -297,7 +297,7 @@ impl FromStr for ST {
             Uri::Urn(Target::Device(device)) => Ok(ST::Device(device)),
             Uri::Urn(Target::Service(service)) => Ok(ST::Service(service)),
             // TODO: parse UUID
-            _ => Err(ErrorKind::InvalidST(s.to_string()))?
+            _ => Err(ErrorKind::InvalidST(s.to_string()))?,
         }
     }
 }

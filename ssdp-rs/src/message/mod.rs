@@ -221,7 +221,7 @@ name: my_bulb
 "#;
 
     #[test]
-    #[should_panic(expected = "not yet implemented: tryfrom header for notify")]
+    #[should_panic(expected = "not yet implemented: tryfrom uri for nts")]
     fn parse_alive() {
         let msg: Message = ALIVE.parse().expect("parsed as NOTIFY");
         assert_matches!(msg, Message::Notify(notify)
