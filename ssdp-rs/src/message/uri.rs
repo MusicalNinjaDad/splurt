@@ -1,8 +1,9 @@
 //! Specific URI handling as used for the NT, ST & USN fields
 
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 use derive_more::{Display, FromStr};
+use uuid::Uuid;
 
 use super::{Device, DeviceDetails, ErrorKind, ParseError, Service, ServiceDetails};
 
@@ -12,6 +13,7 @@ pub enum UriToken {
     Ssdp,
     Upnp,
     Urn,
+    Uuid,
     Device,
     Service,
 }
@@ -22,6 +24,31 @@ pub enum Uri {
     Ssdp(SsdpNss),
     Upnp(UpnpNss),
     Urn(Target),
+    #[display("uuid:{uuid}{nt}")]
+    #[display(rename_all = "lowercase")]
+    Usn {
+        uuid: Uuid,
+        nt: NT,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// The possible values for inclusing in a `USN`
+pub enum NT {
+    None,
+    RootDevice,
+    Urn(Target),
+}
+
+/// Output includes leading `::` for non-None to allow direct concatenation with `Uri::Usn`
+impl Display for NT {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::None => write!(f, ""),
+            Self::RootDevice => write!(f, "::upnp:rootdevice"),
+            Self::Urn(target) => write!(f, "::{target}"),
+        }
+    }
 }
 
 impl FromStr for Uri {
@@ -90,9 +117,11 @@ pub enum UpnpNss {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use crate::message::{Device, Vendor};
 
-    use super::*;
+    use uuid::uuid;
 
     #[cfg(assert_matches_in_root)]
     use std::assert_matches;
@@ -160,5 +189,45 @@ mod tests {
         let st = "upnp:rootdevice";
         let uri = st.parse().expect("is urn");
         assert_matches!(uri, Uri::Upnp(t) if matches!(t, UpnpNss::RootDevice))
+    }
+
+    #[test]
+    fn display_usn_none() {
+        let usn = Uri::Usn {
+            uuid: uuid!("fd6e74c3-9c89-4fd0-bf52-994af57b5d40"),
+            nt: NT::None,
+        };
+        assert_eq!(
+            format!("{usn}"),
+            "uuid:fd6e74c3-9c89-4fd0-bf52-994af57b5d40"
+        );
+    }
+
+    #[test]
+    fn display_usn_root() {
+        let usn = Uri::Usn {
+            uuid: uuid!("fd6e74c3-9c89-4fd0-bf52-994af57b5d40"),
+            nt: NT::RootDevice,
+        };
+        assert_eq!(
+            format!("{usn}"),
+            "uuid:fd6e74c3-9c89-4fd0-bf52-994af57b5d40::upnp:rootdevice"
+        );
+    }
+
+    #[test]
+    fn display_usn_device() {
+        let target = DeviceDetails {
+            vendor: Vendor::Standard,
+            device: Device::MediaServer { ver: "4".into() },
+        };
+        let usn = Uri::Usn {
+            uuid: uuid!("fd6e74c3-9c89-4fd0-bf52-994af57b5d40"),
+            nt: NT::Urn(Target::Device(target)),
+        };
+        assert_eq!(
+            format!("{usn}"),
+            "uuid:fd6e74c3-9c89-4fd0-bf52-994af57b5d40::schemas-upnp-org:device:MediaServer:4"
+        );
     }
 }
