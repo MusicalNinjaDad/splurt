@@ -321,7 +321,7 @@ impl Display for ST {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// The port specified in a Upnp message.
 ///
 /// Treat this like a semantically specific `Option<u16>` with a valuable implementation of

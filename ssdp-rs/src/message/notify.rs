@@ -7,7 +7,9 @@ use uuid::Uuid;
 
 use crate::{
     MULTICAST,
-    message::{DeviceDetails, Header, MaxAge, ServiceDetails, Target, UpnpNss, UserAgent},
+    message::{
+        DeviceDetails, Header, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort, UserAgent,
+    },
 };
 
 use super::{ErrorKind, ParseError, SsdpNss, UpnpHeader, Uri};
@@ -37,12 +39,56 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
             .map_err(|_| ErrorKind::InvalidLocation(location.to_string()))?;
         let nt = header.try_get(NT::HEADER_KEY)?.parse()?;
         let nts = header.try_get("NTS")?.parse::<Uri>()?.try_into()?;
-        let server = header.try_get("SERVER")?.parse()?;
+        let server: UserAgent<"SERVER"> = header.try_get("SERVER")?.parse()?;
         let usn = header.try_get("USN")?.parse()?;
         let uuid = match usn {
             // TODO validate nt matches
             Uri::Usn { uuid, nt: _ } => uuid,
             _ => todo!("error handling incorrect USN"),
+        };
+        let boot_id = header
+            .get("BOOTID.UPNP.ORG")
+            .map(|boot_id| {
+                boot_id
+                    .parse()
+                    .map_err(|_| ErrorKind::InvalidBootId(boot_id.to_string()))
+            })
+            .transpose()?;
+        let config_id = header
+            .get("CONFIGID.UPNP.ORG")
+            .map(|config_id| {
+                config_id
+                    .parse()
+                    .map_err(|_| ErrorKind::InvalidConfigId(config_id.to_string()))
+            })
+            .transpose()?;
+        let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
+        let secure_location: Option<Url> = header
+            .get("SECURELOCATION.UPNP.ORG")
+            .map(|location| {
+                location
+                    .parse()
+                    .map_err(|_| ErrorKind::InvalidSecureLocation(location.to_string()))
+            })
+            .transpose()?;
+        if let Some(ref secure_location) = secure_location
+            && (secure_location.scheme() != "https" || secure_location.port().is_none())
+        {
+            Err(ErrorKind::InvalidSecureLocation(
+                secure_location.to_string(),
+            ))?;
+        };
+        match server.upnp_version.as_str() {
+            // TODO parse the version number into Major,Minor
+            "1.0" => (),
+            _ => {
+                if boot_id.is_none() {
+                    Err(ErrorKind::MissingBootId)?;
+                }
+                if config_id.is_none() {
+                    Err(ErrorKind::MissingConfigId)?;
+                }
+            }
         };
         match nts {
             NTS::Alive => Ok(Self::Alive(Alive {
@@ -51,6 +97,10 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
                 nt,
                 server,
                 uuid,
+                boot_id,
+                config_id,
+                port,
+                secure_location,
             })),
             #[expect(unreachable_patterns)]
             _ => todo!("tryfrom header for notify other NTS e.g. byebye"),
@@ -71,6 +121,29 @@ pub struct Alive {
     /// UUID extracted from `USN`
     /// TODO: Validate match for NT::Uuid
     pub(crate) uuid: Uuid,
+    /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
+    /// increasing value. Control points can use this header field to detect the case when a device
+    /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
+    /// control points for a number of purposes such as re-establishing desired event subscriptions,
+    /// checking for changes to the device state that were not evented since the device was off-line.
+    ///
+    /// Required for UPnPv2, not present in UPnPv1
+    boot_id: Option<u32>,
+    /// `CONFIGID.UPNP.ORG`: number used for caching description information.
+    /// If a device sends out two messages with a `CONFIGID.UPNP.ORG` header field with the same field
+    /// value, the configuration shall be the same at the moments that these messages were sent.
+    /// This reduces peak loads on UPnP devices during startup and during network hiccups. Only if a
+    /// control point receives an announcement of an unknown configuration is downloading required.
+    ///
+    /// Required for UPnPv2, not present in UPnPv1
+    config_id: Option<u32>,
+    /// `SEARCHPORT.UPNP.ORG`: number identifies port on which device responds to unicast M-SEARCH
+    ///
+    /// Optional (handled semantically in [UpnpPort])
+    port: UpnpPort,
+    /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
+    /// Required when device protection is implemented.
+    secure_location: Option<Url>,
 }
 
 /// The NT values available for NOTIFY. This should usually be refered to as `notify::NT`
