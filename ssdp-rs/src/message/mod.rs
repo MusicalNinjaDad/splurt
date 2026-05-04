@@ -77,7 +77,7 @@ impl Display for Method {
 //       information e.g. `String`s (each is a 24b pointer to data that is on the heap anyway)
 pub enum Message {
     /// NTS: ssdp:alive
-    Alive(Notification),
+    Alive(ZNotification),
     /// MAN: ssdp:discover
     Search(MSearch),
     /// A direct response to an `M-SEARCH` request
@@ -171,7 +171,8 @@ impl Display for Vendor {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Notification {
+// TODO remove
+pub struct ZNotification {
     location: Option<String>,
     header: RawHeader,
 }
@@ -244,7 +245,7 @@ name: my_bulb
             .iter()
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect();
-        let expected_notification = Notification {
+        let expected_notification = ZNotification {
             location: Some("yeelight://192.168.1.239:55443".to_string()),
             header: alive_header,
         };
