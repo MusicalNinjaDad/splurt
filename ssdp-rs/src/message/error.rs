@@ -24,6 +24,7 @@ pub enum ErrorKind {
     InvalidSecureLocation(String),
     InvalidST(String),
     InvalidUrn(String),
+    InvalidUsn(String),
     InvalidUserAgent(String),
     InvalidUUID(uuid::Error),
     MissingBootId,
@@ -120,6 +121,10 @@ impl Display for ErrorKind {
             ErrorKind::InvalidUrn(urn) => {
                 write!(f, "{} is not a valid upnp universal resource name", urn)
             }
+            ErrorKind::InvalidUsn(usn) => write!(
+                f,
+                "{usn} is not a valid USN (Unique Search Name). Valid forms are: `uuid:device-UUID::upnp:rootdevice`, `uuid:device-UUID` & `uuid:device-UUID::urn:...`"
+            ),
             ErrorKind::InvalidUserAgent(user_agent) => {
                 write!(f, "{user_agent} is not a valid user agent")
             }
