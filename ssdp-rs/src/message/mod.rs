@@ -207,6 +207,7 @@ mod tests {
 Host: 239.255.255.250:1900
 Cache-Control: max-age=3600
 Location: yeelight://192.168.1.239:55443
+NT: urn:schemas-upnp-org:device:BinaryLight:1
 NTS: ssdp:alive
 Server: POSIX, UPnP/1.0 YGLC/1
 id: 0x000000000015243f
@@ -232,6 +233,10 @@ name: my_bulb
             parsed.location.to_string(),
             "yeelight://192.168.1.239:55443"
         );
+        assert_matches!(parsed.nt, notify::NT::Device(device)
+            if matches!(device.vendor, Vendor::Standard)
+            && matches!(&device.device, Device::BinaryLight { ver } if ver == "1")
+        )
     }
 
     #[test]
