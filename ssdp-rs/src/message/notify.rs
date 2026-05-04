@@ -2,7 +2,7 @@
 
 use std::net::SocketAddr;
 
-use crate::MULTICAST;
+use crate::{MULTICAST, message::MaxAge};
 
 use super::{ErrorKind, ParseError, SsdpNss, UpnpHeader, Uri};
 
@@ -31,6 +31,12 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
             _ => todo!("tryfrom header for notify other NTS e.g. byebye"),
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Alive {
+    /// `CACHE-CONTROL`: Duration (in seconds) until advertisement expires
+    max_age: MaxAge,
 }
 
 /// The NTS values available for NOTIFY. This should usually be refered to as `notify::NTS`

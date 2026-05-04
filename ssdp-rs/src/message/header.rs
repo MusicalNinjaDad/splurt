@@ -200,7 +200,7 @@ impl Display for Man {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MaxAge(Duration);
 
 impl Header for MaxAge {
