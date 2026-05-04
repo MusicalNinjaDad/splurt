@@ -1,6 +1,6 @@
 //! `NOTIFY *` messages
 
-use std::{fmt::Display, net::SocketAddr, str::FromStr};
+use std::{fmt::Display, net::AddrParseError, str::FromStr};
 
 use url::Url;
 use uuid::Uuid;
@@ -23,14 +23,17 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
     type Error = ParseError;
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
-        let host =
-            try bikeshed Result<_, ErrorKind> { header.try_get("HOST")?.parse::<SocketAddr>()? };
+        let hostname = header.try_get("HOST")?;
+        let host = hostname.parse().map_err(|err: AddrParseError| {
+            ParseError::chain_from(
+                ErrorKind::from(err).into(),
+                ErrorKind::InvalidHost(hostname.to_string()),
+            )
+        })?;
         // Host MUST be Multicast address as per spec
         match host {
-            Ok(addr) if addr == MULTICAST => (),
-            Ok(addr) => Err(ErrorKind::InvalidHost(addr.to_string()))?,
-            Err(err) if matches!(err, ErrorKind::MissingField(_)) => Err(err)?,
-            Err(_err) => todo!("chain"),
+            MULTICAST => (),
+            _ => Err(ErrorKind::InvalidHost(hostname.to_string()))?,
         }
         let max_age = header.try_get(MaxAge::HEADER_KEY)?.parse()?;
         let location = header.try_get("LOCATION")?;
