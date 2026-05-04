@@ -129,7 +129,7 @@ impl FromStr for Message {
         let header: UpnpHeader = lines.collect();
         match method {
             Method::MSearch => todo!("parse MSearch"),
-            Method::Notify => todo!("parse Notify"),
+            Method::Notify => Ok(Message::Notify(header.try_into()?)),
             Method::Response => Ok(Message::Response(header.try_into()?)),
         }
     }
@@ -221,7 +221,7 @@ name: my_bulb
 "#;
 
     #[test]
-    #[should_panic(expected = "not yet implemented: parse Notify")]
+    #[should_panic(expected = "not yet implemented: tryfrom header for notify")]
     fn parse_alive() {
         let msg: Message = ALIVE.parse().expect("parsed as NOTIFY");
         assert_matches!(msg, Message::Notify(notify)
