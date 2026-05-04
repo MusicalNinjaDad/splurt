@@ -15,7 +15,7 @@ mod devices;
 mod error;
 mod header;
 mod msearch;
-mod notify;
+pub mod notify;
 mod response;
 mod services;
 mod uri;
