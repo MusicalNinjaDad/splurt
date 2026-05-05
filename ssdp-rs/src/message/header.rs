@@ -397,7 +397,7 @@ impl SecureLocation {
     }
 }
 
-pub type Server = UserAgent<"SERVER">;
+pub type Server = ProductTokens<"SERVER">;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 /// Search Target
@@ -519,7 +519,7 @@ impl From<UpnpPort> for u16 {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct UserAgent<const FIELD_NAME: &'static str> {
+pub struct ProductTokens<const FIELD_NAME: &'static str> {
     pub os: String,
     pub os_version: String,
     pub upnp_version: Version,
@@ -527,11 +527,11 @@ pub struct UserAgent<const FIELD_NAME: &'static str> {
     pub product_version: String,
 }
 
-impl<const FIELD_NAME: &'static str> Header for UserAgent<FIELD_NAME> {
+impl<const FIELD_NAME: &'static str> Header for ProductTokens<FIELD_NAME> {
     const HEADER_KEY: &'static str = FIELD_NAME;
 }
 
-impl<const _FN: &'static str> FromStr for UserAgent<_FN> {
+impl<const _FN: &'static str> FromStr for ProductTokens<_FN> {
     type Err = ErrorKind;
 
     fn from_str(user_agent: &str) -> Result<Self, Self::Err> {
@@ -577,7 +577,7 @@ impl<const _FN: &'static str> FromStr for UserAgent<_FN> {
 
 /// Formatted as per OCF specification (2020) section 1.3.2 for the `USER-AGENT` *value*,
 /// does NOT include the header key
-impl<const _FN: &'static str> Display for UserAgent<_FN> {
+impl<const _FN: &'static str> Display for ProductTokens<_FN> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self {
             os,

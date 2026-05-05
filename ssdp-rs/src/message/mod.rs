@@ -23,7 +23,7 @@ mod uri;
 pub use devices::{Device, DeviceDetails};
 pub use error::{ErrorKind, ParseError};
 pub use header::{
-    FriendlyName, Header, HeaderExt, Host, Man, MaxAge, Mx, ST, UpnpHeader, UpnpPort, UserAgent,
+    FriendlyName, Header, HeaderExt, Host, Man, MaxAge, Mx, ST, UpnpHeader, UpnpPort, ProductTokens,
 };
 pub use msearch::MSearch;
 pub use notify::Notify;
@@ -101,7 +101,7 @@ impl Message {
         friendly_name: &str,
         uuid: Uuid,
     ) -> Self {
-        let user_agent = UserAgent {
+        let user_agent = ProductTokens {
             os: os.to_string(),
             os_version: os_version.to_string(),
             upnp_version: UPNP_VERSION,
