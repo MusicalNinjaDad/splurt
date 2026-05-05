@@ -216,7 +216,7 @@ impl FromStr for NT {
             Uri::Upnp(UpnpNss::RootDevice) => Ok(Self::RootDevice),
             Uri::Urn(Target::Device(device)) => Ok(Self::Device(device)),
             Uri::Urn(Target::Service(service)) => Ok(Self::Service(service)),
-            // TODO: parse UUID
+            Uri::Uuid { uuid, suffix } if suffix.is_none() => Ok(Self::Uuid(uuid)),
             _ => Err(ErrorKind::InvalidNT(s.to_string()))?,
         }
     }
