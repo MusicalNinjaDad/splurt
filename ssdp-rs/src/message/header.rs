@@ -155,6 +155,18 @@ pub trait UpnpV2<T> {
     }
 }
 
+pub trait UpnpV2Ext<T, E>:
+    UpnpV2<T> + for<'a> TryFrom<Option<&'a str>, Error = E> + Header + Sized
+where
+    ErrorKind: From<E>,
+{
+    fn get_validated(header: &UpnpHeader, upnp_version: Version) -> Result<Self, ErrorKind> {
+        let this: Self = header.get(Self::HEADER_KEY).try_into()?;
+        this.validate(upnp_version)?;
+        Ok(this)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BootId(Option<u32>);
 
