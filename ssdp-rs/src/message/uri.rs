@@ -61,21 +61,20 @@ impl FromStr for Uri {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parts = s.split(":");
-        Self::from_parts(parts, s)
+        let mut parts = s.split(":");
+        Self::from_parts(&mut parts, s)
     }
 }
 
 impl Uri {
     ///Construct a Uri from an iterator over the &str parts. Expecting this to be coming from a
     /// call to `.split(":")`
-    pub fn from_parts<'s, P: IntoIterator<Item = &'s str>>(
-        parts: P,
-        s: &'s str,
-    ) -> Result<Self, ParseError> {
+    pub fn from_parts<'s, P>(parts: &mut P, s: &'s str) -> Result<Self, ParseError>
+    where
+        P: Iterator<Item = &'s str>,
+    {
         let err = || ErrorKind::InvalidUrn(s.to_string());
         let chain = |e: ErrorKind| ParseError::chain_from(e.into(), err());
-        let mut parts = parts.into_iter();
         let prefix = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
         match prefix {
             UriToken::Ssdp => {
