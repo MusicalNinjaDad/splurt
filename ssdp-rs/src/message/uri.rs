@@ -18,18 +18,24 @@ pub enum UriToken {
     Service,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// Known Urn schemes
 pub enum Uri {
     Ssdp(SsdpNss),
     Upnp(UpnpNss),
     Urn(Target),
-    #[display("uuid:{uuid}{nt}")]
-    #[display(rename_all = "lowercase")]
-    Uuid {
-        uuid: Uuid,
-        nt: NT,
-    },
+    Uuid { uuid: Uuid, suffix: NT },
+}
+
+impl Display for Uri {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Uri::Ssdp(ssdp_nss) => write!(f, "{ssdp_nss}"),
+            Uri::Upnp(upnp_nss) => write!(f, "{upnp_nss}"),
+            Uri::Urn(target) => write!(f, "{target}"),
+            Uri::Uuid { uuid, suffix } => write!(f, "uuid:{uuid}{suffix}"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -114,10 +120,13 @@ impl Uri {
                     parts.next().ok_or_else(err)?.parse::<Uuid>()?
                 }?;
                 match parts.next() {
-                    None => Ok(Self::Uuid { uuid, nt: NT::None }),
+                    None => Ok(Self::Uuid {
+                        uuid,
+                        suffix: NT::None,
+                    }),
                     Some("") => {
                         let nt = Uri::from_parts(parts, s)?.try_into().map_err(chain)?;
-                        Ok(Self::Uuid { uuid, nt })
+                        Ok(Self::Uuid { uuid, suffix: nt })
                     }
                     Some(_) => Err(ErrorKind::InvalidUsn(s.to_string()))?,
                 }
@@ -231,7 +240,7 @@ mod tests {
     fn display_usn_none() {
         let usn = Uri::Uuid {
             uuid: uuid!("fd6e74c3-9c89-4fd0-bf52-994af57b5d40"),
-            nt: NT::None,
+            suffix: NT::None,
         };
         assert_eq!(
             format!("{usn}"),
@@ -243,7 +252,7 @@ mod tests {
     fn display_usn_root() {
         let usn = Uri::Uuid {
             uuid: uuid!("fd6e74c3-9c89-4fd0-bf52-994af57b5d40"),
-            nt: NT::RootDevice,
+            suffix: NT::RootDevice,
         };
         assert_eq!(
             format!("{usn}"),
@@ -259,7 +268,7 @@ mod tests {
         };
         let usn = Uri::Uuid {
             uuid: uuid!("fd6e74c3-9c89-4fd0-bf52-994af57b5d40"),
-            nt: NT::Urn(Target::Device(target)),
+            suffix: NT::Urn(Target::Device(target)),
         };
         assert_eq!(
             format!("{usn}"),

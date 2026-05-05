@@ -45,7 +45,10 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
         let server: UserAgent<"SERVER"> = header.try_get("SERVER")?.parse()?;
         let usn = header.try_get("USN")?.parse()?;
         let uuid = match usn {
-            Uri::Uuid { uuid, nt: usn_nt } if nt == usn_nt => uuid,
+            Uri::Uuid {
+                uuid,
+                suffix: usn_nt,
+            } if nt == usn_nt => uuid,
             _ => Err(ErrorKind::InvalidUsn(usn.to_string()))?,
         };
         let boot_id = header
