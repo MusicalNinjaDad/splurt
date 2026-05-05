@@ -144,7 +144,7 @@ impl BootId {
         &self.0
     }
 
-    pub fn validate(&self, upnp_version: u32) -> Result<&Self, ErrorKind> {
+    pub fn validate(&self, upnp_version: Version) -> Result<&Self, ErrorKind> {
         todo!("validate BootId")
     }
 }
@@ -510,4 +510,32 @@ impl<const _FN: &'static str> Display for UserAgent<_FN> {
 
 impl Header for Uuid {
     const HEADER_KEY: &'static str = "CPUUID.UPNP.ORG";
+}
+
+/// Upnp version
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Version {
+    pub major: u32,
+    pub minor: u32,
+}
+
+impl FromStr for Version {
+    type Err = ErrorKind;
+
+    fn from_str(v: &str) -> Result<Self, Self::Err> {
+        let err = || ErrorKind::InvalidVersion(v.to_string());
+        let mut parts = v.split(".");
+        let major = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
+        let minor = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
+        if parts.next().is_some() {
+            return Err(err());
+        }
+        Ok(Self { major, minor })
+    }
+}
+
+impl Display for Version {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}.{}", self.major, self.minor)
+    }
 }
