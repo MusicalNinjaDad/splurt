@@ -354,7 +354,80 @@ impl Display for Mx {
         write!(f, "{}", self.0)
     }
 }
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ProductTokens<const FIELD_NAME: &'static str> {
+    pub os: String,
+    pub os_version: String,
+    pub upnp_version: Version,
+    pub product_name: String,
+    pub product_version: String,
+}
 
+impl<const FIELD_NAME: &'static str> Header for ProductTokens<FIELD_NAME> {
+    const HEADER_KEY: &'static str = FIELD_NAME;
+}
+
+impl<const _FLD: &'static str> FromStr for ProductTokens<_FLD> {
+    type Err = ErrorKind;
+
+    fn from_str(user_agent: &str) -> Result<Self, Self::Err> {
+        let err = || ErrorKind::InvalidUserAgent(user_agent.to_string());
+        // Wierd & slightly backwards splitting as product_name may contain spaces
+        let mut token_ish = user_agent.split("/");
+        let os = token_ish.next().ok_or_else(err)?.to_string();
+        // TODO: Check there was a "Upnp" in the right place
+        let (os_version, _upnp) = token_ish
+            .next()
+            .ok_or_else(err)?
+            .split_once(" ")
+            .ok_or_else(err)
+            .map(|(ver, upnp)| {
+                (
+                    ver.trim_end_matches(|c: char| !c.is_alphanumeric())
+                        .to_string(),
+                    upnp,
+                )
+            })?;
+        let (ver, prod) = token_ish
+            .next()
+            .ok_or_else(err)?
+            .split_once(" ")
+            .ok_or_else(err)?;
+        let upnp_version = ver
+            .trim_end_matches(|c: char| !c.is_alphanumeric())
+            .parse()?;
+        let product_name = prod.to_string();
+        let product_version = token_ish.next().ok_or_else(err)?.to_string();
+        if token_ish.next().is_some() {
+            return Err(err());
+        };
+        Ok(Self {
+            os,
+            os_version,
+            upnp_version,
+            product_name,
+            product_version,
+        })
+    }
+}
+
+/// Formatted as per OCF specification (2020) section 1.3.2 for the `USER-AGENT` *value*,
+/// does NOT include the header key
+impl<const _FLD: &'static str> Display for ProductTokens<_FLD> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            os,
+            os_version,
+            upnp_version,
+            product_name,
+            product_version,
+        } = self;
+        write!(
+            f,
+            "{os}/{os_version} UPnP/{upnp_version} {product_name}/{product_version}"
+        )
+    }
+}
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SecureLocation(Option<Url>);
 
@@ -515,81 +588,6 @@ impl From<UpnpPort> for u16 {
             UpnpPort::Defined(p) => p,
             UpnpPort::Default => SSDP_PORT,
         }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ProductTokens<const FIELD_NAME: &'static str> {
-    pub os: String,
-    pub os_version: String,
-    pub upnp_version: Version,
-    pub product_name: String,
-    pub product_version: String,
-}
-
-impl<const FIELD_NAME: &'static str> Header for ProductTokens<FIELD_NAME> {
-    const HEADER_KEY: &'static str = FIELD_NAME;
-}
-
-impl<const _FN: &'static str> FromStr for ProductTokens<_FN> {
-    type Err = ErrorKind;
-
-    fn from_str(user_agent: &str) -> Result<Self, Self::Err> {
-        let err = || ErrorKind::InvalidUserAgent(user_agent.to_string());
-        // Wierd & slightly backwards splitting as product_name may contain spaces
-        let mut token_ish = user_agent.split("/");
-        let os = token_ish.next().ok_or_else(err)?.to_string();
-        // TODO: Check there was a "Upnp" in the right place
-        let (os_version, _upnp) = token_ish
-            .next()
-            .ok_or_else(err)?
-            .split_once(" ")
-            .ok_or_else(err)
-            .map(|(ver, upnp)| {
-                (
-                    ver.trim_end_matches(|c: char| !c.is_alphanumeric())
-                        .to_string(),
-                    upnp,
-                )
-            })?;
-        let (ver, prod) = token_ish
-            .next()
-            .ok_or_else(err)?
-            .split_once(" ")
-            .ok_or_else(err)?;
-        let upnp_version = ver
-            .trim_end_matches(|c: char| !c.is_alphanumeric())
-            .parse()?;
-        let product_name = prod.to_string();
-        let product_version = token_ish.next().ok_or_else(err)?.to_string();
-        if token_ish.next().is_some() {
-            return Err(err());
-        };
-        Ok(Self {
-            os,
-            os_version,
-            upnp_version,
-            product_name,
-            product_version,
-        })
-    }
-}
-
-/// Formatted as per OCF specification (2020) section 1.3.2 for the `USER-AGENT` *value*,
-/// does NOT include the header key
-impl<const _FN: &'static str> Display for ProductTokens<_FN> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self {
-            os,
-            os_version,
-            upnp_version,
-            product_name,
-            product_version,
-        } = self;
-        write!(
-            f,
-            "{os}/{os_version} UPnP/{upnp_version} {product_name}/{product_version}"
-        )
     }
 }
 

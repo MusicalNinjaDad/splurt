@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use uuid::Uuid;
 
-use super::{FriendlyName, HeaderExt, Host, Man, Method, Mx, ST, ProductTokens};
+use super::{FriendlyName, HeaderExt, Host, Man, Method, Mx, ProductTokens, ST};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MSearch {

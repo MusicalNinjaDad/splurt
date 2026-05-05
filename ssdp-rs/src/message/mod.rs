@@ -23,7 +23,7 @@ mod uri;
 pub use devices::{Device, DeviceDetails};
 pub use error::{ErrorKind, ParseError};
 pub use header::{
-    FriendlyName, Header, HeaderExt, Host, Man, MaxAge, Mx, ST, UpnpHeader, UpnpPort, ProductTokens,
+    FriendlyName, Header, HeaderExt, Host, Man, MaxAge, Mx, ProductTokens, ST, UpnpHeader, UpnpPort,
 };
 pub use msearch::MSearch;
 pub use notify::Notify;
