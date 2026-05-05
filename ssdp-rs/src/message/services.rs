@@ -22,8 +22,10 @@ pub enum Service {
 }
 
 impl Service {
-    pub fn from_parts<'s, P: IntoIterator<Item = &'s str>>(parts: P) -> Result<Self, ErrorKind> {
-        let mut parts = parts.into_iter();
+    pub fn from_parts<'s, P>(parts: &mut P) -> Result<Self, ErrorKind>
+    where
+        P: Iterator<Item = &'s str>,
+    {
         let service_type = parts
             .next()
             .ok_or(ErrorKind::InvalidService("''".to_string()))?
