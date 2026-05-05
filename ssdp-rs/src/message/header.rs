@@ -118,6 +118,22 @@ impl<H: Header + HeaderExt> HeaderExt for Option<H> {
     }
 }
 
+/// For types which are required in UPnP V2 but not V1 and can be represented as an `Option<T>`
+pub trait UpnpV2<T> {
+    const ERR: ErrorKind;
+
+    fn as_option(&self) -> &Option<T>;
+    fn validate(&self, upnp_version: Version) -> Result<&Self, ErrorKind> {
+        match upnp_version.major {
+            ..=1 => Ok(self),
+            2.. => match self.as_option() {
+                Some(_) => Ok(self),
+                None => Err(Self::ERR),
+            },
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BootId(Option<u32>);
 
@@ -139,19 +155,10 @@ impl TryFrom<Option<&str>> for BootId {
     }
 }
 
-impl BootId {
-    pub fn as_option(&self) -> &Option<u32> {
+impl UpnpV2<u32> for BootId {
+    const ERR: ErrorKind = ErrorKind::MissingBootId;
+    fn as_option(&self) -> &Option<u32> {
         &self.0
-    }
-
-    pub fn validate(self, upnp_version: Version) -> Result<Self, ErrorKind> {
-        match upnp_version.major {
-            ..=1 => Ok(self),
-            2.. => match self.as_option() {
-                Some(_) => Ok(self),
-                None => Err(ErrorKind::MissingBootId),
-            },
-        }
     }
 }
 
@@ -177,19 +184,10 @@ impl TryFrom<Option<&str>> for ConfigId {
     }
 }
 
-impl ConfigId {
-    pub fn as_option(&self) -> &Option<u32> {
+impl UpnpV2<u32> for ConfigId {
+    const ERR: ErrorKind = ErrorKind::MissingConfigId;
+    fn as_option(&self) -> &Option<u32> {
         &self.0
-    }
-
-    pub fn validate(self, upnp_version: Version) -> Result<Self, ErrorKind> {
-        match upnp_version.major {
-            ..=1 => Ok(self),
-            2.. => match self.as_option() {
-                Some(_) => Ok(self),
-                None => Err(ErrorKind::MissingConfigId),
-            },
-        }
     }
 }
 

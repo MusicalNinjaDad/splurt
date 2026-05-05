@@ -1,6 +1,6 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
 
-use crate::message::header::{BootId, ConfigId, Location, SecureLocation, Server};
+use crate::message::header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2};
 
 use super::{ErrorKind, Header, MaxAge, ParseError, RFC1123, ST, UpnpHeader, UpnpPort};
 
