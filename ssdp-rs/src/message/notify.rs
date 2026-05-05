@@ -205,19 +205,24 @@ impl Header for Usn {
 
 impl Usn {
     pub fn from_uri_and_nt(uri: &Uri, nt: &NT) -> Result<Self, ErrorKind> {
-        match (uri, nt) {
-            // NT::Uuid has matching UUID
-            (Uri::Uuid { uuid, suffix: None }, NT::Uuid(nt_uuid)) if uuid == nt_uuid => {
+        match nt {
+            NT::Uuid(uuid)
+                if let Uri::Uuid {
+                    uuid: uri_uuid,
+                    suffix: None,
+                } = uri
+                    && uri_uuid == uuid =>
+            {
                 Ok(Self(*uuid))
             }
-            // Uri::Uuid.suffix == NT
-            (
-                Uri::Uuid {
-                    uuid,
-                    suffix: Some(suffix),
-                },
-                _,
-            ) if **suffix == nt.to_uri() => Ok(Self(*uuid)),
+            _ if let Uri::Uuid {
+                uuid,
+                suffix: Some(suffix),
+            } = uri
+                && **suffix == nt.to_uri() =>
+            {
+                Ok(Self(*uuid))
+            }
             _ => Err(ErrorKind::InvalidUsn(uri.to_string())),
         }
     }
