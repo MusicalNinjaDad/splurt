@@ -591,6 +591,8 @@ impl From<UpnpPort> for u16 {
     }
 }
 
+pub type UserAgent = ProductTokens<"USER-AGENT">;
+
 impl Header for Uuid {
     const HEADER_KEY: &'static str = "CPUUID.UPNP.ORG";
 }
