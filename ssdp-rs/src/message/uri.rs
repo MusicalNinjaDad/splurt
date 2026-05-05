@@ -127,6 +127,7 @@ impl Uri {
 pub enum SsdpNss {
     All,
     Alive,
+    ByeBye,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]

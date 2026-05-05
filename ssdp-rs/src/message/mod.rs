@@ -353,4 +353,19 @@ USN: uuid:00113214-9943-0011-4399-439914321100::urn:microsoft.com:service:X_MS_M
         let response: Message = raw_response.parse().expect("parsed as response");
         assert_matches!(response, Message::Response(_));
     }
+
+    #[test]
+    fn parse_byebye() {
+        let byebye = r#"NOTIFY * HTTP/1.1
+HOST: 239.255.255.250:1900
+EXT:
+CACHE-CONTROL: max-age=100
+LOCATION: http://192.168.0.24:80/description.xml
+SERVER: Hue/1.0 UPnP/1.0 IpBridge/1.76.0
+hue-bridgeid: ECB5FAFFFE15C4C8
+NT: urn:schemas-upnp-org:device:basic:1
+NTS: ssdp:byebye
+USN: uuid:2f402f80-da50-11e1-9b23-ecb5fa15c4c8::urn:schemas-upnp-org:device:basic:1"#;
+        let _msg: Message = byebye.parse().expect("byebye message");
+    }
 }

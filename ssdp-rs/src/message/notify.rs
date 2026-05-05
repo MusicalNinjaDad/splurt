@@ -14,8 +14,10 @@ use crate::message::{
 use super::{ErrorKind, ParseError, SsdpNss, UpnpHeader, Uri};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[expect(clippy::large_enum_variant, reason = "Alive is most common case")]
 pub enum Notify {
     Alive(Alive),
+    ByeBye(ByeBye),
 }
 
 impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
@@ -26,34 +28,13 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
             .try_get(Host::HEADER_KEY)?
             .parse::<Host>()?
             .check_multicast()?;
-        let max_age = header.try_get(MaxAge::HEADER_KEY)?.parse()?;
-        let location = header.try_get(Location::HEADER_KEY)?.parse()?;
-        let nt = header.try_get(NT::HEADER_KEY)?.parse()?;
         let nts = header.try_get(NTS::HEADER_KEY)?.parse()?;
-        let server: Server = header.try_get(Server::HEADER_KEY)?.parse()?;
-        let uuid = *Usn::from_uri_and_nt(&header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?, &nt)?
-            .as_uuid();
-        let boot_id: BootId = header.get(BootId::HEADER_KEY).try_into()?;
-        boot_id.validate(server.upnp_version)?;
-        let config_id: ConfigId = header.get(ConfigId::HEADER_KEY).try_into()?;
-        config_id.validate(server.upnp_version)?;
-        let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
-        let secure_location: SecureLocation = header.get(SecureLocation::HEADER_KEY).try_into()?;
-        secure_location.validate()?;
+
         match nts {
-            NTS::Alive => Ok(Self::Alive(Alive {
-                max_age,
-                location,
-                nt,
-                server,
-                uuid,
-                boot_id,
-                config_id,
-                port,
-                secure_location,
-            })),
+            NTS::Alive => Ok(Self::Alive(header.try_into()?)),
+            NTS::ByeBye => Ok(Self::ByeBye(header.try_into()?)),
             #[expect(unreachable_patterns)]
-            _ => todo!("tryfrom header for notify other NTS e.g. byebye"),
+            _ => todo!("tryfrom header for update"),
         }
     }
 }
@@ -94,6 +75,82 @@ pub struct Alive {
     /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
     /// Required when device protection is implemented.
     secure_location: SecureLocation,
+}
+
+impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
+    type Error = ParseError;
+
+    fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
+        let max_age = header.try_get(MaxAge::HEADER_KEY)?.parse()?;
+        let location = header.try_get(Location::HEADER_KEY)?.parse()?;
+        let nt = header.try_get(NT::HEADER_KEY)?.parse()?;
+        let server: Server = header.try_get(Server::HEADER_KEY)?.parse()?;
+        let uuid = *Usn::from_uri_and_nt(&header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?, &nt)?
+            .as_uuid();
+        let boot_id: BootId = header.get(BootId::HEADER_KEY).try_into()?;
+        boot_id.validate(server.upnp_version)?;
+        let config_id: ConfigId = header.get(ConfigId::HEADER_KEY).try_into()?;
+        config_id.validate(server.upnp_version)?;
+        let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
+        let secure_location: SecureLocation = header.get(SecureLocation::HEADER_KEY).try_into()?;
+        secure_location.validate()?;
+        Ok(Self {
+            max_age,
+            location,
+            nt,
+            server,
+            uuid,
+            boot_id,
+            config_id,
+            port,
+            secure_location,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ByeBye {
+    /// `NT`: notification type
+    pub(crate) nt: NT,
+    /// UUID extracted from `USN`
+    /// TODO: Validate match for NT::Uuid
+    pub(crate) uuid: Uuid,
+    /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
+    /// increasing value. Control points can use this header field to detect the case when a device
+    /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
+    /// control points for a number of purposes such as re-establishing desired event subscriptions,
+    /// checking for changes to the device state that were not evented since the device was off-line.
+    ///
+    /// Required for UPnPv2, not present in UPnPv1
+    boot_id: BootId,
+    /// `CONFIGID.UPNP.ORG`: number used for caching description information.
+    /// If a device sends out two messages with a `CONFIGID.UPNP.ORG` header field with the same field
+    /// value, the configuration shall be the same at the moments that these messages were sent.
+    /// This reduces peak loads on UPnP devices during startup and during network hiccups. Only if a
+    /// control point receives an announcement of an unknown configuration is downloading required.
+    ///
+    /// Required for UPnPv2, not present in UPnPv1
+    config_id: ConfigId,
+}
+
+impl<'h> TryFrom<UpnpHeader<'h>> for ByeBye {
+    type Error = ParseError;
+
+    fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
+        let nt = header.try_get(NT::HEADER_KEY)?.parse()?;
+        let uuid = *Usn::from_uri_and_nt(&header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?, &nt)?
+            .as_uuid();
+        // TODO - document Boot & ConfigID validation must be done by something that has a
+        // suitable cache from previous Alive & Update notifications
+        let boot_id: BootId = header.get(BootId::HEADER_KEY).try_into()?;
+        let config_id: ConfigId = header.get(ConfigId::HEADER_KEY).try_into()?;
+        Ok(Self {
+            nt,
+            uuid,
+            boot_id,
+            config_id,
+        })
+    }
 }
 
 /// The NT values available for NOTIFY. This should usually be refered to as `notify::NT`
@@ -178,6 +235,7 @@ impl Display for NT {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum NTS {
     Alive,
+    ByeBye,
 }
 
 impl Header for NTS {
@@ -190,6 +248,7 @@ impl FromStr for NTS {
     fn from_str(uri: &str) -> Result<Self, Self::Err> {
         match uri.parse()? {
             Uri::Ssdp(SsdpNss::Alive) => Ok(Self::Alive),
+            Uri::Ssdp(SsdpNss::ByeBye) => Ok(Self::ByeBye),
             _ => Err(ErrorKind::InvalidNTS(uri.to_string()))?,
         }
     }
