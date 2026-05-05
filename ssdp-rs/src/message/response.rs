@@ -68,9 +68,9 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             })
             .transpose()?;
         let ext = None;
-        let location = header.try_get(Location::HEADER_KEY)?.parse()?;
-        let server: Server = header.try_get(Server::HEADER_KEY)?.parse()?;
-        let st = header.try_get(ST::HEADER_KEY)?.parse()?;
+        let location = Location::get_from(&header)?;
+        let server = Server::get_from(&header)?;
+        let st = ST::get_from(&header)?;
         let usn = header.try_get("USN")?.to_string();
         let boot_id: BootId = header.get(BootId::HEADER_KEY).try_into()?;
         boot_id.validate(server.upnp_version)?;
