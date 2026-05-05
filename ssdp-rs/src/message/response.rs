@@ -55,7 +55,6 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
     type Error = ParseError;
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
-        let st = header.try_get(ST::HEADER_KEY)?.parse()?;
         let max_age = header.try_get(MaxAge::HEADER_KEY)?.parse()?;
         let date = header
             .get("DATE")
@@ -68,6 +67,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
         let ext = None;
         let location = header.try_get("LOCATION")?.parse()?;
         let server: UserAgent<"SERVER"> = header.try_get("SERVER")?.parse()?;
+        let st = header.try_get(ST::HEADER_KEY)?.parse()?;
         let usn = header.try_get("USN")?.to_string();
         let boot_id: BootId = header.get(BootId::HEADER_KEY).try_into()?;
         boot_id.validate(server.upnp_version)?;
