@@ -28,32 +28,10 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
             .try_get(Host::HEADER_KEY)?
             .parse::<Host>()?
             .check_multicast()?;
-        let max_age = header.try_get(MaxAge::HEADER_KEY)?.parse()?;
-        let location = header.try_get(Location::HEADER_KEY)?.parse()?;
-        let nt = header.try_get(NT::HEADER_KEY)?.parse()?;
         let nts = header.try_get(NTS::HEADER_KEY)?.parse()?;
-        let server: Server = header.try_get(Server::HEADER_KEY)?.parse()?;
-        let uuid = *Usn::from_uri_and_nt(&header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?, &nt)?
-            .as_uuid();
-        let boot_id: BootId = header.get(BootId::HEADER_KEY).try_into()?;
-        boot_id.validate(server.upnp_version)?;
-        let config_id: ConfigId = header.get(ConfigId::HEADER_KEY).try_into()?;
-        config_id.validate(server.upnp_version)?;
-        let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
-        let secure_location: SecureLocation = header.get(SecureLocation::HEADER_KEY).try_into()?;
-        secure_location.validate()?;
+
         match nts {
-            NTS::Alive => Ok(Self::Alive(Alive {
-                max_age,
-                location,
-                nt,
-                server,
-                uuid,
-                boot_id,
-                config_id,
-                port,
-                secure_location,
-            })),
+            NTS::Alive => Ok(Self::Alive(header.try_into()?)),
             #[expect(unreachable_patterns)]
             _ => todo!("tryfrom header for notify other NTS e.g. byebye"),
         }
@@ -96,6 +74,37 @@ pub struct Alive {
     /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
     /// Required when device protection is implemented.
     secure_location: SecureLocation,
+}
+
+impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
+    type Error = ParseError;
+
+    fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
+        let max_age = header.try_get(MaxAge::HEADER_KEY)?.parse()?;
+        let location = header.try_get(Location::HEADER_KEY)?.parse()?;
+        let nt = header.try_get(NT::HEADER_KEY)?.parse()?;
+        let server: Server = header.try_get(Server::HEADER_KEY)?.parse()?;
+        let uuid = *Usn::from_uri_and_nt(&header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?, &nt)?
+            .as_uuid();
+        let boot_id: BootId = header.get(BootId::HEADER_KEY).try_into()?;
+        boot_id.validate(server.upnp_version)?;
+        let config_id: ConfigId = header.get(ConfigId::HEADER_KEY).try_into()?;
+        config_id.validate(server.upnp_version)?;
+        let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
+        let secure_location: SecureLocation = header.get(SecureLocation::HEADER_KEY).try_into()?;
+        secure_location.validate()?;
+        Ok(Self {
+            max_age,
+            location,
+            nt,
+            server,
+            uuid,
+            boot_id,
+            config_id,
+            port,
+            secure_location,
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
