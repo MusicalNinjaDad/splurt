@@ -34,8 +34,8 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
             .parse::<Uri>()?
             .try_into()?;
         let server: UserAgent<"SERVER"> = header.try_get("SERVER")?.parse()?;
-        let usn = header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?;
-        let uuid = *Usn::from_uri_and_nt(&usn, &nt)?.as_uuid();
+        let uuid = *Usn::from_uri_and_nt(&header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?, &nt)?
+            .as_uuid();
         let boot_id: BootId = header.get(BootId::HEADER_KEY).try_into()?;
         boot_id.validate(server.upnp_version)?;
         let config_id: ConfigId = header.get(ConfigId::HEADER_KEY).try_into()?;
