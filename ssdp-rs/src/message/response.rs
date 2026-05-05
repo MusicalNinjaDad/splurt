@@ -1,6 +1,8 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
 use url::Url;
 
+use crate::message::header::Location;
+
 use super::{ErrorKind, Header, MaxAge, ParseError, RFC1123, ST, UpnpHeader, UpnpPort, UserAgent};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -17,7 +19,7 @@ pub struct Response {
     /// `EXT`: Required for backwards compatibility with UPnP 1.0. (Header field name only; no field value.)
     ext: Option<!>,
     /// `URL` for UPnP description for root device
-    location: Url,
+    location: Location,
     /// `SERVER`: OS/version UPnP/2.0 product/version
     server: UserAgent<"SERVER">,
     /// `ST`: search target
@@ -65,10 +67,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             })
             .transpose()?;
         let ext = None;
-        let location = header.try_get("LOCATION")?;
-        let location = location
-            .parse()
-            .map_err(|_| ErrorKind::InvalidLocation(location.to_string()))?;
+        let location = header.try_get("LOCATION")?.parse()?;
         let server: UserAgent<"SERVER"> = header.try_get("SERVER")?.parse()?;
         let usn = header.try_get("USN")?.to_string();
         let boot_id = header

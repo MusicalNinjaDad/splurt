@@ -20,6 +20,7 @@ use std::{
 };
 
 use derive_more::Display;
+use url::Url;
 use uuid::Uuid;
 
 use crate::{MULTICAST, SSDP_PORT};
@@ -180,6 +181,24 @@ impl Host {
         match self.0 {
             MULTICAST => Ok(()),
             _ => Err(ErrorKind::InvalidHost(self.0.to_string())),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+pub struct Location(Url);
+
+impl Header for Location {
+    const HEADER_KEY: &'static str = "LOCATION";
+}
+
+impl FromStr for Location {
+    type Err = ErrorKind;
+
+    fn from_str(url: &str) -> Result<Self, Self::Err> {
+        match url.parse() {
+            Ok(url) => Ok(Self(url)),
+            Err(_) => Err(ErrorKind::InvalidLocation(url.to_string())),
         }
     }
 }

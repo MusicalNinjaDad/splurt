@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::message::{
     DeviceDetails, Header, Host, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort, UserAgent,
-    uri::UriExt,
+    header::Location, uri::UriExt,
 };
 
 use super::{ErrorKind, ParseError, SsdpNss, UpnpHeader, Uri};
@@ -27,10 +27,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
             .parse::<Host>()?
             .check_multicast()?;
         let max_age = header.try_get(MaxAge::HEADER_KEY)?.parse()?;
-        let location = header.try_get("LOCATION")?;
-        let location = location
-            .parse()
-            .map_err(|_| ErrorKind::InvalidLocation(location.to_string()))?;
+        let location = header.try_get(Location::HEADER_KEY)?.parse()?;
         let nt = header.try_get(NT::HEADER_KEY)?.parse()?;
         let nts = header
             .try_get(NTS::HEADER_KEY)?
@@ -106,7 +103,7 @@ pub struct Alive {
     /// `CACHE-CONTROL`: Duration (in seconds) until advertisement expires
     pub(crate) max_age: MaxAge,
     /// `URL` for UPnP description for root device
-    pub(crate) location: Url,
+    pub(crate) location: Location,
     /// `NT`: notification type
     pub(crate) nt: NT,
     /// `SERVER`: OS/version UPnP/2.0 product/version
