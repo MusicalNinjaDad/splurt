@@ -165,7 +165,7 @@ impl Display for NT {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::RootDevice => write!(f, "upnp:rootdevice"),
-            Self::Uuid(uuid) => write!(f, "uuid:device-{}", uuid),
+            Self::Uuid(uuid) => write!(f, "uuid:{}", uuid),
             Self::Device(device_details) => write!(f, "urn:{device_details}"),
             Self::Service(service_details) => write!(f, "urn:{service_details}"),
         }
