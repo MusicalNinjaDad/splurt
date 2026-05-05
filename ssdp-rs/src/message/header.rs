@@ -397,6 +397,8 @@ impl SecureLocation {
     }
 }
 
+pub type Server = UserAgent<"SERVER">;
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 /// Search Target
 pub enum ST {

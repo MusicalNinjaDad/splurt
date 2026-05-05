@@ -6,8 +6,8 @@ use derive_more::Display;
 use uuid::Uuid;
 
 use crate::message::{
-    DeviceDetails, Header, Host, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort, UserAgent,
-    header::{BootId, ConfigId, Location, SecureLocation},
+    DeviceDetails, Header, Host, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort,
+    header::{BootId, ConfigId, Location, SecureLocation, Server},
     uri::UriExt,
 };
 
@@ -33,7 +33,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
             .try_get(NTS::HEADER_KEY)?
             .parse::<Uri>()?
             .try_into()?;
-        let server: UserAgent<"SERVER"> = header.try_get("SERVER")?.parse()?;
+        let server: Server = header.try_get(Server::HEADER_KEY)?.parse()?;
         let uuid = *Usn::from_uri_and_nt(&header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?, &nt)?
             .as_uuid();
         let boot_id: BootId = header.get(BootId::HEADER_KEY).try_into()?;
@@ -70,7 +70,7 @@ pub struct Alive {
     /// `NT`: notification type
     pub(crate) nt: NT,
     /// `SERVER`: OS/version UPnP/2.0 product/version
-    pub(crate) server: UserAgent<"SERVER">,
+    pub(crate) server: Server,
     /// UUID extracted from `USN`
     /// TODO: Validate match for NT::Uuid
     pub(crate) uuid: Uuid,

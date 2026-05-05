@@ -1,8 +1,8 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
 
-use crate::message::header::{BootId, ConfigId, Location, SecureLocation};
+use crate::message::header::{BootId, ConfigId, Location, SecureLocation, Server};
 
-use super::{ErrorKind, Header, MaxAge, ParseError, RFC1123, ST, UpnpHeader, UpnpPort, UserAgent};
+use super::{ErrorKind, Header, MaxAge, ParseError, RFC1123, ST, UpnpHeader, UpnpPort};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 /// A direct response to an `M-SEARCH` message.
@@ -20,7 +20,7 @@ pub struct Response {
     /// `URL` for UPnP description for root device
     location: Location,
     /// `SERVER`: OS/version UPnP/2.0 product/version
-    server: UserAgent<"SERVER">,
+    server: Server,
     /// `ST`: search target
     st: ST,
     /// `USN`: composite identifier for the advertisement
@@ -66,7 +66,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             .transpose()?;
         let ext = None;
         let location = header.try_get(Location::HEADER_KEY)?.parse()?;
-        let server: UserAgent<"SERVER"> = header.try_get("SERVER")?.parse()?;
+        let server: Server = header.try_get(Server::HEADER_KEY)?.parse()?;
         let st = header.try_get(ST::HEADER_KEY)?.parse()?;
         let usn = header.try_get("USN")?.to_string();
         let boot_id: BootId = header.get(BootId::HEADER_KEY).try_into()?;
