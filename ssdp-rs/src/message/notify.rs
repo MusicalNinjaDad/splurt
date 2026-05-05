@@ -81,7 +81,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
     type Error = ParseError;
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
-        let max_age = header.try_get(MaxAge::HEADER_KEY)?.parse()?;
+        let max_age = MaxAge::get_from(&header)?;
         let location = Location::get_from(&header)?;
         let nt = NT::get_from(&header)?;
         let server = Server::get_from(&header)?;

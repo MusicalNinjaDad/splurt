@@ -1,6 +1,9 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
 
-use crate::message::header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2};
+use crate::message::{
+    HeaderExt,
+    header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2},
+};
 
 use super::{ErrorKind, Header, MaxAge, ParseError, RFC1123, ST, UpnpHeader, UpnpPort};
 
@@ -55,7 +58,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
     type Error = ParseError;
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
-        let max_age = header.try_get(MaxAge::HEADER_KEY)?.parse()?;
+        let max_age = MaxAge::get_from(&header)?;
         let date = header
             .get("DATE")
             .map(|date| {

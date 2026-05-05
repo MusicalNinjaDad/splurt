@@ -375,6 +375,12 @@ impl FromStr for MaxAge {
     }
 }
 
+impl Display for MaxAge {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!("display MaxAge")
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 /// A valid MX value (0..=5) (see UPnP spec para 1.3.2)
 ///
