@@ -48,9 +48,7 @@ impl Display for Uri {
 pub trait UriExt {
     /// Provides infallible conversion to Uri e.g. for comparison with other `UriExt` types,
     /// `Display` etc.
-    fn to_uri(&self) -> Uri {
-        todo!("to_uri")
-    }
+    fn to_uri(&self) -> Uri;
 }
 
 impl UriExt for Uri {
