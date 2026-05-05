@@ -118,6 +118,33 @@ impl<H: Header + HeaderExt> HeaderExt for Option<H> {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BootId(Option<u32>);
+
+impl Header for BootId {
+    const HEADER_KEY: &'static str = "BOOTID.UPNP.ORG";
+}
+
+impl TryFrom<Option<&str>> for BootId {
+    type Error = ErrorKind;
+
+    fn try_from(id: Option<&str>) -> Result<Self, Self::Error> {
+        match id {
+            Some(id) => Ok(Self(Some(
+                id.parse()
+                    .map_err(|_| ErrorKind::InvalidBootId(id.to_string()))?,
+            ))),
+            None => Ok(Self(None)),
+        }
+    }
+}
+
+impl BootId {
+    pub fn as_option(&self) -> &Option<u32> {
+        &self.0
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 // TODO make private inner when impl FromStr
 pub struct FriendlyName(pub String);

@@ -8,7 +8,8 @@ use uuid::Uuid;
 
 use crate::message::{
     DeviceDetails, Header, Host, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort, UserAgent,
-    header::Location, uri::UriExt,
+    header::{BootId, Location},
+    uri::UriExt,
 };
 
 use super::{ErrorKind, ParseError, SsdpNss, UpnpHeader, Uri};
@@ -36,14 +37,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
         let server: UserAgent<"SERVER"> = header.try_get("SERVER")?.parse()?;
         let usn = header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?;
         let uuid = *Usn::from_uri_and_nt(&usn, &nt)?.as_uuid();
-        let boot_id = header
-            .get("BOOTID.UPNP.ORG")
-            .map(|boot_id| {
-                boot_id
-                    .parse()
-                    .map_err(|_| ErrorKind::InvalidBootId(boot_id.to_string()))
-            })
-            .transpose()?;
+        let boot_id: BootId = header.get(BootId::HEADER_KEY).try_into()?;
         let config_id = header
             .get("CONFIGID.UPNP.ORG")
             .map(|config_id| {
@@ -72,7 +66,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
             // TODO parse the version number into Major,Minor
             "1.0" => (),
             _ => {
-                if boot_id.is_none() {
+                if boot_id.as_option().is_none() {
                     Err(ErrorKind::MissingBootId)?;
                 }
                 if config_id.is_none() {
@@ -118,7 +112,7 @@ pub struct Alive {
     /// checking for changes to the device state that were not evented since the device was off-line.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    boot_id: Option<u32>,
+    boot_id: BootId,
     /// `CONFIGID.UPNP.ORG`: number used for caching description information.
     /// If a device sends out two messages with a `CONFIGID.UPNP.ORG` header field with the same field
     /// value, the configuration shall be the same at the moments that these messages were sent.
