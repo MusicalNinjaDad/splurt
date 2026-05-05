@@ -26,7 +26,7 @@ pub enum Uri {
     Urn(Target),
     #[display("uuid:{uuid}{nt}")]
     #[display(rename_all = "lowercase")]
-    Usn {
+    Uuid {
         uuid: Uuid,
         nt: NT,
     },
@@ -114,10 +114,10 @@ impl Uri {
                     parts.next().ok_or_else(err)?.parse::<Uuid>()?
                 }?;
                 match parts.next() {
-                    None => Ok(Self::Usn { uuid, nt: NT::None }),
+                    None => Ok(Self::Uuid { uuid, nt: NT::None }),
                     Some("") => {
                         let nt = Uri::from_parts(parts, s)?.try_into().map_err(chain)?;
-                        Ok(Self::Usn { uuid, nt })
+                        Ok(Self::Uuid { uuid, nt })
                     }
                     Some(_) => Err(ErrorKind::InvalidUsn(s.to_string()))?,
                 }
@@ -229,7 +229,7 @@ mod tests {
 
     #[test]
     fn display_usn_none() {
-        let usn = Uri::Usn {
+        let usn = Uri::Uuid {
             uuid: uuid!("fd6e74c3-9c89-4fd0-bf52-994af57b5d40"),
             nt: NT::None,
         };
@@ -241,7 +241,7 @@ mod tests {
 
     #[test]
     fn display_usn_root() {
-        let usn = Uri::Usn {
+        let usn = Uri::Uuid {
             uuid: uuid!("fd6e74c3-9c89-4fd0-bf52-994af57b5d40"),
             nt: NT::RootDevice,
         };
@@ -257,7 +257,7 @@ mod tests {
             vendor: Vendor::Standard,
             device: Device::MediaServer { ver: "4".into() },
         };
-        let usn = Uri::Usn {
+        let usn = Uri::Uuid {
             uuid: uuid!("fd6e74c3-9c89-4fd0-bf52-994af57b5d40"),
             nt: NT::Urn(Target::Device(target)),
         };
