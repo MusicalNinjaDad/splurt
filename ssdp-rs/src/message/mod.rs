@@ -31,7 +31,9 @@ pub use response::Response;
 pub use services::{Service, ServiceDetails};
 pub use uri::{SsdpNss, Target, UpnpNss, Uri, UriToken};
 
-const UPNP_VERSION: &str = "2.0";
+use crate::message::header::Version;
+
+const UPNP_VERSION: Version = Version { major: 2, minor: 0 };
 /// RFC1123 date format, e.g.: "Wed, 29 Apr 2026 08:22:03 GMT"
 ///
 /// ## Note
@@ -102,7 +104,7 @@ impl Message {
         let user_agent = UserAgent {
             os: os.to_string(),
             os_version: os_version.to_string(),
-            upnp_version: UPNP_VERSION.to_string(),
+            upnp_version: UPNP_VERSION,
             product_name: product_name.to_string(),
             product_version: product_version.to_string(),
         };
@@ -176,6 +178,8 @@ mod tests {
 
     use uuid::uuid;
 
+    use crate::message::header::Version;
+
     use super::*;
 
     #[cfg(assert_matches_in_root)]
@@ -224,7 +228,7 @@ name: my_bulb
         );
         assert_eq!(parsed.server.os, "POSIX");
         assert_eq!(parsed.server.os_version, "1-2017");
-        assert_eq!(parsed.server.upnp_version, "1.0");
+        assert_eq!(parsed.server.upnp_version, Version { major: 1, minor: 0 });
         assert_eq!(parsed.server.product_name, "YGLC");
         assert_eq!(parsed.server.product_version, "1");
         assert_eq!(parsed.uuid, uuid!("f351ef6b-d281-4413-b33a-a75fac0c5ea5"));

@@ -130,7 +130,10 @@ impl Display for ErrorKind {
                 write!(f, "{user_agent} is not a valid user agent")
             }
             ErrorKind::InvalidUUID(err) => write!(f, "{err}"),
-            ErrorKind::InvalidVersion(ver) => write!(f, "{ver} is not a valid Version. Valid form is `major.minor`"),
+            ErrorKind::InvalidVersion(ver) => write!(
+                f,
+                "{ver} is not a valid Version. Valid form is `major.minor`"
+            ),
             ErrorKind::MissingBootId => {
                 write!(f, "a boot instance is required from UPnp/2.0 onwards")
             }

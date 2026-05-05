@@ -62,9 +62,9 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
                 secure_location.to_string(),
             ))?;
         };
-        match server.upnp_version.as_str() {
+        match server.upnp_version.major {
             // TODO parse the version number into Major,Minor
-            "1.0" => (),
+            1 => (),
             _ => {
                 if boot_id.as_option().is_none() {
                     Err(ErrorKind::MissingBootId)?;

@@ -86,9 +86,9 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
                     .map_err(|_| ErrorKind::InvalidConfigId(config_id.to_string()))
             })
             .transpose()?;
-        match server.upnp_version.as_str() {
+        match server.upnp_version.major {
             // TODO parse the version number into Major,Minor
-            "1.0" => (),
+            1 => (),
             _ => {
                 if boot_id.is_none() {
                     Err(ErrorKind::MissingBootId)?;

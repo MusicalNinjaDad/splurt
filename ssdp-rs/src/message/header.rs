@@ -434,7 +434,7 @@ impl From<UpnpPort> for u16 {
 pub struct UserAgent<const FIELD_NAME: &'static str> {
     pub os: String,
     pub os_version: String,
-    pub upnp_version: String,
+    pub upnp_version: Version,
     pub product_name: String,
     pub product_version: String,
 }
@@ -472,10 +472,11 @@ impl<const _FN: &'static str> FromStr for UserAgent<_FN> {
             .map(|(ver, prod)| {
                 (
                     ver.trim_end_matches(|c: char| !c.is_alphanumeric())
-                        .to_string(),
+                        .parse::<Version>(),
                     prod.to_string(),
                 )
             })?;
+        let upnp_version = upnp_version?;
         let product_version = token_ish.next().ok_or_else(err)?.to_string();
         if token_ish.next().is_some() {
             return Err(err());
