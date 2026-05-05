@@ -2,6 +2,7 @@
 
 use std::{fmt::Display, net::AddrParseError, str::FromStr};
 
+use derive_more::Display;
 use url::Url;
 use uuid::Uuid;
 
@@ -47,16 +48,8 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
             .parse::<Uri>()?
             .try_into()?;
         let server: UserAgent<"SERVER"> = header.try_get("SERVER")?.parse()?;
-        let usn = header.try_get("USN")?.parse()?;
-        let uuid = match usn {
-            Uri::Uuid { uuid, suffix }
-                if matches!(nt, NT::Uuid(nt_uuid) if uuid == nt_uuid) && suffix.is_none()
-                    || matches!(&suffix, Some(uri) if **uri == nt.to_uri()) =>
-            {
-                uuid
-            }
-            _ => Err(ErrorKind::InvalidUsn(usn.to_string()))?,
-        };
+        let usn = header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?;
+        let uuid = Usn::from_uri_and_nt(&usn, &nt)?.as_uuid();
         let boot_id = header
             .get("BOOTID.UPNP.ORG")
             .map(|boot_id| {
@@ -260,6 +253,32 @@ impl TryFrom<Uri> for NTS {
             Uri::Ssdp(SsdpNss::Alive) => Ok(Self::Alive),
             _ => Err(ErrorKind::InvalidNTS(uri.to_string())),
         }
+    }
+}
+
+/// USN as a type to validate invariances
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+pub struct Usn(Uuid);
+
+impl Header for Usn {
+    const HEADER_KEY: &'static str = "USN";
+}
+
+impl Usn {
+    pub fn from_uri_and_nt(uri: &Uri, nt: &NT) -> Result<Self, ErrorKind> {
+        match uri {
+            Uri::Uuid { uuid, suffix }
+                if matches!(nt, NT::Uuid(nt_uuid) if uuid == nt_uuid) && suffix.is_none()
+                    || matches!(&suffix, Some(uri) if **uri == nt.to_uri()) =>
+            {
+                Ok(Self(*uuid))
+            }
+            _ => Err(ErrorKind::InvalidUsn(uri.to_string())),
+        }
+    }
+
+    pub fn as_uuid(&self) -> Uuid {
+        self.0
     }
 }
 
