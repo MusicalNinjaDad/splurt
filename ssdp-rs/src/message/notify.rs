@@ -41,7 +41,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
         let location = location
             .parse()
             .map_err(|_| ErrorKind::InvalidLocation(location.to_string()))?;
-        let nt: NT = header.try_get(NT::HEADER_KEY)?.parse()?;
+        let nt= header.try_get(NT::HEADER_KEY)?.parse()?;
         let nts = header.try_get("NTS")?.parse::<Uri>()?.try_into()?;
         let server: UserAgent<"SERVER"> = header.try_get("SERVER")?.parse()?;
         let usn = header.try_get("USN")?.parse()?;
