@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::message::{
     DeviceDetails, Header, Host, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort, UserAgent,
-    header::{BootId, Location},
+    header::{BootId, ConfigId, Location},
     uri::UriExt,
 };
 
@@ -39,14 +39,8 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
         let uuid = *Usn::from_uri_and_nt(&usn, &nt)?.as_uuid();
         let boot_id: BootId = header.get(BootId::HEADER_KEY).try_into()?;
         boot_id.validate(server.upnp_version)?;
-        let config_id = header
-            .get("CONFIGID.UPNP.ORG")
-            .map(|config_id| {
-                config_id
-                    .parse()
-                    .map_err(|_| ErrorKind::InvalidConfigId(config_id.to_string()))
-            })
-            .transpose()?;
+        let config_id: ConfigId = header.get(ConfigId::HEADER_KEY).try_into()?;
+        config_id.validate(server.upnp_version)?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
         let secure_location: Option<Url> = header
             .get("SECURELOCATION.UPNP.ORG")
@@ -62,15 +56,6 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
             Err(ErrorKind::InvalidSecureLocation(
                 secure_location.to_string(),
             ))?;
-        };
-        match server.upnp_version.major {
-            // TODO parse the version number into Major,Minor
-            1 => (),
-            _ => {
-                if config_id.is_none() {
-                    Err(ErrorKind::MissingConfigId)?;
-                }
-            }
         };
         match nts {
             NTS::Alive => Ok(Self::Alive(Alive {
@@ -118,7 +103,7 @@ pub struct Alive {
     /// control point receives an announcement of an unknown configuration is downloading required.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    config_id: Option<u32>,
+    config_id: ConfigId,
     /// `SEARCHPORT.UPNP.ORG`: number identifies port on which device responds to unicast M-SEARCH
     ///
     /// Optional (handled semantically in [UpnpPort])

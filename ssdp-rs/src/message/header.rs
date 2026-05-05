@@ -155,6 +155,44 @@ impl BootId {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ConfigId(Option<u32>);
+
+impl Header for ConfigId {
+    const HEADER_KEY: &'static str = "CONFIGID.UPNP.ORG";
+}
+
+impl TryFrom<Option<&str>> for ConfigId {
+    type Error = ErrorKind;
+
+    fn try_from(id: Option<&str>) -> Result<Self, Self::Error> {
+        match id {
+            Some(id) => {
+                Ok(Self(Some(id.parse().map_err(|_| {
+                    ErrorKind::InvalidConfigId(id.to_string())
+                })?)))
+            }
+            None => Ok(Self(None)),
+        }
+    }
+}
+
+impl ConfigId {
+    pub fn as_option(&self) -> &Option<u32> {
+        &self.0
+    }
+
+    pub fn validate(self, upnp_version: Version) -> Result<Self, ErrorKind> {
+        match upnp_version.major {
+            ..=1 => Ok(self),
+            2.. => match self.as_option() {
+                Some(_) => Ok(self),
+                None => Err(ErrorKind::MissingBootId),
+            },
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 // TODO make private inner when impl FromStr
 pub struct FriendlyName(pub String);
