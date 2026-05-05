@@ -1,17 +1,14 @@
 //! `NOTIFY *` messages
 
-use std::{fmt::Display, net::AddrParseError, str::FromStr};
+use std::{fmt::Display, str::FromStr};
 
 use derive_more::Display;
 use url::Url;
 use uuid::Uuid;
 
-use crate::{
-    MULTICAST,
-    message::{
-        DeviceDetails, Header, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort, UserAgent,
-        uri::UriExt,
-    },
+use crate::message::{
+    DeviceDetails, Header, Host, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort, UserAgent,
+    uri::UriExt,
 };
 
 use super::{ErrorKind, ParseError, SsdpNss, UpnpHeader, Uri};
@@ -25,18 +22,10 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
     type Error = ParseError;
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
-        let hostname = header.try_get("HOST")?;
-        let host = hostname.parse().map_err(|err: AddrParseError| {
-            ParseError::chain_from(
-                ErrorKind::from(err).into(),
-                ErrorKind::InvalidHost(hostname.to_string()),
-            )
-        })?;
-        // Host MUST be Multicast address as per spec
-        match host {
-            MULTICAST => (),
-            _ => Err(ErrorKind::InvalidHost(hostname.to_string()))?,
-        }
+        header
+            .try_get(Host::HEADER_KEY)?
+            .parse::<Host>()?
+            .check_multicast()?;
         let max_age = header.try_get(MaxAge::HEADER_KEY)?.parse()?;
         let location = header.try_get("LOCATION")?;
         let location = location

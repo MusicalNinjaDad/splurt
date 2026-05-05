@@ -14,11 +14,12 @@ use std::{
     collections::HashMap,
     fmt::Display,
     io,
-    net::{AddrParseError, SocketAddr, SocketAddrV4, SocketAddrV6},
+    net::{AddrParseError, SocketAddr},
     str::FromStr,
     time::Duration,
 };
 
+use derive_more::Display;
 use uuid::Uuid;
 
 use crate::{MULTICAST, SSDP_PORT};
@@ -137,12 +138,8 @@ impl Display for FriendlyName {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Host {
-    V4(SocketAddrV4),
-    /// IPv6 is currently untested & largely unimplemented
-    _V6(SocketAddrV6),
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+pub struct Host(SocketAddr);
 
 impl Header for Host {
     const HEADER_KEY: &'static str = "HOST";
@@ -172,18 +169,16 @@ impl FromStr for Host {
 
 impl From<SocketAddr> for Host {
     fn from(addr: SocketAddr) -> Self {
-        match addr {
-            SocketAddr::V4(socket_addr_v4) => Self::V4(socket_addr_v4),
-            SocketAddr::V6(socket_addr_v6) => Self::_V6(socket_addr_v6),
-        }
+        Self(addr)
     }
 }
 
-impl Display for Host {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Host::V4(socket_addr_v4) => write!(f, "{socket_addr_v4}"),
-            Host::_V6(socket_addr_v6) => write!(f, "{socket_addr_v6}"),
+impl Host {
+    /// Return [ErrorKind::InvalidHost] if not [MULTICAST]
+    pub fn check_multicast(&self) -> Result<(), ErrorKind> {
+        match self.0 {
+            MULTICAST => Ok(()),
+            _ => Err(ErrorKind::InvalidHost(self.0.to_string())),
         }
     }
 }
