@@ -32,8 +32,9 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
 
         match nts {
             NTS::Alive => Ok(Self::Alive(header.try_into()?)),
+            NTS::ByeBye => Ok(Self::ByeBye(header.try_into()?)),
             #[expect(unreachable_patterns)]
-            _ => todo!("tryfrom header for notify other NTS e.g. byebye"),
+            _ => todo!("tryfrom header for update"),
         }
     }
 }
@@ -132,6 +133,14 @@ pub struct ByeBye {
     config_id: ConfigId,
 }
 
+impl<'h> TryFrom<UpnpHeader<'h>> for ByeBye {
+    type Error = ParseError;
+
+    fn try_from(value: UpnpHeader<'h>) -> Result<Self, Self::Error> {
+        todo!("try from header for byebye")
+    }
+}
+
 /// The NT values available for NOTIFY. This should usually be refered to as `notify::NT`
 /// and not brought directly into scope via `use notify::NT` in order to disambiguate from
 /// `NT` values for other message types.
@@ -214,6 +223,7 @@ impl Display for NT {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum NTS {
     Alive,
+    ByeBye,
 }
 
 impl Header for NTS {
@@ -226,6 +236,7 @@ impl FromStr for NTS {
     fn from_str(uri: &str) -> Result<Self, Self::Err> {
         match uri.parse()? {
             Uri::Ssdp(SsdpNss::Alive) => Ok(Self::Alive),
+            Uri::Ssdp(SsdpNss::ByeBye) => Ok(Self::ByeBye),
             _ => Err(ErrorKind::InvalidNTS(uri.to_string()))?,
         }
     }
