@@ -29,10 +29,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
         let max_age = header.try_get(MaxAge::HEADER_KEY)?.parse()?;
         let location = header.try_get(Location::HEADER_KEY)?.parse()?;
         let nt = header.try_get(NT::HEADER_KEY)?.parse()?;
-        let nts = header
-            .try_get(NTS::HEADER_KEY)?
-            .parse::<Uri>()?
-            .try_into()?;
+        let nts = header.try_get(NTS::HEADER_KEY)?.parse()?;
         let server: Server = header.try_get(Server::HEADER_KEY)?.parse()?;
         let uuid = *Usn::from_uri_and_nt(&header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?, &nt)?
             .as_uuid();
@@ -187,13 +184,13 @@ impl Header for NTS {
     const HEADER_KEY: &'static str = "NTS";
 }
 
-impl TryFrom<Uri> for NTS {
-    type Error = ErrorKind;
+impl FromStr for NTS {
+    type Err = ParseError;
 
-    fn try_from(uri: Uri) -> Result<Self, Self::Error> {
-        match uri {
+    fn from_str(uri: &str) -> Result<Self, Self::Err> {
+        match uri.parse()? {
             Uri::Ssdp(SsdpNss::Alive) => Ok(Self::Alive),
-            _ => Err(ErrorKind::InvalidNTS(uri.to_string())),
+            _ => Err(ErrorKind::InvalidNTS(uri.to_string()))?,
         }
     }
 }
