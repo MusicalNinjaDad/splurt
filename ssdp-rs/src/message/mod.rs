@@ -7,7 +7,7 @@
 //!
 //! [spec]: https://openconnectivity.org/upnp-specs/UPnP-arch-DeviceArchitecture-v2.0-20200417.pdf
 
-use std::{collections::HashMap, fmt::Display, str::FromStr};
+use std::{fmt::Display, str::FromStr};
 
 use uuid::Uuid;
 
@@ -15,6 +15,7 @@ mod devices;
 mod error;
 mod header;
 mod msearch;
+pub mod notify;
 mod response;
 mod services;
 mod uri;
@@ -22,14 +23,17 @@ mod uri;
 pub use devices::{Device, DeviceDetails};
 pub use error::{ErrorKind, ParseError};
 pub use header::{
-    FriendlyName, Header, HeaderExt, Host, Man, MaxAge, Mx, ST, UpnpHeader, UpnpPort, UserAgent,
+    FriendlyName, Header, HeaderExt, Host, Man, MaxAge, Mx, ProductTokens, ST, UpnpHeader, UpnpPort,
 };
 pub use msearch::MSearch;
+pub use notify::Notify;
 pub use response::Response;
 pub use services::{Service, ServiceDetails};
 pub use uri::{SsdpNss, Target, UpnpNss, Uri, UriToken};
 
-const UPNP_VERSION: &str = "2.0";
+use crate::message::header::Version;
+
+const UPNP_VERSION: Version = Version { major: 2, minor: 0 };
 /// RFC1123 date format, e.g.: "Wed, 29 Apr 2026 08:22:03 GMT"
 ///
 /// ## Note
@@ -71,13 +75,12 @@ impl Display for Method {
 ///
 /// Create with `Message::parse()`
 #[derive(Debug, Clone, PartialEq)]
-#[expect(clippy::large_enum_variant)]
 // TODO: #39 Consider boxing `Message::Response`
 //       Contents are `Box`ed as they contain many large pointers to heap-allocated
 //       information e.g. `String`s (each is a 24b pointer to data that is on the heap anyway)
 pub enum Message {
-    /// NTS: ssdp:alive
-    Alive(Notification),
+    /// NOTIFY *
+    Notify(Notify),
     /// MAN: ssdp:discover
     Search(MSearch),
     /// A direct response to an `M-SEARCH` request
@@ -85,26 +88,6 @@ pub enum Message {
 }
 
 impl Message {
-    /// Parse an ssdp message from given text
-    pub fn parse(contents: &str) -> Option<Message> {
-        let mut lines = contents.lines();
-        if lines.next()? != "NOTIFY * HTTP/1.1" {
-            return None;
-        };
-        let header: RawHeader = lines
-            .filter_map(|line| {
-                line.split_once(": ")
-                    .map(|(k, v)| (k.to_string(), v.to_string()))
-            })
-            .collect();
-        if *header.get("NTS")? == "ssdp:alive" {
-            //TODO: flaky - capitalisation
-            let location = header.get("Location").map(ToString::to_string);
-            return Some(Message::Alive(Notification { location, header }));
-        }
-        None
-    }
-
     /// Construct a new M-SEARCH message.
     ///
     /// While details of the user agent are technically optional we are going to include them
@@ -118,10 +101,10 @@ impl Message {
         friendly_name: &str,
         uuid: Uuid,
     ) -> Self {
-        let user_agent = UserAgent {
+        let user_agent = ProductTokens {
             os: os.to_string(),
             os_version: os_version.to_string(),
-            upnp_version: UPNP_VERSION.to_string(),
+            upnp_version: UPNP_VERSION,
             product_name: product_name.to_string(),
             product_version: product_version.to_string(),
         };
@@ -145,7 +128,7 @@ impl FromStr for Message {
         let header: UpnpHeader = lines.collect();
         match method {
             Method::MSearch => todo!("parse MSearch"),
-            Method::Notify => todo!("parse Notify"),
+            Method::Notify => Ok(Message::Notify(header.try_into()?)),
             Method::Response => Ok(Message::Response(header.try_into()?)),
         }
     }
@@ -155,7 +138,7 @@ impl FromStr for Message {
 impl Display for Message {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Message::Alive(_notification) => todo!("display alive messages"),
+            Message::Notify(_notify) => todo!("display notify messages"),
             Message::Search(msearch) => {
                 write!(f, "{msearch}")
             }
@@ -190,21 +173,12 @@ impl Display for Vendor {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Notification {
-    location: Option<String>,
-    header: RawHeader,
-}
-
-/// `key: value` pairings, ideally from a NOTIFY * HTTP/1.1
-///
-/// look at [Message::parse] to see how to safely construct this yourself
-type RawHeader = HashMap<String, String>;
-
 #[cfg(test)]
 mod tests {
 
     use uuid::uuid;
+
+    use crate::message::header::Version;
 
     use super::*;
 
@@ -213,8 +187,57 @@ mod tests {
 
     #[cfg(assert_matches_in_module)]
     use std::assert_matches::assert_matches;
+    use std::time::Duration;
 
-    const ALIVE: &str = r#"NOTIFY * HTTP/1.1
+    #[test]
+    fn parse_alive() {
+        let alive = r#"NOTIFY * HTTP/1.1
+Host: 239.255.255.250:1900
+Cache-Control: max-age=3600
+Location: yeelight://192.168.1.239:55443
+NT: urn:schemas-upnp-org:device:BinaryLight:1
+NTS: ssdp:alive
+Server: POSIX/1-2017, UPnP/1.0 YGLC/1
+usn: uuid:f351ef6b-d281-4413-b33a-a75fac0c5ea5::urn:schemas-upnp-org:device:BinaryLight:1
+id: 0x000000000015243f
+model: color
+fw_ver: 18
+support: get_prop set_default set_power toggle set_bright start_cf stop_cf set_scene cron_add cron_get cron_del set_ct_abx set_rgb
+power: on
+bright: 100
+color_mode: 2
+ct: 4000
+rgb: 16711680
+hue: 100
+sat: 35
+name: my_bulb
+"#;
+        let msg: Message = alive.parse().expect("parsed as NOTIFY");
+        let Message::Notify(Notify::Alive(parsed)) = msg else {
+            panic!("{} is not an alive notification", msg)
+        };
+        let max_age = Duration::from_secs(3600);
+        assert_eq!(parsed.max_age, MaxAge(max_age));
+        assert_eq!(
+            parsed.location.to_string(),
+            "yeelight://192.168.1.239:55443"
+        );
+        assert_matches!(parsed.nt, notify::NT::Device(device)
+            if matches!(device.vendor, Vendor::Standard)
+            && matches!(&device.device, Device::BinaryLight { ver } if ver == "1")
+        );
+        assert_eq!(parsed.server.os, "POSIX");
+        assert_eq!(parsed.server.os_version, "1-2017");
+        assert_eq!(parsed.server.upnp_version, Version { major: 1, minor: 0 });
+        assert_eq!(parsed.server.product_name, "YGLC");
+        assert_eq!(parsed.server.product_version, "1");
+        assert_eq!(parsed.uuid, uuid!("f351ef6b-d281-4413-b33a-a75fac0c5ea5"));
+    }
+
+    #[test]
+    // TODO: Handle all the non-conform junk in this message
+    fn parse_alive_invalid_host() {
+        let alive = r#"NOTIFY * HTTP/1.1
 Host: 239.255.255.250:1982
 Cache-Control: max-age=3600
 Location: yeelight://192.168.1.239:55443
@@ -233,41 +256,10 @@ hue: 100
 sat: 35
 name: my_bulb
 "#;
-
-    #[test]
-    fn parse_alive() {
-        let msg = Message::parse(ALIVE).unwrap();
-        let alive_header = HashMap::from([
-            ("Host", "239.255.255.250:1982"),
-            ("Cache-Control", "max-age=3600"),
-            ("Location", "yeelight://192.168.1.239:55443"),
-            ("NTS", "ssdp:alive"),
-            ("Server", "POSIX, UPnP/1.0 YGLC/1"),
-            ("id", "0x000000000015243f"),
-            ("model", "color"),
-            ("fw_ver", "18"),
-            (
-                "support",
-                "get_prop set_default set_power toggle set_bright start_cf stop_cf set_scene cron_add cron_get cron_del set_ct_abx set_rgb",
-            ),
-            ("power", "on"),
-            ("bright", "100"),
-            ("color_mode", "2"),
-            ("ct", "4000"),
-            ("rgb", "16711680"),
-            ("hue", "100"),
-            ("sat", "35"),
-            ("name", "my_bulb"),
-        ]);
-        let alive_header = alive_header
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect();
-        let expected_notification = Notification {
-            location: Some("yeelight://192.168.1.239:55443".to_string()),
-            header: alive_header,
-        };
-        assert_matches!(msg, Message::Alive(notification) if notification == expected_notification);
+        let err = alive
+            .parse::<Message>()
+            .expect_err("host with invalid port");
+        assert_matches!(err.kind, ErrorKind::InvalidHost(h) if h == "239.255.255.250:1982");
     }
 
     #[test]

@@ -2,13 +2,15 @@ use std::fmt::Display;
 
 use uuid::Uuid;
 
-use super::{FriendlyName, HeaderExt, Host, Man, Method, Mx, ST, UserAgent};
+use crate::message::header::UserAgent;
+
+use super::{FriendlyName, HeaderExt, Host, Man, Method, Mx, ST};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MSearch {
     pub host: Host,
     pub mx: Mx,
-    pub user_agent: Option<UserAgent<"USER-AGENT">>,
+    pub user_agent: Option<UserAgent>,
     pub friendly_name: FriendlyName,
     pub uuid: Option<Uuid>,
 }

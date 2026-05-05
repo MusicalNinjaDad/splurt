@@ -18,19 +18,23 @@ impl Display for DeviceDetails {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Device {
+    BinaryLight { ver: String },
     MediaServer { ver: String },
     Other { device_type: String, ver: String },
 }
 
 impl Device {
-    pub fn from_parts<'s, P: IntoIterator<Item = &'s str>>(parts: P) -> Result<Self, ErrorKind> {
-        let mut parts = parts.into_iter();
+    pub fn from_parts<'s, P>(parts: &mut P) -> Result<Self, ErrorKind>
+    where
+        P: Iterator<Item = &'s str>,
+    {
         let device_type = parts
             .next()
             .ok_or(ErrorKind::InvalidDevice("''".to_string()))?
             .to_string();
         let ver = parts.collect();
         let device = match device_type.as_str() {
+            "BinaryLight" => Device::BinaryLight { ver },
             "MediaServer" => Device::MediaServer { ver },
             _ => Device::Other { device_type, ver },
         };
@@ -41,6 +45,7 @@ impl Device {
 impl Display for Device {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Device::BinaryLight { ver } => write!(f, "BinaryLight:{}", ver),
             Device::MediaServer { ver } => write!(f, "MediaServer:{}", ver),
             Device::Other { device_type, ver } => write!(f, "{}:{}", device_type, ver),
         }

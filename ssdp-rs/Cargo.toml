@@ -15,7 +15,7 @@ publish = false
 
 [dependencies]
 chrono = "0.4.44"
-derive_more = { version = "2.1.1", features = ["from_str"] }
+derive_more = { version = "2.1.1", features = ["display", "from_str"] }
 futures = "0.3.32"
 futures-timer = "3.0.3"
 futures-udp = { workspace = true }

@@ -1,6 +1,10 @@
-use std::{error::Error, fmt::Display};
+use std::{
+    error::Error,
+    fmt::Display,
+    net::{self, AddrParseError},
+};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ErrorKind {
     EmptyMessage,
     InvalidBootId(String),
@@ -10,13 +14,20 @@ pub enum ErrorKind {
     InvalidDeviceDetails(String),
     InvalidService(String),
     InvalidDuration(String),
+    InvalidHost(String),
+    InvalidIPAddress(net::AddrParseError),
     InvalidLocation(String),
     InvalidMethod(String),
+    InvalidNT(String),
+    InvalidNTS(String),
     InvalidPort(String),
     InvalidSecureLocation(String),
     InvalidST(String),
     InvalidUrn(String),
+    InvalidUsn(String),
     InvalidUserAgent(String),
+    InvalidUUID(uuid::Error),
+    InvalidVersion(String),
     MissingBootId,
     MissingConfigId,
     MissingField(String),
@@ -26,6 +37,18 @@ pub enum ErrorKind {
 pub struct ParseError {
     pub kind: ErrorKind,
     source: Option<Box<ParseError>>,
+}
+
+impl From<AddrParseError> for ErrorKind {
+    fn from(err: AddrParseError) -> Self {
+        Self::InvalidIPAddress(err)
+    }
+}
+
+impl From<uuid::Error> for ErrorKind {
+    fn from(err: uuid::Error) -> Self {
+        Self::InvalidUUID(err)
+    }
 }
 
 impl From<ErrorKind> for ParseError {
@@ -81,8 +104,12 @@ impl Display for ErrorKind {
             ErrorKind::InvalidDeviceDetails(device) => {
                 write!(f, "{} is not a valid upnp device:ver specification", device)
             }
+            ErrorKind::InvalidHost(host) => write!(f, "{host} is not a valid host in this context"),
+            ErrorKind::InvalidIPAddress(err) => write!(f, "{err}"),
             ErrorKind::InvalidLocation(location) => write!(f, "{location} is not a valid url"),
             ErrorKind::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
+            ErrorKind::InvalidNT(nt) => write!(f, "{} is not a valid NT in this context", nt),
+            ErrorKind::InvalidNTS(nts) => write!(f, "{} is not a valid NTS in this context", nts),
             ErrorKind::InvalidPort(port) => write!(f, "{port} is not a valid IP port"),
             ErrorKind::InvalidSecureLocation(location) => write!(
                 f,
@@ -95,9 +122,18 @@ impl Display for ErrorKind {
             ErrorKind::InvalidUrn(urn) => {
                 write!(f, "{} is not a valid upnp universal resource name", urn)
             }
+            ErrorKind::InvalidUsn(usn) => write!(
+                f,
+                "{usn} is not a valid USN (Unique Search Name). Valid forms are: `uuid:device-UUID::upnp:rootdevice`, `uuid:device-UUID` & `uuid:device-UUID::urn:...`"
+            ),
             ErrorKind::InvalidUserAgent(user_agent) => {
                 write!(f, "{user_agent} is not a valid user agent")
             }
+            ErrorKind::InvalidUUID(err) => write!(f, "{err}"),
+            ErrorKind::InvalidVersion(ver) => write!(
+                f,
+                "{ver} is not a valid Version. Valid form is `major.minor`"
+            ),
             ErrorKind::MissingBootId => {
                 write!(f, "a boot instance is required from UPnp/2.0 onwards")
             }

@@ -1,7 +1,8 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
-use url::Url;
 
-use super::{ErrorKind, Header, MaxAge, ParseError, RFC1123, ST, UpnpHeader, UpnpPort, UserAgent};
+use crate::message::header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2};
+
+use super::{ErrorKind, Header, MaxAge, ParseError, RFC1123, ST, UpnpHeader, UpnpPort};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 /// A direct response to an `M-SEARCH` message.
@@ -17,9 +18,9 @@ pub struct Response {
     /// `EXT`: Required for backwards compatibility with UPnP 1.0. (Header field name only; no field value.)
     ext: Option<!>,
     /// `URL` for UPnP description for root device
-    location: Url,
+    location: Location,
     /// `SERVER`: OS/version UPnP/2.0 product/version
-    server: UserAgent<"SERVER">,
+    server: Server,
     /// `ST`: search target
     st: ST,
     /// `USN`: composite identifier for the advertisement
@@ -33,7 +34,7 @@ pub struct Response {
     /// checking for changes to the device state that were not evented since the device was off-line.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    boot_id: Option<u32>,
+    boot_id: BootId,
     /// `CONFIGID.UPNP.ORG`: number used for caching description information.
     /// If a device sends out two messages with a `CONFIGID.UPNP.ORG` header field with the same field
     /// value, the configuration shall be the same at the moments that these messages were sent.
@@ -41,20 +42,19 @@ pub struct Response {
     /// control point receives an announcement of an unknown configuration is downloading required.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    config_id: Option<u32>,
+    config_id: ConfigId,
     /// `SEARCHPORT.UPNP.ORG`: number identifies port on which device responds to unicast M-SEARCH
     ///
     /// Optional (handled semantically in [UpnpPort])
     port: UpnpPort,
     /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
     /// Required when device protection is implemented.
-    secure_location: Option<Url>,
+    secure_location: SecureLocation,
 }
 impl<'h> TryFrom<UpnpHeader<'h>> for Response {
     type Error = ParseError;
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
-        let st = header.try_get(ST::HEADER_KEY)?.parse()?;
         let max_age = header.try_get(MaxAge::HEADER_KEY)?.parse()?;
         let date = header
             .get("DATE")
@@ -65,56 +65,17 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             })
             .transpose()?;
         let ext = None;
-        let location = header.try_get("LOCATION")?;
-        let location = location
-            .parse()
-            .map_err(|_| ErrorKind::InvalidLocation(location.to_string()))?;
-        let server: UserAgent<"SERVER"> = header.try_get("SERVER")?.parse()?;
+        let location = header.try_get(Location::HEADER_KEY)?.parse()?;
+        let server: Server = header.try_get(Server::HEADER_KEY)?.parse()?;
+        let st = header.try_get(ST::HEADER_KEY)?.parse()?;
         let usn = header.try_get("USN")?.to_string();
-        let boot_id = header
-            .get("BOOTID.UPNP.ORG")
-            .map(|boot_id| {
-                boot_id
-                    .parse()
-                    .map_err(|_| ErrorKind::InvalidBootId(boot_id.to_string()))
-            })
-            .transpose()?;
-        let config_id = header
-            .get("CONFIGID.UPNP.ORG")
-            .map(|config_id| {
-                config_id
-                    .parse()
-                    .map_err(|_| ErrorKind::InvalidConfigId(config_id.to_string()))
-            })
-            .transpose()?;
-        match server.upnp_version.as_str() {
-            // TODO parse the version number into Major,Minor
-            "1.0" => (),
-            _ => {
-                if boot_id.is_none() {
-                    Err(ErrorKind::MissingBootId)?;
-                }
-                if config_id.is_none() {
-                    Err(ErrorKind::MissingConfigId)?;
-                }
-            }
-        };
+        let boot_id: BootId = header.get(BootId::HEADER_KEY).try_into()?;
+        boot_id.validate(server.upnp_version)?;
+        let config_id: ConfigId = header.get(ConfigId::HEADER_KEY).try_into()?;
+        config_id.validate(server.upnp_version)?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
-        let secure_location: Option<Url> = header
-            .get("SECURELOCATION.UPNP.ORG")
-            .map(|location| {
-                location
-                    .parse()
-                    .map_err(|_| ErrorKind::InvalidSecureLocation(location.to_string()))
-            })
-            .transpose()?;
-        if let Some(ref secure_location) = secure_location
-            && (secure_location.scheme() != "https" || secure_location.port().is_none())
-        {
-            Err(ErrorKind::InvalidSecureLocation(
-                secure_location.to_string(),
-            ))?;
-        };
+        let secure_location: SecureLocation = header.get(SecureLocation::HEADER_KEY).try_into()?;
+        secure_location.validate()?;
         Ok(Self {
             max_age,
             date,

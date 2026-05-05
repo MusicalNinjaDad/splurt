@@ -14,45 +14,55 @@ use std::{
     collections::HashMap,
     fmt::Display,
     io,
-    net::{AddrParseError, SocketAddr, SocketAddrV4, SocketAddrV6},
+    net::{AddrParseError, SocketAddr},
     str::FromStr,
     time::Duration,
 };
 
+use derive_more::Display;
+use url::Url;
 use uuid::Uuid;
 
 use crate::{MULTICAST, SSDP_PORT};
 
 use super::{DeviceDetails, ErrorKind, ParseError, ServiceDetails, SsdpNss, Target, UpnpNss, Uri};
 
-pub struct UpnpHeader<'h>(HashMap<&'h str, &'h str>);
+pub struct UpnpHeader<'h>(HashMap<String, HeaderEntry<'h>>);
 
-// TODO: #42 handle header key case sensitivity and maintain round-tripping
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct HeaderEntry<'h> {
+    key: &'h str,
+    val: &'h str,
+}
+
+// TODO: #42 maintain round-tripping
 //   at the same time, also handle split_once(": ") skips headers without a value (like EXT:)
 //   via split(":") & trim
 impl<'h> FromIterator<&'h str> for UpnpHeader<'h> {
     fn from_iter<T: IntoIterator<Item = &'h str>>(iter: T) -> Self {
         let hashmap = iter
             .into_iter()
-            .filter_map(|line| line.split_once(": "))
+            .filter_map(|line| {
+                line.split_once(": ")
+                    .map(|(key, val)| (key.to_uppercase(), HeaderEntry { key, val }))
+            })
             .collect();
         Self(hashmap)
     }
 }
 
+// TODO #54 benchmark this then try with [unicase = "2.9.0"::Ascii]
 impl<'h> UpnpHeader<'h> {
-    /// Attempt to get the corresponding value for `key`, returning a [ParseError::MissingField]
+    /// Attempt to get the corresponding value for `key`, returning an [ErrorKind::MissingField]
     /// if unsuccessful.
     pub fn try_get(&self, key: &str) -> Result<&str, ErrorKind> {
-        self.0
-            .get(key)
+        self.get(key)
             .ok_or_else(|| ErrorKind::MissingField(key.to_string()))
-            .copied()
     }
 
     /// Attempt to get the value for `key`, returning `None` if unsuccessful.
     pub fn get(&self, key: &str) -> Option<&str> {
-        self.0.get(key).copied()
+        self.0.get(&key.to_uppercase()).map(|entry| entry.val)
     }
 }
 
@@ -109,6 +119,79 @@ impl<H: Header + HeaderExt> HeaderExt for Option<H> {
     }
 }
 
+/// For types which are required in UPnP V2 but not V1 and can be represented as an `Option<T>`
+pub trait UpnpV2<T> {
+    const ERR: ErrorKind;
+
+    fn as_option(&self) -> &Option<T>;
+    fn validate(&self, upnp_version: Version) -> Result<&Self, ErrorKind> {
+        match upnp_version.major {
+            ..=1 => Ok(self),
+            2.. => match self.as_option() {
+                Some(_) => Ok(self),
+                None => Err(Self::ERR),
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BootId(Option<u32>);
+
+impl Header for BootId {
+    const HEADER_KEY: &'static str = "BOOTID.UPNP.ORG";
+}
+
+impl TryFrom<Option<&str>> for BootId {
+    type Error = ErrorKind;
+
+    fn try_from(id: Option<&str>) -> Result<Self, Self::Error> {
+        match id {
+            Some(id) => Ok(Self(Some(
+                id.parse()
+                    .map_err(|_| ErrorKind::InvalidBootId(id.to_string()))?,
+            ))),
+            None => Ok(Self(None)),
+        }
+    }
+}
+
+impl UpnpV2<u32> for BootId {
+    const ERR: ErrorKind = ErrorKind::MissingBootId;
+    fn as_option(&self) -> &Option<u32> {
+        &self.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ConfigId(Option<u32>);
+
+impl Header for ConfigId {
+    const HEADER_KEY: &'static str = "CONFIGID.UPNP.ORG";
+}
+
+impl TryFrom<Option<&str>> for ConfigId {
+    type Error = ErrorKind;
+
+    fn try_from(id: Option<&str>) -> Result<Self, Self::Error> {
+        match id {
+            Some(id) => {
+                Ok(Self(Some(id.parse().map_err(|_| {
+                    ErrorKind::InvalidConfigId(id.to_string())
+                })?)))
+            }
+            None => Ok(Self(None)),
+        }
+    }
+}
+
+impl UpnpV2<u32> for ConfigId {
+    const ERR: ErrorKind = ErrorKind::MissingConfigId;
+    fn as_option(&self) -> &Option<u32> {
+        &self.0
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 // TODO make private inner when impl FromStr
 pub struct FriendlyName(pub String);
@@ -130,12 +213,9 @@ impl Display for FriendlyName {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Host {
-    V4(SocketAddrV4),
-    /// IPv6 is currently untested & largely unimplemented
-    _V6(SocketAddrV6),
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+// TODO: A way to get the addr back out
+pub struct Host(SocketAddr);
 
 impl Header for Host {
     const HEADER_KEY: &'static str = "HOST";
@@ -148,28 +228,51 @@ impl Default for Host {
 }
 
 impl FromStr for Host {
-    type Err = AddrParseError;
+    type Err = ParseError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let addr = SocketAddr::from_str(s)?;
+    fn from_str(hostname: &str) -> Result<Self, Self::Err> {
+        let addr = hostname
+            .parse::<SocketAddr>()
+            .map_err(|err: AddrParseError| {
+                ParseError::chain_from(
+                    ErrorKind::from(err).into(),
+                    ErrorKind::InvalidHost(hostname.to_string()),
+                )
+            })?;
         Ok(addr.into())
     }
 }
 
 impl From<SocketAddr> for Host {
     fn from(addr: SocketAddr) -> Self {
-        match addr {
-            SocketAddr::V4(socket_addr_v4) => Self::V4(socket_addr_v4),
-            SocketAddr::V6(socket_addr_v6) => Self::_V6(socket_addr_v6),
+        Self(addr)
+    }
+}
+
+impl Host {
+    /// Return [ErrorKind::InvalidHost] if not [MULTICAST]
+    pub fn check_multicast(&self) -> Result<(), ErrorKind> {
+        match self.0 {
+            MULTICAST => Ok(()),
+            _ => Err(ErrorKind::InvalidHost(self.0.to_string())),
         }
     }
 }
 
-impl Display for Host {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Host::V4(socket_addr_v4) => write!(f, "{socket_addr_v4}"),
-            Host::_V6(socket_addr_v6) => write!(f, "{socket_addr_v6}"),
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+pub struct Location(Url);
+
+impl Header for Location {
+    const HEADER_KEY: &'static str = "LOCATION";
+}
+
+impl FromStr for Location {
+    type Err = ErrorKind;
+
+    fn from_str(url: &str) -> Result<Self, Self::Err> {
+        match url.parse() {
+            Ok(url) => Ok(Self(url)),
+            Err(_) => Err(ErrorKind::InvalidLocation(url.to_string())),
         }
     }
 }
@@ -193,8 +296,8 @@ impl Display for Man {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct MaxAge(Duration);
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct MaxAge(pub(crate) Duration);
 
 impl Header for MaxAge {
     const HEADER_KEY: &'static str = "CACHE-CONTROL";
@@ -250,6 +353,123 @@ impl Display for Mx {
         write!(f, "{}", self.0)
     }
 }
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ProductTokens<const FIELD_NAME: &'static str> {
+    pub os: String,
+    pub os_version: String,
+    pub upnp_version: Version,
+    pub product_name: String,
+    pub product_version: String,
+}
+
+impl<const FIELD_NAME: &'static str> Header for ProductTokens<FIELD_NAME> {
+    const HEADER_KEY: &'static str = FIELD_NAME;
+}
+
+impl<const _FLD: &'static str> FromStr for ProductTokens<_FLD> {
+    type Err = ErrorKind;
+
+    fn from_str(user_agent: &str) -> Result<Self, Self::Err> {
+        let err = || ErrorKind::InvalidUserAgent(user_agent.to_string());
+        // Wierd & slightly backwards splitting as product_name may contain spaces
+        let mut token_ish = user_agent.split("/");
+        let os = token_ish.next().ok_or_else(err)?.to_string();
+        // TODO: Check there was a "Upnp" in the right place
+        let (os_version, _upnp) = token_ish
+            .next()
+            .ok_or_else(err)?
+            .split_once(" ")
+            .ok_or_else(err)
+            .map(|(ver, upnp)| {
+                (
+                    ver.trim_end_matches(|c: char| !c.is_alphanumeric())
+                        .to_string(),
+                    upnp,
+                )
+            })?;
+        let (ver, prod) = token_ish
+            .next()
+            .ok_or_else(err)?
+            .split_once(" ")
+            .ok_or_else(err)?;
+        let upnp_version = ver
+            .trim_end_matches(|c: char| !c.is_alphanumeric())
+            .parse()?;
+        let product_name = prod.to_string();
+        let product_version = token_ish.next().ok_or_else(err)?.to_string();
+        if token_ish.next().is_some() {
+            return Err(err());
+        };
+        Ok(Self {
+            os,
+            os_version,
+            upnp_version,
+            product_name,
+            product_version,
+        })
+    }
+}
+
+/// Formatted as per OCF specification (2020) section 1.3.2 for the `USER-AGENT` *value*,
+/// does NOT include the header key
+impl<const _FLD: &'static str> Display for ProductTokens<_FLD> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            os,
+            os_version,
+            upnp_version,
+            product_name,
+            product_version,
+        } = self;
+        write!(
+            f,
+            "{os}/{os_version} UPnP/{upnp_version} {product_name}/{product_version}"
+        )
+    }
+}
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SecureLocation(Option<Url>);
+
+impl Header for SecureLocation {
+    const HEADER_KEY: &'static str = "SECURELOCATION.UPNP.ORG";
+}
+
+impl TryFrom<Option<&str>> for SecureLocation {
+    type Error = ErrorKind;
+
+    fn try_from(url: Option<&str>) -> Result<Self, Self::Error> {
+        match url {
+            Some(url) => {
+                Ok(Self(Some(url.parse().map_err(|_| {
+                    ErrorKind::InvalidSecureLocation(url.to_string())
+                })?)))
+            }
+            None => Ok(Self(None)),
+        }
+    }
+}
+
+impl SecureLocation {
+    pub fn as_option(&self) -> &Option<Url> {
+        &self.0
+    }
+
+    pub fn validate(&self) -> Result<&Self, ErrorKind> {
+        match self.as_option() {
+            None => Ok(self),
+            Some(secure_location)
+                if secure_location.scheme() == "https" && secure_location.port().is_some() =>
+            {
+                Ok(self)
+            }
+            Some(insecure_location) => Err(ErrorKind::InvalidSecureLocation(
+                insecure_location.to_string(),
+            )),
+        }
+    }
+}
+
+pub type Server = ProductTokens<"SERVER">;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 /// Search Target
@@ -297,6 +517,7 @@ impl FromStr for ST {
             Uri::Urn(Target::Device(device)) => Ok(ST::Device(device)),
             Uri::Urn(Target::Service(service)) => Ok(ST::Service(service)),
             // TODO: parse UUID
+            _ => Err(ErrorKind::InvalidST(s.to_string()))?,
         }
     }
 }
@@ -313,7 +534,7 @@ impl Display for ST {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// The port specified in a Upnp message.
 ///
 /// Treat this like a semantically specific `Option<u16>` with a valuable implementation of
@@ -369,84 +590,36 @@ impl From<UpnpPort> for u16 {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct UserAgent<const FIELD_NAME: &'static str> {
-    pub os: String,
-    pub os_version: String,
-    pub upnp_version: String,
-    pub product_name: String,
-    pub product_version: String,
-}
-
-impl<const FIELD_NAME: &'static str> Header for UserAgent<FIELD_NAME> {
-    const HEADER_KEY: &'static str = FIELD_NAME;
-}
-
-impl<const _FN: &'static str> FromStr for UserAgent<_FN> {
-    type Err = ErrorKind;
-
-    fn from_str(user_agent: &str) -> Result<Self, Self::Err> {
-        let err = || ErrorKind::InvalidUserAgent(user_agent.to_string());
-        // Wierd & slightly backwards splitting as product_name may contain spaces
-        let mut token_ish = user_agent.split("/");
-        let os = token_ish.next().ok_or_else(err)?.to_string();
-        // TODO: Check there was a "Upnp" in the right place
-        let (os_version, _upnp) = token_ish
-            .next()
-            .ok_or_else(err)?
-            .split_once(" ")
-            .ok_or_else(err)
-            .map(|(ver, upnp)| {
-                (
-                    ver.trim_end_matches(|c: char| !c.is_alphanumeric())
-                        .to_string(),
-                    upnp,
-                )
-            })?;
-        let (upnp_version, product_name) = token_ish
-            .next()
-            .ok_or_else(err)?
-            .split_once(" ")
-            .ok_or_else(err)
-            .map(|(ver, prod)| {
-                (
-                    ver.trim_end_matches(|c: char| !c.is_alphanumeric())
-                        .to_string(),
-                    prod.to_string(),
-                )
-            })?;
-        let product_version = token_ish.next().ok_or_else(err)?.to_string();
-        if token_ish.next().is_some() {
-            return Err(err());
-        };
-        Ok(Self {
-            os,
-            os_version,
-            upnp_version,
-            product_name,
-            product_version,
-        })
-    }
-}
-
-/// Formatted as per OCF specification (2020) section 1.3.2 for the `USER-AGENT` *value*,
-/// does NOT include the header key
-impl<const _FN: &'static str> Display for UserAgent<_FN> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self {
-            os,
-            os_version,
-            upnp_version,
-            product_name,
-            product_version,
-        } = self;
-        write!(
-            f,
-            "{os}/{os_version} UPnP/{upnp_version} {product_name}/{product_version}"
-        )
-    }
-}
+pub type UserAgent = ProductTokens<"USER-AGENT">;
 
 impl Header for Uuid {
     const HEADER_KEY: &'static str = "CPUUID.UPNP.ORG";
+}
+
+/// Upnp version
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Version {
+    pub major: u32,
+    pub minor: u32,
+}
+
+impl FromStr for Version {
+    type Err = ErrorKind;
+
+    fn from_str(v: &str) -> Result<Self, Self::Err> {
+        let err = || ErrorKind::InvalidVersion(v.to_string());
+        let mut parts = v.split(".");
+        let major = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
+        let minor = parts.next().ok_or_else(err)?.parse().map_err(|_| err())?;
+        if parts.next().is_some() {
+            return Err(err());
+        }
+        Ok(Self { major, minor })
+    }
+}
+
+impl Display for Version {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}.{}", self.major, self.minor)
+    }
 }
