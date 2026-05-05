@@ -155,9 +155,13 @@ pub trait UpnpV2<T> {
     }
 }
 
-pub trait UpnpV2Ext<T, E>:
-    UpnpV2<T> + for<'a> TryFrom<Option<&'a str>, Error = E> + Header + Sized
+pub trait UpnpV2Ext<T>: UpnpV2<T> + Header + Sized {
+    fn get_validated(header: &UpnpHeader, upnp_version: Version) -> Result<Self, ErrorKind>;
+}
+
+impl<U, T, E> UpnpV2Ext<T> for U
 where
+    U: UpnpV2<T> + for<'a> TryFrom<Option<&'a str>, Error = E> + Header + Sized,
     ErrorKind: From<E>,
 {
     fn get_validated(header: &UpnpHeader, upnp_version: Version) -> Result<Self, ErrorKind> {
