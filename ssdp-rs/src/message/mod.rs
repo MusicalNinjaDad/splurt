@@ -114,7 +114,7 @@ impl Message {
             mx,
             user_agent: Some(user_agent),
             friendly_name: friendly_name.into(),
-            uuid: Some(uuid),
+            uuid: Some(uuid.into()),
         })
     }
 }
@@ -313,7 +313,7 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003
             mx,
             user_agent: None,
             friendly_name: FriendlyName(friendly_name.to_string()),
-            uuid: Some(uuid),
+            uuid: Some(uuid.into()),
         };
         let msg_text = msg.to_string();
         assert_eq!(msg_text, expected);

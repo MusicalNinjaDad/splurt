@@ -81,15 +81,28 @@ pub trait HeaderExt {
 
     /// Write a valid header line to `f` including new-line
     fn write_header(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
+
+    /// Attempt to get and parse this from a UpnpHeader
+    fn get_from(header: UpnpHeader<'_>) -> Result<Self, ParseError>
+    where
+        Self: Sized;
 }
 
-impl<H: Header + Display> HeaderExt for H {
+impl<H, E> HeaderExt for H
+where
+    H: Header + Display + FromStr<Err = E>,
+    ParseError: From<E>,
+{
     fn to_header(&self) -> String {
         format!("{}: {}", Self::HEADER_KEY, self)
     }
 
     fn write_header(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.to_header())
+    }
+
+    fn get_from(header: UpnpHeader<'_>) -> Result<Self, ParseError> {
+        Ok(header.try_get(Self::HEADER_KEY)?.parse()?)
     }
 }
 
@@ -116,6 +129,13 @@ impl<H: Header + HeaderExt> HeaderExt for Option<H> {
             Some(header) => header.write_header(f),
             None => Ok(()),
         }
+    }
+
+    fn get_from(_header: UpnpHeader<'_>) -> Result<Self, ParseError>
+    where
+        Self: Sized,
+    {
+        todo!("get_from for option")
     }
 }
 
@@ -192,12 +212,40 @@ impl UpnpV2<u32> for ConfigId {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+pub struct ControlPointUuid(Uuid);
+
+impl Header for ControlPointUuid {
+    const HEADER_KEY: &'static str = "CPUUID.UPNP.ORG";
+}
+
+impl FromStr for ControlPointUuid {
+    type Err = ErrorKind;
+
+    fn from_str(_s: &str) -> Result<Self, Self::Err> {
+        todo!("fromstr controlpoint uuid")
+    }
+}
+
+impl From<Uuid> for ControlPointUuid {
+    fn from(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+}
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 // TODO make private inner when impl FromStr
 pub struct FriendlyName(pub String);
 
 impl Header for FriendlyName {
     const HEADER_KEY: &'static str = "CPFN.UPNP.ORG";
+}
+
+impl FromStr for FriendlyName {
+    type Err = ErrorKind;
+
+    fn from_str(_s: &str) -> Result<Self, Self::Err> {
+        todo!("fromstr for friendly name")
+    }
 }
 
 // TODO Replace with FromStr
@@ -286,6 +334,14 @@ impl Header for Man {
     const HEADER_KEY: &'static str = "MAN";
 }
 
+impl FromStr for Man {
+    type Err = ErrorKind;
+
+    fn from_str(_s: &str) -> Result<Self, Self::Err> {
+        todo!("man from str")
+    }
+}
+
 impl Display for Man {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let str = match self {
@@ -329,6 +385,14 @@ pub struct Mx(u8);
 
 impl Header for Mx {
     const HEADER_KEY: &'static str = "MX";
+}
+
+impl FromStr for Mx {
+    type Err = ErrorKind;
+
+    fn from_str(_s: &str) -> Result<Self, Self::Err> {
+        todo!("from str mx")
+    }
 }
 
 impl TryFrom<u8> for Mx {
@@ -591,10 +655,6 @@ impl From<UpnpPort> for u16 {
 }
 
 pub type UserAgent = ProductTokens<"USER-AGENT">;
-
-impl Header for Uuid {
-    const HEADER_KEY: &'static str = "CPUUID.UPNP.ORG";
-}
 
 /// Upnp version
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
