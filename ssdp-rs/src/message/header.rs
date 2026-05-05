@@ -187,7 +187,7 @@ impl ConfigId {
             ..=1 => Ok(self),
             2.. => match self.as_option() {
                 Some(_) => Ok(self),
-                None => Err(ErrorKind::MissingBootId),
+                None => Err(ErrorKind::MissingConfigId),
             },
         }
     }
