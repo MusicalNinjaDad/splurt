@@ -83,8 +83,8 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
         let max_age = header.try_get(MaxAge::HEADER_KEY)?.parse()?;
         let location = Location::get_from(&header)?;
-        let nt = header.try_get(NT::HEADER_KEY)?.parse()?;
-        let server: Server = header.try_get(Server::HEADER_KEY)?.parse()?;
+        let nt = NT::get_from(&header)?;
+        let server = Server::get_from(&header)?;
         let uuid = *Usn::from_uri_and_nt(&header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?, &nt)?
             .as_uuid();
         let boot_id: BootId = header.get(BootId::HEADER_KEY).try_into()?;
@@ -137,7 +137,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for ByeBye {
     type Error = ParseError;
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
-        let nt = header.try_get(NT::HEADER_KEY)?.parse()?;
+        let nt = NT::get_from(&header)?;
         let uuid = *Usn::from_uri_and_nt(&header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?, &nt)?
             .as_uuid();
         // TODO - document Boot & ConfigID validation must be done by something that has a
