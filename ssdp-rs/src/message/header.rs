@@ -144,8 +144,14 @@ impl BootId {
         &self.0
     }
 
-    pub fn validate(&self, upnp_version: Version) -> Result<&Self, ErrorKind> {
-        todo!("validate BootId")
+    pub fn validate(self, upnp_version: Version) -> Result<Self, ErrorKind> {
+        match upnp_version.major {
+            ..=1 => Ok(self),
+            2.. => match self.as_option() {
+                Some(_) => Ok(self),
+                None => Err(ErrorKind::MissingBootId),
+            },
+        }
     }
 }
 

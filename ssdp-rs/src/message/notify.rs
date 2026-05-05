@@ -38,6 +38,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
         let usn = header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?;
         let uuid = *Usn::from_uri_and_nt(&usn, &nt)?.as_uuid();
         let boot_id: BootId = header.get(BootId::HEADER_KEY).try_into()?;
+        boot_id.validate(server.upnp_version)?;
         let config_id = header
             .get("CONFIGID.UPNP.ORG")
             .map(|config_id| {
@@ -66,9 +67,6 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
             // TODO parse the version number into Major,Minor
             1 => (),
             _ => {
-                if boot_id.as_option().is_none() {
-                    Err(ErrorKind::MissingBootId)?;
-                }
                 if config_id.is_none() {
                     Err(ErrorKind::MissingConfigId)?;
                 }
