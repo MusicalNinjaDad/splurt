@@ -1,7 +1,7 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
 use url::Url;
 
-use crate::message::header::Location;
+use crate::message::header::{BootId, ConfigId, Location};
 
 use super::{ErrorKind, Header, MaxAge, ParseError, RFC1123, ST, UpnpHeader, UpnpPort, UserAgent};
 
@@ -35,7 +35,7 @@ pub struct Response {
     /// checking for changes to the device state that were not evented since the device was off-line.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    boot_id: Option<u32>,
+    boot_id: BootId,
     /// `CONFIGID.UPNP.ORG`: number used for caching description information.
     /// If a device sends out two messages with a `CONFIGID.UPNP.ORG` header field with the same field
     /// value, the configuration shall be the same at the moments that these messages were sent.
@@ -43,7 +43,7 @@ pub struct Response {
     /// control point receives an announcement of an unknown configuration is downloading required.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    config_id: Option<u32>,
+    config_id: ConfigId,
     /// `SEARCHPORT.UPNP.ORG`: number identifies port on which device responds to unicast M-SEARCH
     ///
     /// Optional (handled semantically in [UpnpPort])
@@ -70,34 +70,10 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
         let location = header.try_get("LOCATION")?.parse()?;
         let server: UserAgent<"SERVER"> = header.try_get("SERVER")?.parse()?;
         let usn = header.try_get("USN")?.to_string();
-        let boot_id = header
-            .get("BOOTID.UPNP.ORG")
-            .map(|boot_id| {
-                boot_id
-                    .parse()
-                    .map_err(|_| ErrorKind::InvalidBootId(boot_id.to_string()))
-            })
-            .transpose()?;
-        let config_id = header
-            .get("CONFIGID.UPNP.ORG")
-            .map(|config_id| {
-                config_id
-                    .parse()
-                    .map_err(|_| ErrorKind::InvalidConfigId(config_id.to_string()))
-            })
-            .transpose()?;
-        match server.upnp_version.major {
-            // TODO parse the version number into Major,Minor
-            1 => (),
-            _ => {
-                if boot_id.is_none() {
-                    Err(ErrorKind::MissingBootId)?;
-                }
-                if config_id.is_none() {
-                    Err(ErrorKind::MissingConfigId)?;
-                }
-            }
-        };
+        let boot_id: BootId = header.get(BootId::HEADER_KEY).try_into()?;
+        boot_id.validate(server.upnp_version)?;
+        let config_id: ConfigId = header.get(ConfigId::HEADER_KEY).try_into()?;
+        config_id.validate(server.upnp_version)?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
         let secure_location: Option<Url> = header
             .get("SECURELOCATION.UPNP.ORG")
