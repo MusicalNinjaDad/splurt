@@ -464,19 +464,15 @@ impl<const _FN: &'static str> FromStr for UserAgent<_FN> {
                     upnp,
                 )
             })?;
-        let (upnp_version, product_name) = token_ish
+        let (ver, prod) = token_ish
             .next()
             .ok_or_else(err)?
             .split_once(" ")
-            .ok_or_else(err)
-            .map(|(ver, prod)| {
-                (
-                    ver.trim_end_matches(|c: char| !c.is_alphanumeric())
-                        .parse::<Version>(),
-                    prod.to_string(),
-                )
-            })?;
-        let upnp_version = upnp_version?;
+            .ok_or_else(err)?;
+        let upnp_version = ver
+            .trim_end_matches(|c: char| !c.is_alphanumeric())
+            .parse()?;
+        let product_name = prod.to_string();
         let product_version = token_ish.next().ok_or_else(err)?.to_string();
         if token_ish.next().is_some() {
             return Err(err());
