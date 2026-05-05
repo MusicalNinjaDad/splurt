@@ -355,7 +355,6 @@ USN: uuid:00113214-9943-0011-4399-439914321100::urn:microsoft.com:service:X_MS_M
     }
 
     #[test]
-    #[should_panic(expected = "try from header for byebye")]
     fn parse_byebye() {
         let byebye = r#"NOTIFY * HTTP/1.1
 HOST: 239.255.255.250:1900

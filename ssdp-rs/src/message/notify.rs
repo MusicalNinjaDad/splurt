@@ -136,8 +136,20 @@ pub struct ByeBye {
 impl<'h> TryFrom<UpnpHeader<'h>> for ByeBye {
     type Error = ParseError;
 
-    fn try_from(value: UpnpHeader<'h>) -> Result<Self, Self::Error> {
-        todo!("try from header for byebye")
+    fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
+        let nt = header.try_get(NT::HEADER_KEY)?.parse()?;
+        let uuid = *Usn::from_uri_and_nt(&header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?, &nt)?
+            .as_uuid();
+        // TODO - document Boot & ConfigID validation must be done by something that has a
+        // suitable cache from previous Alive & Update notifications
+        let boot_id: BootId = header.get(BootId::HEADER_KEY).try_into()?;
+        let config_id: ConfigId = header.get(ConfigId::HEADER_KEY).try_into()?;
+        Ok(Self {
+            nt,
+            uuid,
+            boot_id,
+            config_id,
+        })
     }
 }
 
