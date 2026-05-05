@@ -41,8 +41,11 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
         let location = location
             .parse()
             .map_err(|_| ErrorKind::InvalidLocation(location.to_string()))?;
-        let nt= header.try_get(NT::HEADER_KEY)?.parse()?;
-        let nts = header.try_get("NTS")?.parse::<Uri>()?.try_into()?;
+        let nt = header.try_get(NT::HEADER_KEY)?.parse()?;
+        let nts = header
+            .try_get(NTS::HEADER_KEY)?
+            .parse::<Uri>()?
+            .try_into()?;
         let server: UserAgent<"SERVER"> = header.try_get("SERVER")?.parse()?;
         let usn = header.try_get("USN")?.parse()?;
         let uuid = match usn {
@@ -52,7 +55,6 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
             {
                 uuid
             }
-
             _ => Err(ErrorKind::InvalidUsn(usn.to_string()))?,
         };
         let boot_id = header
@@ -244,6 +246,10 @@ impl Display for NT {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum NTS {
     Alive,
+}
+
+impl Header for NTS {
+    const HEADER_KEY: &'static str = "NTS";
 }
 
 impl TryFrom<Uri> for NTS {
