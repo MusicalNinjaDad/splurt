@@ -1,7 +1,6 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
-use url::Url;
 
-use crate::message::header::{BootId, ConfigId, Location};
+use crate::message::header::{BootId, ConfigId, Location, SecureLocation};
 
 use super::{ErrorKind, Header, MaxAge, ParseError, RFC1123, ST, UpnpHeader, UpnpPort, UserAgent};
 
@@ -50,7 +49,7 @@ pub struct Response {
     port: UpnpPort,
     /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
     /// Required when device protection is implemented.
-    secure_location: Option<Url>,
+    secure_location: SecureLocation,
 }
 impl<'h> TryFrom<UpnpHeader<'h>> for Response {
     type Error = ParseError;
@@ -75,21 +74,8 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
         let config_id: ConfigId = header.get(ConfigId::HEADER_KEY).try_into()?;
         config_id.validate(server.upnp_version)?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
-        let secure_location: Option<Url> = header
-            .get("SECURELOCATION.UPNP.ORG")
-            .map(|location| {
-                location
-                    .parse()
-                    .map_err(|_| ErrorKind::InvalidSecureLocation(location.to_string()))
-            })
-            .transpose()?;
-        if let Some(ref secure_location) = secure_location
-            && (secure_location.scheme() != "https" || secure_location.port().is_none())
-        {
-            Err(ErrorKind::InvalidSecureLocation(
-                secure_location.to_string(),
-            ))?;
-        };
+        let secure_location: SecureLocation = header.get(SecureLocation::HEADER_KEY).try_into()?;
+        secure_location.validate()?;
         Ok(Self {
             max_age,
             date,

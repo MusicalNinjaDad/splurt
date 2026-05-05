@@ -3,12 +3,11 @@
 use std::{fmt::Display, str::FromStr};
 
 use derive_more::Display;
-use url::Url;
 use uuid::Uuid;
 
 use crate::message::{
     DeviceDetails, Header, Host, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort, UserAgent,
-    header::{BootId, ConfigId, Location},
+    header::{BootId, ConfigId, Location, SecureLocation},
     uri::UriExt,
 };
 
@@ -42,21 +41,8 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
         let config_id: ConfigId = header.get(ConfigId::HEADER_KEY).try_into()?;
         config_id.validate(server.upnp_version)?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
-        let secure_location: Option<Url> = header
-            .get("SECURELOCATION.UPNP.ORG")
-            .map(|location| {
-                location
-                    .parse()
-                    .map_err(|_| ErrorKind::InvalidSecureLocation(location.to_string()))
-            })
-            .transpose()?;
-        if let Some(ref secure_location) = secure_location
-            && (secure_location.scheme() != "https" || secure_location.port().is_none())
-        {
-            Err(ErrorKind::InvalidSecureLocation(
-                secure_location.to_string(),
-            ))?;
-        };
+        let secure_location: SecureLocation = header.get(SecureLocation::HEADER_KEY).try_into()?;
+        secure_location.validate()?;
         match nts {
             NTS::Alive => Ok(Self::Alive(Alive {
                 max_age,
@@ -110,7 +96,7 @@ pub struct Alive {
     port: UpnpPort,
     /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
     /// Required when device protection is implemented.
-    secure_location: Option<Url>,
+    secure_location: SecureLocation,
 }
 
 /// The NT values available for NOTIFY. This should usually be refered to as `notify::NT`
