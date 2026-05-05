@@ -24,7 +24,10 @@ pub enum Uri {
     Ssdp(SsdpNss),
     Upnp(UpnpNss),
     Urn(Target),
-    Uuid { uuid: Uuid, suffix: NT },
+    Uuid {
+        uuid: Uuid,
+        suffix: Option<Box<Uri>>,
+    },
 }
 
 impl Display for Uri {
@@ -33,39 +36,26 @@ impl Display for Uri {
             Uri::Ssdp(ssdp_nss) => write!(f, "{ssdp_nss}"),
             Uri::Upnp(upnp_nss) => write!(f, "{upnp_nss}"),
             Uri::Urn(target) => write!(f, "{target}"),
-            Uri::Uuid { uuid, suffix } => write!(f, "uuid:{uuid}{suffix}"),
+            Uri::Uuid { uuid, suffix } => match suffix {
+                Some(suffix) => write!(f, "uuid:{uuid}::{suffix}"),
+                None => write!(f, "uuid:{uuid}"),
+            },
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-/// The possible values for inclusing in a `USN`
-pub enum NT {
-    None,
-    RootDevice,
-    Urn(Target),
-}
-
-impl TryFrom<Uri> for NT {
-    type Error = ErrorKind;
-
-    fn try_from(uri: Uri) -> Result<Self, Self::Error> {
-        match uri {
-            Uri::Upnp(UpnpNss::RootDevice) => Ok(Self::RootDevice),
-            Uri::Urn(target) => Ok(Self::Urn(target)),
-            _ => Err(ErrorKind::InvalidNT(uri.to_string())),
-        }
+/// For types which represent a subset or specific usage of a valid Upnp Uri.
+pub trait UriExt {
+    /// Provides infallible conversion to Uri e.g. for comparison with other `UriExt` types,
+    /// `Display` etc.
+    fn to_uri(&self) -> Uri {
+        todo!("to_uri")
     }
 }
 
-/// Output includes leading `::` for non-None to allow direct concatenation with `Uri::Usn`
-impl Display for NT {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::None => write!(f, ""),
-            Self::RootDevice => write!(f, "::upnp:rootdevice"),
-            Self::Urn(target) => write!(f, "::{target}"),
-        }
+impl UriExt for Uri {
+    fn to_uri(&self) -> Uri {
+        self.clone()
     }
 }
 
@@ -120,12 +110,9 @@ impl Uri {
                     parts.next().ok_or_else(err)?.parse::<Uuid>()?
                 }?;
                 match parts.next() {
-                    None => Ok(Self::Uuid {
-                        uuid,
-                        suffix: NT::None,
-                    }),
+                    None => Ok(Self::Uuid { uuid, suffix: None }),
                     Some("") => {
-                        let nt = Uri::from_parts(parts, s)?.try_into().map_err(chain)?;
+                        let nt = Some(Box::new(Uri::from_parts(parts, s)?));
                         Ok(Self::Uuid { uuid, suffix: nt })
                     }
                     Some(_) => Err(ErrorKind::InvalidUsn(s.to_string()))?,
@@ -240,7 +227,7 @@ mod tests {
     fn display_usn_none() {
         let usn = Uri::Uuid {
             uuid: uuid!("fd6e74c3-9c89-4fd0-bf52-994af57b5d40"),
-            suffix: NT::None,
+            suffix: None,
         };
         assert_eq!(
             format!("{usn}"),
@@ -252,7 +239,7 @@ mod tests {
     fn display_usn_root() {
         let usn = Uri::Uuid {
             uuid: uuid!("fd6e74c3-9c89-4fd0-bf52-994af57b5d40"),
-            suffix: NT::RootDevice,
+            suffix: Some(Box::new(Uri::Upnp(UpnpNss::RootDevice))),
         };
         assert_eq!(
             format!("{usn}"),
@@ -268,7 +255,7 @@ mod tests {
         };
         let usn = Uri::Uuid {
             uuid: uuid!("fd6e74c3-9c89-4fd0-bf52-994af57b5d40"),
-            suffix: NT::Urn(Target::Device(target)),
+            suffix: Some(Box::new(Uri::Urn(Target::Device(target)))),
         };
         assert_eq!(
             format!("{usn}"),

@@ -8,7 +8,8 @@ use uuid::Uuid;
 use crate::{
     MULTICAST,
     message::{
-        DeviceDetails, Header, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort, UserAgent, uri,
+        DeviceDetails, Header, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort, UserAgent,
+        uri::UriExt,
     },
 };
 
@@ -45,10 +46,13 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
         let server: UserAgent<"SERVER"> = header.try_get("SERVER")?.parse()?;
         let usn = header.try_get("USN")?.parse()?;
         let uuid = match usn {
-            Uri::Uuid {
-                uuid,
-                suffix: usn_nt,
-            } if nt == usn_nt => uuid,
+            Uri::Uuid { uuid, suffix }
+                if matches!(nt, NT::Uuid(nt_uuid) if uuid == nt_uuid) && suffix.is_none()
+                    || matches!(&suffix, Some(uri) if **uri == nt.to_uri()) =>
+            {
+                uuid
+            }
+
             _ => Err(ErrorKind::InvalidUsn(usn.to_string()))?,
         };
         let boot_id = header
@@ -187,25 +191,24 @@ impl Header for NT {
     const HEADER_KEY: &'static str = "NT";
 }
 
-// TODO: Reflexive version for uri::NT
-impl PartialEq<uri::NT> for NT {
-    fn eq(&self, uri_nt: &uri::NT) -> bool {
+impl UriExt for NT {
+    fn to_uri(&self) -> Uri {
         match self {
-            NT::RootDevice => matches!(uri_nt, uri::NT::RootDevice),
-            NT::Uuid(_uuid) => matches!(uri_nt, uri::NT::None),
-            NT::Device(DeviceDetails { vendor, device }) => matches!(
-                uri_nt,
-                uri::NT::Urn(uri::Target::Device(DeviceDetails {vendor: uri_vendor, device: uri_device }))
-                if vendor == uri_vendor
-                && device == uri_device
-            ),
-            NT::Service(ServiceDetails { vendor, service }) => matches!(
-                uri_nt,
-                uri::NT::Urn(uri::Target::Service(ServiceDetails {vendor: uri_vendor, service: uri_service }))
-                if vendor == uri_vendor
-                && service == uri_service
-            ),
+            NT::RootDevice => Uri::Upnp(UpnpNss::RootDevice),
+            NT::Uuid(uuid) => Uri::Uuid {
+                uuid: *uuid,
+                suffix: None,
+            },
+            NT::Device(device_details) => Uri::Urn(Target::Device(device_details.clone())),
+            NT::Service(service_details) => Uri::Urn(Target::Service(service_details.clone())),
         }
+    }
+}
+
+// TODO: Reflexive version for uri::NT
+impl PartialEq<Uri> for NT {
+    fn eq(&self, uri_nt: &Uri) -> bool {
+        self.to_uri() == *uri_nt
     }
 }
 
