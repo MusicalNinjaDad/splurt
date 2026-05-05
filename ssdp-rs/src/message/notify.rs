@@ -200,13 +200,6 @@ impl UriExt for NT {
     }
 }
 
-// TODO: Reflexive version for uri::NT
-impl PartialEq<Uri> for NT {
-    fn eq(&self, uri_nt: &Uri) -> bool {
-        self.to_uri() == *uri_nt
-    }
-}
-
 impl FromStr for NT {
     type Err = ParseError;
 
