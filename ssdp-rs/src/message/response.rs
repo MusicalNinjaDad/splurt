@@ -65,7 +65,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             })
             .transpose()?;
         let ext = None;
-        let location = header.try_get("LOCATION")?.parse()?;
+        let location = header.try_get(Location::HEADER_KEY)?.parse()?;
         let server: UserAgent<"SERVER"> = header.try_get("SERVER")?.parse()?;
         let st = header.try_get(ST::HEADER_KEY)?.parse()?;
         let usn = header.try_get("USN")?.to_string();
