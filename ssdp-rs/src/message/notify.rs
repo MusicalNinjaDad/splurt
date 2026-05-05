@@ -14,8 +14,10 @@ use crate::message::{
 use super::{ErrorKind, ParseError, SsdpNss, UpnpHeader, Uri};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[expect(clippy::large_enum_variant, reason = "Alive is most common case")]
 pub enum Notify {
     Alive(Alive),
+    ByeBye(ByeBye),
 }
 
 impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
@@ -94,6 +96,31 @@ pub struct Alive {
     /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
     /// Required when device protection is implemented.
     secure_location: SecureLocation,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ByeBye {
+    /// `NT`: notification type
+    pub(crate) nt: NT,
+    /// UUID extracted from `USN`
+    /// TODO: Validate match for NT::Uuid
+    pub(crate) uuid: Uuid,
+    /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
+    /// increasing value. Control points can use this header field to detect the case when a device
+    /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
+    /// control points for a number of purposes such as re-establishing desired event subscriptions,
+    /// checking for changes to the device state that were not evented since the device was off-line.
+    ///
+    /// Required for UPnPv2, not present in UPnPv1
+    boot_id: BootId,
+    /// `CONFIGID.UPNP.ORG`: number used for caching description information.
+    /// If a device sends out two messages with a `CONFIGID.UPNP.ORG` header field with the same field
+    /// value, the configuration shall be the same at the moments that these messages were sent.
+    /// This reduces peak loads on UPnP devices during startup and during network hiccups. Only if a
+    /// control point receives an announcement of an unknown configuration is downloading required.
+    ///
+    /// Required for UPnPv2, not present in UPnPv1
+    config_id: ConfigId,
 }
 
 /// The NT values available for NOTIFY. This should usually be refered to as `notify::NT`
