@@ -35,7 +35,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
             .try_into()?;
         let server: UserAgent<"SERVER"> = header.try_get("SERVER")?.parse()?;
         let usn = header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?;
-        let uuid = Usn::from_uri_and_nt(&usn, &nt)?.as_uuid();
+        let uuid = *Usn::from_uri_and_nt(&usn, &nt)?.as_uuid();
         let boot_id = header
             .get("BOOTID.UPNP.ORG")
             .map(|boot_id| {
@@ -256,8 +256,8 @@ impl Usn {
         }
     }
 
-    pub fn as_uuid(&self) -> Uuid {
-        self.0
+    pub fn as_uuid(&self) -> &Uuid {
+        &self.0
     }
 }
 
