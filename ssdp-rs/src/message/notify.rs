@@ -6,7 +6,7 @@ use derive_more::Display;
 use uuid::Uuid;
 
 use crate::message::{
-    DeviceDetails, Header, Host, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort,
+    DeviceDetails, Header, HeaderExt, Host, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort,
     header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2},
     uri::UriExt,
 };
@@ -82,7 +82,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
         let max_age = header.try_get(MaxAge::HEADER_KEY)?.parse()?;
-        let location = header.try_get(Location::HEADER_KEY)?.parse()?;
+        let location = Location::get_from(&header)?;
         let nt = header.try_get(NT::HEADER_KEY)?.parse()?;
         let server: Server = header.try_get(Server::HEADER_KEY)?.parse()?;
         let uuid = *Usn::from_uri_and_nt(&header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?, &nt)?

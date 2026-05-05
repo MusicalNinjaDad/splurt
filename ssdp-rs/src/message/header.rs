@@ -83,7 +83,7 @@ pub trait HeaderExt {
     fn write_header(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
 
     /// Attempt to get and parse this from a UpnpHeader
-    fn get_from(header: UpnpHeader<'_>) -> Result<Self, ParseError>
+    fn get_from(header: &UpnpHeader<'_>) -> Result<Self, ParseError>
     where
         Self: Sized;
 }
@@ -101,7 +101,7 @@ where
         writeln!(f, "{}", self.to_header())
     }
 
-    fn get_from(header: UpnpHeader<'_>) -> Result<Self, ParseError> {
+    fn get_from(header: &UpnpHeader<'_>) -> Result<Self, ParseError> {
         Ok(header.try_get(Self::HEADER_KEY)?.parse()?)
     }
 }
@@ -131,7 +131,7 @@ impl<H: Header + HeaderExt> HeaderExt for Option<H> {
         }
     }
 
-    fn get_from(_header: UpnpHeader<'_>) -> Result<Self, ParseError>
+    fn get_from(_header: &UpnpHeader<'_>) -> Result<Self, ParseError>
     where
         Self: Sized,
     {
