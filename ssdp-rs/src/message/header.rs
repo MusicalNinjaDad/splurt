@@ -155,10 +155,17 @@ impl Default for Host {
 }
 
 impl FromStr for Host {
-    type Err = AddrParseError;
+    type Err = ParseError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let addr = SocketAddr::from_str(s)?;
+    fn from_str(hostname: &str) -> Result<Self, Self::Err> {
+        let addr = hostname
+            .parse::<SocketAddr>()
+            .map_err(|err: AddrParseError| {
+                ParseError::chain_from(
+                    ErrorKind::from(err).into(),
+                    ErrorKind::InvalidHost(hostname.to_string()),
+                )
+            })?;
         Ok(addr.into())
     }
 }
