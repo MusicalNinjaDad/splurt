@@ -51,6 +51,7 @@ impl<'h> FromIterator<&'h str> for UpnpHeader<'h> {
     }
 }
 
+// TODO benchmark this then try with [unicase = "2.9.0"::Ascii]
 impl<'h> UpnpHeader<'h> {
     /// Attempt to get the corresponding value for `key`, returning an [ErrorKind::MissingField]
     /// if unsuccessful.

@@ -207,7 +207,7 @@ impl Usn {
     pub fn from_uri_and_nt(uri: &Uri, nt: &NT) -> Result<Self, ErrorKind> {
         match uri {
             Uri::Uuid { uuid, suffix }
-                if matches!(nt, NT::Uuid(nt_uuid) if uuid == nt_uuid) && suffix.is_none()
+                if (matches!(nt, NT::Uuid(nt_uuid) if uuid == nt_uuid) && suffix.is_none())
                     || matches!(&suffix, Some(uri) if **uri == nt.to_uri()) =>
             {
                 Ok(Self(*uuid))
