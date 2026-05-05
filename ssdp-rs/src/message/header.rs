@@ -139,6 +139,7 @@ impl Display for FriendlyName {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+// TODO: A way to get the addr back out
 pub struct Host(SocketAddr);
 
 impl Header for Host {
