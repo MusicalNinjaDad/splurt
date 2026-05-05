@@ -143,6 +143,10 @@ impl BootId {
     pub fn as_option(&self) -> &Option<u32> {
         &self.0
     }
+
+    pub fn validate(&self, upnp_version: u32) -> Result<&Self, ErrorKind> {
+        todo!("validate BootId")
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
