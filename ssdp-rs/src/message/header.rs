@@ -139,6 +139,10 @@ impl<H: Header + HeaderExt> HeaderExt for Option<H> {
     }
 }
 
+// TODO
+// pub trait Optional with blanket impl for UpnpPort & SecureLocation based on TryFrom option &str
+// provides validated get from header analog UpnpV2Ext
+
 /// For types which are required in UPnP V2 but not V1 and can be represented as an `Option<T>`
 pub trait UpnpV2<T> {
     const ERR: ErrorKind;
@@ -654,6 +658,7 @@ impl TryFrom<Option<&str>> for UpnpPort {
             .into())
     }
 }
+
 /// `None` maps to `Default`
 impl From<Option<u16>> for UpnpPort {
     fn from(port: Option<u16>) -> Self {
