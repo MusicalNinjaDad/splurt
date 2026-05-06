@@ -69,7 +69,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
         let location = Location::get_from(&header)?;
         let server = Server::get_from(&header)?;
         let st = ST::get_from(&header)?;
-        let usn = Usn::get_validated(&header, st)?;
+        let usn = Usn::get_validated(&header, &st)?;
         let boot_id = Option::<BootId>::get_validated(&header, server.upnp_version)?;
         let config_id = Option::<ConfigId>::get_validated(&header, server.upnp_version)?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;

@@ -718,9 +718,9 @@ where
     Self: HeaderExt + Display,
     NTST: PartialEq,
 {
-    pub fn get_validated(header: &UpnpHeader<'_>, ntst: NTST) -> Result<Self, ParseError> {
+    pub fn get_validated(header: &UpnpHeader<'_>, ntst: &NTST) -> Result<Self, ParseError> {
         let usn = Self::get_from(header)?;
-        if usn.ntst == ntst {
+        if usn.ntst == *ntst {
             Ok(usn)
         } else {
             Err(ErrorKind::InvalidUsn(usn.to_string()))?
