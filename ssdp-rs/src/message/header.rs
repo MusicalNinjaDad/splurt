@@ -730,10 +730,19 @@ where
 
 impl<NTST> Display for Usn<NTST>
 where
-    NTST: Display,
+    NTST: Display + PartialEq<Uri>,
 {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!("Display USN")
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "uuid:{}", self.uuid)?;
+        if self.ntst
+            != (Uri::Uuid {
+                uuid: self.uuid,
+                suffix: None,
+            })
+        {
+            write!(f, "::{}", self.ntst)?;
+        }
+        Ok(())
     }
 }
 
