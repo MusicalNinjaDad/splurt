@@ -115,7 +115,7 @@ pub enum SsdpNss {
     All,
     Alive,
     ByeBye,
-    Update
+    Update,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]

@@ -328,7 +328,7 @@ impl Display for NT {
 pub enum NTS {
     Alive,
     ByeBye,
-    Update
+    Update,
 }
 
 impl Header for NTS {
