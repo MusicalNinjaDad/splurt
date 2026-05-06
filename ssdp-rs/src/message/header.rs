@@ -145,10 +145,7 @@ where
     }
 }
 
-// TODO
-// pub trait Optional with blanket impl for UpnpPort & SecureLocation based on TryFrom option &str
-// provides validated get from header analog UpnpV2Ext
-
+/// For types which are required in UPnP V2 but not V1 and can be represented as an `Option<T>`
 pub trait UpnpV2
 where
     Self: Sized,
@@ -180,43 +177,15 @@ where
     }
 }
 
-/// For types which are required in UPnP V2 but not V1 and can be represented as an `Option<T>`
-pub trait UpnpV2_<T> {
-    const ERR: ErrorKind;
-
-    fn as_option(&self) -> &Option<T>;
-    fn validate(&self, upnp_version: Version) -> Result<&Self, ErrorKind> {
-        match upnp_version.major {
-            ..=1 => Ok(self),
-            2.. => match self.as_option() {
-                Some(_) => Ok(self),
-                None => Err(Self::ERR),
-            },
-        }
-    }
-}
-
-pub trait UpnpV2Ext_<T>: UpnpV2_<T> + Header + Sized {
-    fn get_validated(header: &UpnpHeader, upnp_version: Version) -> Result<Self, ErrorKind>;
-}
-
-impl<U, T, E> UpnpV2Ext_<T> for U
-where
-    U: UpnpV2_<T> + for<'a> TryFrom<Option<&'a str>, Error = E> + Header + Sized,
-    ErrorKind: From<E>,
-{
-    fn get_validated(header: &UpnpHeader, upnp_version: Version) -> Result<Self, ErrorKind> {
-        let this: Self = header.get(Self::HEADER_KEY).try_into()?;
-        this.validate(upnp_version)?;
-        Ok(this)
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BootId(u32);
 
 impl Header for BootId {
     const HEADER_KEY: &'static str = "BOOTID.UPNP.ORG";
+}
+
+impl UpnpV2 for BootId {
+    const ERR: ErrorKind = ErrorKind::MissingBootId;
 }
 
 impl FromStr for BootId {
@@ -242,6 +211,10 @@ impl Header for ConfigId {
     const HEADER_KEY: &'static str = "CONFIGID.UPNP.ORG";
 }
 
+impl UpnpV2 for ConfigId {
+    const ERR: ErrorKind = ErrorKind::MissingConfigId;
+}
+
 impl TryFrom<Option<&str>> for ConfigId {
     type Error = ErrorKind;
 
@@ -254,13 +227,6 @@ impl TryFrom<Option<&str>> for ConfigId {
             }
             None => Ok(Self(None)),
         }
-    }
-}
-
-impl UpnpV2_<u32> for ConfigId {
-    const ERR: ErrorKind = ErrorKind::MissingConfigId;
-    fn as_option(&self) -> &Option<u32> {
-        &self.0
     }
 }
 
