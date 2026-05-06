@@ -423,8 +423,11 @@ impl Header for Mx {
 impl FromStr for Mx {
     type Err = ErrorKind;
 
-    fn from_str(_s: &str) -> Result<Self, Self::Err> {
-        todo!("from str mx")
+    fn from_str(mx: &str) -> Result<Self, Self::Err> {
+        let err = |_| ErrorKind::InvalidMx(mx.to_string());
+        let mx = mx.parse::<u8>().map_err(err)?;
+        let mx = mx.try_into().expect("valid mx");
+        Ok(mx)
     }
 }
 
@@ -729,7 +732,6 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     #[test]
-    #[should_panic(expected = "not yet implemented: from str mx")]
     fn get_option() {
         let msg = r#"HOST: 239.255.255.250:1900
 MAN: "ssdp:discover"
