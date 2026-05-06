@@ -211,14 +211,14 @@ impl TryFrom<Uri> for NT {
 impl PartialEq<Uri> for NT {
     fn eq(&self, uri: &Uri) -> bool {
         match self {
-            NT::RootDevice => matches!(uri, Uri::Upnp(UpnpNss::RootDevice)),
-            NT::Uuid(this_uuid) => {
+            Self::RootDevice => matches!(uri, Uri::Upnp(UpnpNss::RootDevice)),
+            Self::Uuid(this_uuid) => {
                 matches!(uri, Uri::Uuid { uuid, suffix: None } if uuid == this_uuid)
             }
-            NT::Device(this_device) => {
+            Self::Device(this_device) => {
                 matches!(uri, Uri::Urn(Target::Device(device)) if device == this_device)
             }
-            NT::Service(this_service) => {
+            Self::Service(this_service) => {
                 matches!(uri, Uri::Urn(Target::Service(service)) if service == this_service)
             }
         }

@@ -567,6 +567,44 @@ impl TryFrom<Uri> for ST {
     }
 }
 
+impl PartialEq<Uri> for ST {
+    fn eq(&self, uri: &Uri) -> bool {
+        match self {
+            Self::All => matches!(uri, Uri::Ssdp(SsdpNss::All)),
+            Self::Root => matches!(uri, Uri::Upnp(UpnpNss::RootDevice)),
+            Self::Uuid(this_uuid) => {
+                matches!(uri, Uri::Uuid { uuid, suffix: None } if uuid == this_uuid)
+            }
+            Self::Device(this_device) => {
+                matches!(uri, Uri::Urn(Target::Device(device)) if device == this_device)
+            }
+            Self::Service(this_service) => {
+                matches!(uri, Uri::Urn(Target::Service(service)) if service == this_service)
+            }
+        }
+    }
+}
+
+impl PartialEq<ST> for Uri {
+    fn eq(&self, st: &ST) -> bool {
+        match self {
+            Uri::Ssdp(SsdpNss::All) => matches!(st, ST::All),
+            Uri::Upnp(UpnpNss::RootDevice) => matches!(st, ST::Root),
+            Uri::Uuid {
+                uuid: this_uuid,
+                suffix: None,
+            } => matches!(st, ST::Uuid(uuid) if uuid == this_uuid),
+            Uri::Urn(Target::Device(this_device)) => {
+                matches!(st, ST::Device(device) if device == this_device)
+            }
+            Uri::Urn(Target::Service(this_service)) => {
+                matches!(st, ST::Service(service) if service == this_service)
+            }
+            _ => false,
+        }
+    }
+}
+
 impl Display for ST {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
