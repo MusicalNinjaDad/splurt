@@ -2,7 +2,6 @@
 
 use std::{fmt::Display, marker::PhantomData, str::FromStr};
 
-use derive_more::Display;
 use uuid::Uuid;
 
 use crate::message::{
@@ -271,10 +270,10 @@ impl FromStr for NTS {
 }
 
 /// USN as a type to validate invariances
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
-#[display("{uuid}")]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Usn<NTST> {
     uuid: Uuid,
+    // TODO: Store ntst: &NTST to allow for proper Display implementation
     _ntst: PhantomData<NTST>,
 }
 
