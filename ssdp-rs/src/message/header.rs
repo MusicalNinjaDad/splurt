@@ -479,35 +479,21 @@ impl<const _FLD: &'static str> FromStr for ProductTokens<_FLD> {
 
     fn from_str(user_agent: &str) -> Result<Self, Self::Err> {
         let err = || ErrorKind::InvalidUserAgent(user_agent.to_string());
-        // Wierd & slightly backwards splitting as product_name may contain spaces
-        let mut token_ish = user_agent.split("/");
-        let os = token_ish.next().ok_or_else(err)?.to_string();
-        // TODO: Check there was a "Upnp" in the right place
-        let (os_version, _upnp) = token_ish
-            .next()
-            .ok_or_else(err)?
-            .split_once(" ")
-            .ok_or_else(err)
-            .map(|(ver, upnp)| {
-                (
-                    ver.trim_end_matches(|c: char| !c.is_alphanumeric())
-                        .to_string(),
-                    upnp,
-                )
-            })?;
-        let (ver, prod) = token_ish
-            .next()
-            .ok_or_else(err)?
-            .split_once(" ")
-            .ok_or_else(err)?;
-        let upnp_version = ver
-            .trim_end_matches(|c: char| !c.is_alphanumeric())
-            .parse()?;
-        let product_name = prod.to_string();
-        let product_version = token_ish.next().ok_or_else(err)?.to_string();
-        if token_ish.next().is_some() {
-            return Err(err());
+        let (os_token, rest) = user_agent.split_once("UPnP/").ok_or_else(err)?;
+        // TODO: How to handle removing "," while allowing "OS Foo/6.3 (wibblish)"
+        let os_token = os_token.trim_matches(|c: char| !c.is_alphanumeric());
+        let (os, os_version) = match os_token.split_once("/") {
+            Some((os, os_version)) => (os.to_string(), os_version.to_string()),
+            None => (os_token.to_string(), "".to_string()),
         };
+        let (upnp_version, product) = rest.split_once(" ").ok_or_else(err)?;
+        let upnp_version: Version = upnp_version
+            .trim_matches(|c: char| !c.is_alphanumeric())
+            .parse()?;
+        let (product_name, product_version) = product
+            .split_once("/")
+            .ok_or_else(err)
+            .map(|(name, ver)| (name.to_string(), ver.to_string()))?;
         Ok(Self {
             os,
             os_version,
