@@ -84,8 +84,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
         let location = Location::get_from(&header)?;
         let nt = NT::get_from(&header)?;
         let server = Server::get_from(&header)?;
-        let uuid = *Usn::from_uri_and_nt(&header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?, &nt)?
-            .as_uuid();
+        let uuid = *Usn::get_validated(&header, &nt)?.as_uuid();
         let boot_id = Option::<BootId>::get_validated(&header, server.upnp_version)?;
         let config_id = Option::<ConfigId>::get_validated(&header, server.upnp_version)?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
@@ -134,8 +133,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for ByeBye {
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
         let nt = NT::get_from(&header)?;
-        let uuid = *Usn::from_uri_and_nt(&header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?, &nt)?
-            .as_uuid();
+        let uuid = *Usn::get_validated(&header, &nt)?.as_uuid();
         // TODO - document Boot & ConfigID validation must be done by something that has a
         // suitable cache from previous Alive & Update notifications
         let boot_id = Option::<BootId>::get_from(&header)?;
@@ -281,26 +279,15 @@ impl Header for Usn {
 }
 
 impl Usn {
-    pub fn from_uri_and_nt(uri: &Uri, nt: &NT) -> Result<Self, ErrorKind> {
-        match nt {
-            NT::Uuid(uuid)
-                if let Uri::Uuid {
-                    uuid: uri_uuid,
-                    suffix: None,
-                } = uri
-                    && uri_uuid == uuid =>
-            {
-                Ok(Self(*uuid))
-            }
-            _ if let Uri::Uuid {
+    pub fn get_validated(header: &UpnpHeader<'_>, nt: &NT) -> Result<Self, ParseError> {
+        let uri = header.try_get(Self::HEADER_KEY)?.parse::<Uri>()?;
+        match uri {
+            Uri::Uuid { uuid, suffix: None } if *nt == uri => Ok(Self(uuid)),
+            Uri::Uuid {
                 uuid,
                 suffix: Some(suffix),
-            } = uri
-                && **suffix == *nt =>
-            {
-                Ok(Self(*uuid))
-            }
-            _ => Err(ErrorKind::InvalidUsn(uri.to_string())),
+            } if *suffix == *nt => Ok(Self(uuid)),
+            _ => Err(ErrorKind::InvalidUsn(uri.to_string()))?,
         }
     }
 
