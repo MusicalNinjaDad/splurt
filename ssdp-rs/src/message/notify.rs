@@ -319,20 +319,15 @@ where
 impl<NTST, E> Usn<NTST>
 where
     Self: FromStr<Err = E> + Display,
-    NTST: PartialEq<Uri>,
-    Uri: PartialEq<NTST>,
+    NTST: PartialEq,
     ParseError: From<E>,
 {
     pub fn get_validated(header: &UpnpHeader<'_>, ntst: NTST) -> Result<Self, ParseError> {
-        let foo = Self::get_from(header);
-        let uri = header.try_get(Self::HEADER_KEY)?.parse::<Uri>()?;
-        match uri {
-            Uri::Uuid { uuid, suffix: None } if ntst == uri => Ok(Self { uuid, ntst }),
-            Uri::Uuid {
-                uuid,
-                suffix: Some(suffix),
-            } if *suffix == ntst => Ok(Self { uuid, ntst }),
-            _ => Err(ErrorKind::InvalidUsn(uri.to_string()))?,
+        let usn = Self::get_from(header)?;
+        if usn.ntst == ntst {
+            Ok(usn)
+        } else {
+            Err(ErrorKind::InvalidUsn(usn.to_string()))?
         }
     }
 }
