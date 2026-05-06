@@ -258,7 +258,6 @@ impl Display for FriendlyName {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into)]
-// TODO: A way to get the addr back out
 pub struct Host(SocketAddr);
 
 impl Header for Host {
@@ -339,7 +338,6 @@ impl Header for MaxAge {
     const HEADER_KEY: &'static str = "CACHE-CONTROL";
 }
 
-// TODO: Update to TryFrom pattern
 impl FromStr for MaxAge {
     // TODO: #50 Move all FromStr impls to use Err = ParseError
     type Err = ErrorKind;
