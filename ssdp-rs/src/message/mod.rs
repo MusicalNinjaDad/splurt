@@ -368,4 +368,32 @@ NTS: ssdp:byebye
 USN: uuid:2f402f80-da50-11e1-9b23-ecb5fa15c4c8::urn:schemas-upnp-org:device:basic:1"#;
         let _msg: Message = byebye.parse().expect("byebye message");
     }
+
+    #[test]
+    /// Has a BootId, SecureLocation & ProductVersion suffix
+    fn parse_sonos() {
+        let sonos = r#"HTTP/1.1 200 OK
+CACHE-CONTROL: max-age = 1800
+EXT:
+LOCATION: http://192.168.0.84:1400/xml/device_description.xml
+SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
+ST: urn:schemas-upnp-org:service:VirtualLineIn:1
+USN: uuid:RINCON_38420B91BAF001400_MR::urn:schemas-upnp-org:service:VirtualLineIn:1
+X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
+X-RINCON-BOOTSEQ: 6
+BOOTID.UPNP.ORG: 6
+X-RINCON-WIFIMODE: 1
+X-RINCON-VARIANT: 2
+HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
+LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
+SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
+X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
+
+"#;
+        let msg: Message = sonos.parse().expect("sonos valid message");
+        let Message::Response(response) = msg else {
+            panic!("{msg} not a response")
+        };
+        assert_eq!(response.max_age, Duration::from_secs(1800));
+    }
 }

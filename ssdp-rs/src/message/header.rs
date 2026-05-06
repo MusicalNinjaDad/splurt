@@ -390,14 +390,23 @@ impl FromStr for MaxAge {
     type Err = ErrorKind;
 
     fn from_str(max_age: &str) -> Result<Self, Self::Err> {
-        let (_, secs) = max_age
-            .split_once("max-age=")
-            .ok_or_else(|| ErrorKind::InvalidDuration(max_age.to_string()))?;
-        let duration = Duration::from_secs(
-            secs.parse()
-                .map_err(|_| ErrorKind::InvalidDuration(max_age.to_string()))?,
-        );
+        let err = || ErrorKind::InvalidDuration(max_age.to_string());
+        let (_, secs) = max_age.split_once("max-age").ok_or_else(err)?;
+        let secs = secs.trim_start_matches(|c: char| !c.is_ascii_alphanumeric());
+        let duration = Duration::from_secs(secs.parse().map_err(|_| err())?);
         Ok(Self(duration))
+    }
+}
+
+impl PartialEq<Duration> for MaxAge {
+    fn eq(&self, other: &Duration) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialEq<MaxAge> for Duration {
+    fn eq(&self, other: &MaxAge) -> bool {
+        *self == other.0
     }
 }
 

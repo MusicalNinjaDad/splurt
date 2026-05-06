@@ -15,7 +15,7 @@ use super::{ErrorKind, Header, MaxAge, ParseError, RFC1123, ST, UpnpHeader, Upnp
 /// these messages.
 pub struct Response {
     /// `CACHE-CONTROL`: Duration (in seconds) until advertisement expires
-    max_age: MaxAge,
+    pub max_age: MaxAge,
     /// `DATE`: when response was generated
     date: Option<DateTime<Utc>>,
     /// `EXT`: Required for backwards compatibility with UPnP 1.0. (Header field name only; no field value.)
