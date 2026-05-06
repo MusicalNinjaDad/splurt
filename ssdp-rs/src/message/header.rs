@@ -18,7 +18,7 @@ use std::{
     time::Duration,
 };
 
-use derive_more::{Display, From, Into};
+use derive_more::{Display, From, FromStr, Into};
 use url::Url;
 use uuid::Uuid;
 
@@ -173,7 +173,10 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into, FromStr,
+)]
+#[from_str(error(ErrorKind, |_| ErrorKind::InvalidBootId(s.to_string())))]
 pub struct BootId(u32);
 
 impl Header for BootId {
@@ -182,16 +185,6 @@ impl Header for BootId {
 
 impl UpnpV2 for BootId {
     const ERR: ErrorKind = ErrorKind::MissingBootId;
-}
-
-impl FromStr for BootId {
-    type Err = ErrorKind;
-
-    fn from_str(id: &str) -> Result<Self, Self::Err> {
-        let err = |_| ErrorKind::InvalidBootId(id.to_string());
-        let id = id.parse::<u32>().map_err(err)?.into();
-        Ok(id)
-    }
 }
 
 impl PartialEq<u32> for BootId {
@@ -206,7 +199,10 @@ impl PartialEq<BootId> for u32 {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into, FromStr,
+)]
+#[from_str(error(ErrorKind, |_| ErrorKind::InvalidConfigId(s.to_string())))]
 pub struct ConfigId(u32);
 
 impl Header for ConfigId {
@@ -215,16 +211,6 @@ impl Header for ConfigId {
 
 impl UpnpV2 for ConfigId {
     const ERR: ErrorKind = ErrorKind::MissingConfigId;
-}
-
-impl FromStr for ConfigId {
-    type Err = ErrorKind;
-
-    fn from_str(id: &str) -> Result<Self, Self::Err> {
-        let err = |_| ErrorKind::InvalidConfigId(id.to_string());
-        let id = id.parse::<u32>().map_err(err)?.into();
-        Ok(id)
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into)]
@@ -311,22 +297,12 @@ impl Host {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into, FromStr)]
+#[from_str(error(ErrorKind, |_| ErrorKind::InvalidLocation(s.to_string())))]
 pub struct Location(Url);
 
 impl Header for Location {
     const HEADER_KEY: &'static str = "LOCATION";
-}
-
-impl FromStr for Location {
-    type Err = ErrorKind;
-
-    fn from_str(url: &str) -> Result<Self, Self::Err> {
-        match url.parse() {
-            Ok(url) => Ok(Self(url)),
-            Err(_) => Err(ErrorKind::InvalidLocation(url.to_string())),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -356,7 +332,7 @@ impl Display for Man {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Into)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, From, Into)]
 pub struct MaxAge(pub(crate) Duration);
 
 impl Header for MaxAge {
@@ -395,7 +371,7 @@ impl Display for MaxAge {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Into)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Into, Display)]
 /// A valid MX value (0..=5) (see UPnP spec para 1.3.2)
 ///
 /// - Construct via `TryFrom<u8>`
@@ -429,11 +405,6 @@ impl TryFrom<u8> for Mx {
     }
 }
 
-impl Display for Mx {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ProductTokens<const FIELD_NAME: &'static str> {
     pub os: String,
