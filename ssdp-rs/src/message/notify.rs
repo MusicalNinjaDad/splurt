@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::message::{
     DeviceDetails, Header, HeaderExt, Host, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort,
-    header::{BootId, ConfigId, Location, SecureLocation, Server},
+    header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2Ext},
     uri::UriExt,
 };
 
@@ -87,8 +87,8 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
         let server = Server::get_from(&header)?;
         let uuid = *Usn::from_uri_and_nt(&header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?, &nt)?
             .as_uuid();
-        let boot_id = Option::<BootId>::get_from(&header)?;
-        let config_id = Option::<ConfigId>::get_from(&header)?;
+        let boot_id = Option::<BootId>::get_validated(&header, server.upnp_version)?;
+        let config_id = Option::<ConfigId>::get_validated(&header, server.upnp_version)?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
         let secure_location = Option::<SecureLocation>::get_from(&header)?;
         Ok(Self {

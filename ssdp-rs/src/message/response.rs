@@ -2,7 +2,7 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 
 use crate::message::{
     HeaderExt,
-    header::{BootId, ConfigId, Location, SecureLocation, Server},
+    header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2Ext},
 };
 
 use super::{ErrorKind, Header, MaxAge, ParseError, RFC1123, ST, UpnpHeader, UpnpPort};
@@ -72,8 +72,8 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
         let server = Server::get_from(&header)?;
         let st = ST::get_from(&header)?;
         let usn = header.try_get("USN")?.to_string();
-        let boot_id = Option::<BootId>::get_from(&header)?;
-        let config_id = Option::<ConfigId>::get_from(&header)?;
+        let boot_id = Option::<BootId>::get_validated(&header, server.upnp_version)?;
+        let config_id = Option::<ConfigId>::get_validated(&header, server.upnp_version)?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
         let secure_location = Option::<SecureLocation>::get_from(&header)?;
         Ok(Self {
