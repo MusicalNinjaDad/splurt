@@ -107,9 +107,9 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
 pub struct ByeBye {
     /// `NT`: notification type
     pub(crate) nt: NT,
-    /// UUID extracted from `USN`
-    /// TODO: Validate match for NT::Uuid
-    pub(crate) uuid: Uuid,
+    /// `USN`: Field value contains Unique Service Name. Identifies a unique instance of a device
+    /// or service. Obeys strict rules in relation to `NT`.
+    pub(crate) usn: Usn<NT>,
     /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
     /// increasing value. Control points can use this header field to detect the case when a device
     /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
@@ -133,14 +133,14 @@ impl<'h> TryFrom<UpnpHeader<'h>> for ByeBye {
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
         let nt = NT::get_from(&header)?;
-        let uuid = *Usn::get_validated(&header, &nt)?.as_uuid();
+        let usn = Usn::get_validated(&header, &nt)?;
         // TODO - document Boot & ConfigID validation must be done by something that has a
         // suitable cache from previous Alive & Update notifications
         let boot_id = Option::<BootId>::get_from(&header)?;
         let config_id = Option::<ConfigId>::get_from(&header)?;
         Ok(Self {
             nt,
-            uuid,
+            usn,
             boot_id,
             config_id,
         })
