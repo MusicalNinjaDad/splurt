@@ -52,7 +52,7 @@ pub struct Response {
     port: UpnpPort,
     /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
     /// Required when device protection is implemented.
-    secure_location: SecureLocation,
+    secure_location: Option<SecureLocation>,
 }
 impl<'h> TryFrom<UpnpHeader<'h>> for Response {
     type Error = ParseError;
@@ -75,8 +75,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
         let boot_id = BootId::get_validated(&header, server.upnp_version)?;
         let config_id = ConfigId::get_validated(&header, server.upnp_version)?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
-        let secure_location: SecureLocation = header.get(SecureLocation::HEADER_KEY).try_into()?;
-        secure_location.validate()?;
+        let secure_location = Option::<SecureLocation>::get_from(&header)?;
         Ok(Self {
             max_age,
             date,

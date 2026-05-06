@@ -526,47 +526,55 @@ impl<const _FLD: &'static str> Display for ProductTokens<_FLD> {
         )
     }
 }
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct SecureLocation(Option<Url>);
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+pub struct SecureLocation(Url);
 
 impl Header for SecureLocation {
     const HEADER_KEY: &'static str = "SECURELOCATION.UPNP.ORG";
 }
 
-impl TryFrom<Option<&str>> for SecureLocation {
-    type Error = ErrorKind;
+impl FromStr for SecureLocation {
+    type Err = ErrorKind;
 
-    fn try_from(url: Option<&str>) -> Result<Self, Self::Error> {
-        match url {
-            Some(url) => {
-                Ok(Self(Some(url.parse().map_err(|_| {
-                    ErrorKind::InvalidSecureLocation(url.to_string())
-                })?)))
-            }
-            None => Ok(Self(None)),
-        }
+    fn from_str(_s: &str) -> Result<Self, Self::Err> {
+        todo!("fromstr for sec loc")
     }
 }
 
-impl SecureLocation {
-    pub fn as_option(&self) -> &Option<Url> {
-        &self.0
-    }
+// impl TryFrom<Option<&str>> for SecureLocation {
+//     type Error = ErrorKind;
 
-    pub fn validate(&self) -> Result<&Self, ErrorKind> {
-        match self.as_option() {
-            None => Ok(self),
-            Some(secure_location)
-                if secure_location.scheme() == "https" && secure_location.port().is_some() =>
-            {
-                Ok(self)
-            }
-            Some(insecure_location) => Err(ErrorKind::InvalidSecureLocation(
-                insecure_location.to_string(),
-            )),
-        }
-    }
-}
+//     fn try_from(url: Option<&str>) -> Result<Self, Self::Error> {
+//         match url {
+//             Some(url) => {
+//                 Ok(Self(Some(url.parse().map_err(|_| {
+//                     ErrorKind::InvalidSecureLocation(url.to_string())
+//                 })?)))
+//             }
+//             None => Ok(Self(None)),
+//         }
+//     }
+// }
+
+// impl SecureLocation {
+//     pub fn as_option(&self) -> &Option<Url> {
+//         &self.0
+//     }
+
+//     pub fn validate(&self) -> Result<&Self, ErrorKind> {
+//         match self.as_option() {
+//             None => Ok(self),
+//             Some(secure_location)
+//                 if secure_location.scheme() == "https" && secure_location.port().is_some() =>
+//             {
+//                 Ok(self)
+//             }
+//             Some(insecure_location) => Err(ErrorKind::InvalidSecureLocation(
+//                 insecure_location.to_string(),
+//             )),
+//         }
+//     }
+// }
 
 pub type Server = ProductTokens<"SERVER">;
 
