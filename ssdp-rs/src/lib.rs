@@ -12,10 +12,12 @@
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
+pub mod error;
 pub mod listener;
 pub mod message;
 pub mod search;
 
+pub use error::{Error, Result};
 pub use listener::Listener;
 pub use search::Searcher;
 

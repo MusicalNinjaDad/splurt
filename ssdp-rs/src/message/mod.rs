@@ -114,7 +114,7 @@ impl Message {
             mx,
             user_agent: Some(user_agent),
             friendly_name: friendly_name.into(),
-            uuid: Some(uuid),
+            uuid: Some(uuid.into()),
         })
     }
 }
@@ -176,6 +176,7 @@ impl Display for Vendor {
 #[cfg(test)]
 mod tests {
 
+    use url::Url;
     use uuid::uuid;
 
     use crate::message::header::Version;
@@ -313,7 +314,7 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003
             mx,
             user_agent: None,
             friendly_name: FriendlyName(friendly_name.to_string()),
-            uuid: Some(uuid),
+            uuid: Some(uuid.into()),
         };
         let msg_text = msg.to_string();
         assert_eq!(msg_text, expected);
@@ -367,5 +368,38 @@ NT: urn:schemas-upnp-org:device:basic:1
 NTS: ssdp:byebye
 USN: uuid:2f402f80-da50-11e1-9b23-ecb5fa15c4c8::urn:schemas-upnp-org:device:basic:1"#;
         let _msg: Message = byebye.parse().expect("byebye message");
+    }
+
+    #[test]
+    /// Has a BootId, SecureLocation & ProductVersion suffix
+    fn parse_sonos() {
+        let sonos = r#"HTTP/1.1 200 OK
+CACHE-CONTROL: max-age = 1800
+EXT:
+LOCATION: http://192.168.0.84:1400/xml/device_description.xml
+SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
+ST: urn:schemas-upnp-org:service:VirtualLineIn:1
+USN: uuid:RINCON_38420B91BAF001400_MR::urn:schemas-upnp-org:service:VirtualLineIn:1
+X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
+X-RINCON-BOOTSEQ: 6
+BOOTID.UPNP.ORG: 6
+X-RINCON-WIFIMODE: 1
+X-RINCON-VARIANT: 2
+HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
+LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
+SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
+X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
+
+"#;
+        let msg: Message = sonos.parse().expect("sonos valid message");
+        let Message::Response(response) = msg else {
+            panic!("{msg} not a response")
+        };
+        assert_eq!(response.max_age, Duration::from_secs(1800));
+        assert_matches!(response.secure_location, Some(secure_location)
+            if secure_location == Url::from_str("https://192.168.0.84:1443/xml/device_description.xml").expect("parsed url")
+        );
+        assert_eq!(response.server.product_version, "85.0-64200 (ZPS29)");
+        assert_matches!(response.boot_id, Some(id) if id == 6);
     }
 }

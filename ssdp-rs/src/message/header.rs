@@ -13,13 +13,12 @@
 use std::{
     collections::HashMap,
     fmt::Display,
-    io,
     net::{AddrParseError, SocketAddr},
     str::FromStr,
     time::Duration,
 };
 
-use derive_more::Display;
+use derive_more::{Display, From, FromStr, Into};
 use url::Url;
 use uuid::Uuid;
 
@@ -81,9 +80,18 @@ pub trait HeaderExt {
 
     /// Write a valid header line to `f` including new-line
     fn write_header(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
+
+    /// Attempt to get and parse this from a UpnpHeader
+    fn get_from(header: &UpnpHeader<'_>) -> Result<Self, ParseError>
+    where
+        Self: Sized;
 }
 
-impl<H: Header + Display> HeaderExt for H {
+impl<H, E> HeaderExt for H
+where
+    H: Header + Display + FromStr<Err = E>,
+    ParseError: From<E>,
+{
     fn to_header(&self) -> String {
         format!("{}: {}", Self::HEADER_KEY, self)
     }
@@ -91,9 +99,17 @@ impl<H: Header + Display> HeaderExt for H {
     fn write_header(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.to_header())
     }
+
+    fn get_from(header: &UpnpHeader<'_>) -> Result<Self, ParseError> {
+        Ok(header.try_get(Self::HEADER_KEY)?.parse()?)
+    }
 }
 
-impl<H: Header + HeaderExt> HeaderExt for Option<H> {
+impl<H, E> HeaderExt for Option<H>
+where
+    H: Header + HeaderExt + FromStr<Err = E>,
+    ParseError: From<E>,
+{
     /// Generate a valid header line
     ///
     /// #### Note
@@ -117,87 +133,115 @@ impl<H: Header + HeaderExt> HeaderExt for Option<H> {
             None => Ok(()),
         }
     }
+
+    fn get_from(header: &UpnpHeader<'_>) -> Result<Self, ParseError>
+    where
+        Self: Sized,
+    {
+        Ok(header
+            .get(H::HEADER_KEY)
+            .map(|val| val.parse::<H>())
+            .transpose()?)
+    }
 }
 
 /// For types which are required in UPnP V2 but not V1 and can be represented as an `Option<T>`
-pub trait UpnpV2<T> {
+pub trait UpnpV2 {
     const ERR: ErrorKind;
+}
 
-    fn as_option(&self) -> &Option<T>;
-    fn validate(&self, upnp_version: Version) -> Result<&Self, ErrorKind> {
+pub trait UpnpV2Ext {
+    fn get_validated(header: &UpnpHeader<'_>, upnp_version: Version) -> Result<Self, ParseError>
+    where
+        Self: Sized;
+}
+
+impl<H> UpnpV2Ext for Option<H>
+where
+    H: UpnpV2,
+    Option<H>: HeaderExt,
+{
+    fn get_validated(header: &UpnpHeader<'_>, upnp_version: Version) -> Result<Self, ParseError> {
+        let this = Option::<H>::get_from(header)?;
         match upnp_version.major {
-            ..=1 => Ok(self),
-            2.. => match self.as_option() {
-                Some(_) => Ok(self),
-                None => Err(Self::ERR),
+            ..=1 => Ok(this),
+            2.. => match this {
+                Some(_) => Ok(this),
+                None => Err(H::ERR)?,
             },
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct BootId(Option<u32>);
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into, FromStr,
+)]
+#[from_str(error(ErrorKind, |_| ErrorKind::InvalidBootId(s.to_string())))]
+pub struct BootId(u32);
 
 impl Header for BootId {
     const HEADER_KEY: &'static str = "BOOTID.UPNP.ORG";
 }
 
-impl TryFrom<Option<&str>> for BootId {
-    type Error = ErrorKind;
-
-    fn try_from(id: Option<&str>) -> Result<Self, Self::Error> {
-        match id {
-            Some(id) => Ok(Self(Some(
-                id.parse()
-                    .map_err(|_| ErrorKind::InvalidBootId(id.to_string()))?,
-            ))),
-            None => Ok(Self(None)),
-        }
-    }
-}
-
-impl UpnpV2<u32> for BootId {
+impl UpnpV2 for BootId {
     const ERR: ErrorKind = ErrorKind::MissingBootId;
-    fn as_option(&self) -> &Option<u32> {
-        &self.0
+}
+
+impl PartialEq<u32> for BootId {
+    fn eq(&self, other: &u32) -> bool {
+        self.0 == *other
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ConfigId(Option<u32>);
+impl PartialEq<BootId> for u32 {
+    fn eq(&self, other: &BootId) -> bool {
+        *self == other.0
+    }
+}
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into, FromStr,
+)]
+#[from_str(error(ErrorKind, |_| ErrorKind::InvalidConfigId(s.to_string())))]
+pub struct ConfigId(u32);
 
 impl Header for ConfigId {
     const HEADER_KEY: &'static str = "CONFIGID.UPNP.ORG";
 }
 
-impl TryFrom<Option<&str>> for ConfigId {
-    type Error = ErrorKind;
-
-    fn try_from(id: Option<&str>) -> Result<Self, Self::Error> {
-        match id {
-            Some(id) => {
-                Ok(Self(Some(id.parse().map_err(|_| {
-                    ErrorKind::InvalidConfigId(id.to_string())
-                })?)))
-            }
-            None => Ok(Self(None)),
-        }
-    }
-}
-
-impl UpnpV2<u32> for ConfigId {
+impl UpnpV2 for ConfigId {
     const ERR: ErrorKind = ErrorKind::MissingConfigId;
-    fn as_option(&self) -> &Option<u32> {
-        &self.0
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into)]
+pub struct ControlPointUuid(Uuid);
+
+impl Header for ControlPointUuid {
+    const HEADER_KEY: &'static str = "CPUUID.UPNP.ORG";
+}
+
+impl FromStr for ControlPointUuid {
+    type Err = ErrorKind;
+
+    fn from_str(_s: &str) -> Result<Self, Self::Err> {
+        todo!("fromstr controlpoint uuid")
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, From, Into)]
 // TODO make private inner when impl FromStr
 pub struct FriendlyName(pub String);
 
 impl Header for FriendlyName {
     const HEADER_KEY: &'static str = "CPFN.UPNP.ORG";
+}
+
+impl FromStr for FriendlyName {
+    type Err = ErrorKind;
+
+    fn from_str(_s: &str) -> Result<Self, Self::Err> {
+        todo!("fromstr for friendly name")
+    }
 }
 
 // TODO Replace with FromStr
@@ -213,8 +257,7 @@ impl Display for FriendlyName {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
-// TODO: A way to get the addr back out
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into)]
 pub struct Host(SocketAddr);
 
 impl Header for Host {
@@ -243,12 +286,6 @@ impl FromStr for Host {
     }
 }
 
-impl From<SocketAddr> for Host {
-    fn from(addr: SocketAddr) -> Self {
-        Self(addr)
-    }
-}
-
 impl Host {
     /// Return [ErrorKind::InvalidHost] if not [MULTICAST]
     pub fn check_multicast(&self) -> Result<(), ErrorKind> {
@@ -259,22 +296,12 @@ impl Host {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into, FromStr)]
+#[from_str(error(ErrorKind, |_| ErrorKind::InvalidLocation(s.to_string())))]
 pub struct Location(Url);
 
 impl Header for Location {
     const HEADER_KEY: &'static str = "LOCATION";
-}
-
-impl FromStr for Location {
-    type Err = ErrorKind;
-
-    fn from_str(url: &str) -> Result<Self, Self::Err> {
-        match url.parse() {
-            Ok(url) => Ok(Self(url)),
-            Err(_) => Err(ErrorKind::InvalidLocation(url.to_string())),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -284,6 +311,14 @@ pub enum Man {
 
 impl Header for Man {
     const HEADER_KEY: &'static str = "MAN";
+}
+
+impl FromStr for Man {
+    type Err = ErrorKind;
+
+    fn from_str(_s: &str) -> Result<Self, Self::Err> {
+        todo!("man from str")
+    }
 }
 
 impl Display for Man {
@@ -296,7 +331,7 @@ impl Display for Man {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, From, Into)]
 pub struct MaxAge(pub(crate) Duration);
 
 impl Header for MaxAge {
@@ -308,18 +343,33 @@ impl FromStr for MaxAge {
     type Err = ErrorKind;
 
     fn from_str(max_age: &str) -> Result<Self, Self::Err> {
-        let (_, secs) = max_age
-            .split_once("max-age=")
-            .ok_or_else(|| ErrorKind::InvalidDuration(max_age.to_string()))?;
-        let duration = Duration::from_secs(
-            secs.parse()
-                .map_err(|_| ErrorKind::InvalidDuration(max_age.to_string()))?,
-        );
+        let err = || ErrorKind::InvalidDuration(max_age.to_string());
+        let (_, secs) = max_age.split_once("max-age").ok_or_else(err)?;
+        let secs = secs.trim_start_matches(|c: char| !c.is_ascii_alphanumeric());
+        let duration = Duration::from_secs(secs.parse().map_err(|_| err())?);
         Ok(Self(duration))
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+impl PartialEq<Duration> for MaxAge {
+    fn eq(&self, other: &Duration) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialEq<MaxAge> for Duration {
+    fn eq(&self, other: &MaxAge) -> bool {
+        *self == other.0
+    }
+}
+
+impl Display for MaxAge {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!("display MaxAge")
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Into, Display)]
 /// A valid MX value (0..=5) (see UPnP spec para 1.3.2)
 ///
 /// - Construct via `TryFrom<u8>`
@@ -331,28 +381,28 @@ impl Header for Mx {
     const HEADER_KEY: &'static str = "MX";
 }
 
+impl FromStr for Mx {
+    type Err = ErrorKind;
+
+    fn from_str(mx: &str) -> Result<Self, Self::Err> {
+        let err = |_| ErrorKind::InvalidMx(mx.to_string());
+        let mx = mx.parse::<u8>().map_err(err)?;
+        let mx = mx.try_into()?;
+        Ok(mx)
+    }
+}
+
 impl TryFrom<u8> for Mx {
-    type Error = io::Error;
+    type Error = ErrorKind;
 
     fn try_from(mx: u8) -> Result<Self, Self::Error> {
         match mx {
             0..=5 => Ok(Self(mx)),
-            _ => Err(io::Error::from(io::ErrorKind::InvalidInput)),
+            _ => Err(ErrorKind::InvalidMx(mx.to_string())),
         }
     }
 }
 
-impl From<Mx> for u8 {
-    fn from(mx: Mx) -> Self {
-        mx.0
-    }
-}
-
-impl Display for Mx {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ProductTokens<const FIELD_NAME: &'static str> {
     pub os: String,
@@ -371,35 +421,22 @@ impl<const _FLD: &'static str> FromStr for ProductTokens<_FLD> {
 
     fn from_str(user_agent: &str) -> Result<Self, Self::Err> {
         let err = || ErrorKind::InvalidUserAgent(user_agent.to_string());
-        // Wierd & slightly backwards splitting as product_name may contain spaces
-        let mut token_ish = user_agent.split("/");
-        let os = token_ish.next().ok_or_else(err)?.to_string();
-        // TODO: Check there was a "Upnp" in the right place
-        let (os_version, _upnp) = token_ish
-            .next()
-            .ok_or_else(err)?
-            .split_once(" ")
-            .ok_or_else(err)
-            .map(|(ver, upnp)| {
-                (
-                    ver.trim_end_matches(|c: char| !c.is_alphanumeric())
-                        .to_string(),
-                    upnp,
-                )
-            })?;
-        let (ver, prod) = token_ish
-            .next()
-            .ok_or_else(err)?
-            .split_once(" ")
-            .ok_or_else(err)?;
-        let upnp_version = ver
-            .trim_end_matches(|c: char| !c.is_alphanumeric())
-            .parse()?;
-        let product_name = prod.to_string();
-        let product_version = token_ish.next().ok_or_else(err)?.to_string();
-        if token_ish.next().is_some() {
-            return Err(err());
+        let (os_token, rest) = user_agent.split_once("UPnP/").ok_or_else(err)?;
+        // TODO: How to handle removing "," while allowing "OS Foo/6.3 (wibblish)"
+        // https://datatracker.ietf.org/doc/html/rfc9110#name-server for formal grammar
+        let os_token = os_token.trim_matches(|c: char| !c.is_alphanumeric());
+        let (os, os_version) = match os_token.split_once("/") {
+            Some((os, os_version)) => (os.to_string(), os_version.to_string()),
+            None => (os_token.to_string(), "".to_string()),
         };
+        let (upnp_version, product) = rest.split_once(" ").ok_or_else(err)?;
+        let upnp_version: Version = upnp_version
+            .trim_matches(|c: char| !c.is_alphanumeric())
+            .parse()?;
+        let (product_name, product_version) = product
+            .split_once("/")
+            .ok_or_else(err)
+            .map(|(name, ver)| (name.to_string(), ver.to_string()))?;
         Ok(Self {
             os,
             os_version,
@@ -427,45 +464,45 @@ impl<const _FLD: &'static str> Display for ProductTokens<_FLD> {
         )
     }
 }
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct SecureLocation(Option<Url>);
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display, Into)]
+pub struct SecureLocation(Url);
 
 impl Header for SecureLocation {
     const HEADER_KEY: &'static str = "SECURELOCATION.UPNP.ORG";
 }
 
-impl TryFrom<Option<&str>> for SecureLocation {
+impl FromStr for SecureLocation {
+    type Err = ErrorKind;
+
+    fn from_str(url: &str) -> Result<Self, Self::Err> {
+        let err = |_| ErrorKind::InvalidSecureLocation(url.to_string());
+        let url = url.parse::<Url>().map_err(err)?;
+        let secure_location = url.try_into()?;
+        Ok(secure_location)
+    }
+}
+
+impl TryFrom<Url> for SecureLocation {
     type Error = ErrorKind;
 
-    fn try_from(url: Option<&str>) -> Result<Self, Self::Error> {
-        match url {
-            Some(url) => {
-                Ok(Self(Some(url.parse().map_err(|_| {
-                    ErrorKind::InvalidSecureLocation(url.to_string())
-                })?)))
-            }
-            None => Ok(Self(None)),
+    fn try_from(url: Url) -> Result<Self, Self::Error> {
+        if url.scheme() == "https" && url.port().is_some() && !url.cannot_be_a_base() {
+            Ok(Self(url))
+        } else {
+            Err(ErrorKind::InvalidSecureLocation(url.to_string()))
         }
     }
 }
 
-impl SecureLocation {
-    pub fn as_option(&self) -> &Option<Url> {
-        &self.0
+impl PartialEq<Url> for SecureLocation {
+    fn eq(&self, other: &Url) -> bool {
+        self.0 == *other
     }
+}
 
-    pub fn validate(&self) -> Result<&Self, ErrorKind> {
-        match self.as_option() {
-            None => Ok(self),
-            Some(secure_location)
-                if secure_location.scheme() == "https" && secure_location.port().is_some() =>
-            {
-                Ok(self)
-            }
-            Some(insecure_location) => Err(ErrorKind::InvalidSecureLocation(
-                insecure_location.to_string(),
-            )),
-        }
+impl PartialEq<SecureLocation> for Url {
+    fn eq(&self, other: &SecureLocation) -> bool {
+        *self == other.0
     }
 }
 
@@ -568,6 +605,7 @@ impl TryFrom<Option<&str>> for UpnpPort {
             .into())
     }
 }
+
 /// `None` maps to `Default`
 impl From<Option<u16>> for UpnpPort {
     fn from(port: Option<u16>) -> Self {
@@ -591,10 +629,6 @@ impl From<UpnpPort> for u16 {
 }
 
 pub type UserAgent = ProductTokens<"USER-AGENT">;
-
-impl Header for Uuid {
-    const HEADER_KEY: &'static str = "CPUUID.UPNP.ORG";
-}
 
 /// Upnp version
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -621,5 +655,95 @@ impl FromStr for Version {
 impl Display for Version {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}.{}", self.major, self.minor)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(assert_matches_in_root)]
+    use std::assert_matches;
+
+    #[cfg(assert_matches_in_module)]
+    use std::assert_matches::assert_matches;
+    use std::error::Error;
+
+    #[test]
+    fn get_option_some() {
+        let msg = r#"HOST: 239.255.255.250:1900
+MAN: "ssdp:discover"
+MX: 5
+ST: ssdp:all
+USER-AGENT: linux/6.6.87 UPnP/2.0 splurt/0.0.1
+CPFN.UPNP.ORG: splurt SSDP repeater
+CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003"#;
+        let header: UpnpHeader = msg.lines().collect();
+        let mx = Option::<Mx>::get_from(&header).expect("optional MX");
+        assert_matches!(mx, Some(mx) if mx == Mx(5));
+    }
+
+    #[test]
+    fn get_option_none() {
+        let msg = r#"HOST: 239.255.255.250:1900
+MAN: "ssdp:discover"
+ST: ssdp:all
+USER-AGENT: linux/6.6.87 UPnP/2.0 splurt/0.0.1
+CPFN.UPNP.ORG: splurt SSDP repeater
+CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003"#;
+        let header: UpnpHeader = msg.lines().collect();
+        let mx = Option::<Mx>::get_from(&header).expect("optional MX");
+        assert_matches!(mx, None);
+    }
+
+    #[test]
+    fn get_option_invalid() {
+        let msg = r#"HOST: 239.255.255.250:1900
+MAN: "ssdp:discover"
+MX: 6
+ST: ssdp:all
+USER-AGENT: linux/6.6.87 UPnP/2.0 splurt/0.0.1
+CPFN.UPNP.ORG: splurt SSDP repeater
+CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003"#;
+        let header: UpnpHeader = msg.lines().collect();
+        let err = Option::<Mx>::get_from(&header).expect_err("invalid MX");
+        assert_matches!(err.kind, ErrorKind::InvalidMx(ref mx) if mx =="6");
+        assert!(err.source().is_none());
+    }
+
+    #[test]
+    fn secure_location() {
+        let msg = r#"SECURELOCATION.UPNP.ORG: https://192.168.0.15:8001/xml/device_description.xml
+"#;
+        let header: UpnpHeader = msg.lines().collect();
+        let secure_location =
+            Option::<SecureLocation>::get_from(&header).expect("has SecureLocation");
+        assert_matches!(secure_location, Some(_));
+    }
+
+    #[test]
+    fn secure_location_invalid_scheme() {
+        let msg = r#"SECURELOCATION.UPNP.ORG: http://192.168.0.15:8001/xml/device_description.xml
+"#;
+        let header: UpnpHeader = msg.lines().collect();
+        let err =
+            Option::<SecureLocation>::get_from(&header).expect_err("has invalid SecureLocation");
+        assert_matches!(err.kind, ErrorKind::InvalidSecureLocation(ref loc)
+            if loc == "http://192.168.0.15:8001/xml/device_description.xml"
+        );
+        assert!(err.source().is_none());
+    }
+
+    #[test]
+    fn secure_location_no_port() {
+        let msg = r#"SECURELOCATION.UPNP.ORG: http://192.168.0.15/xml/device_description.xml
+"#;
+        let header: UpnpHeader = msg.lines().collect();
+        let err =
+            Option::<SecureLocation>::get_from(&header).expect_err("has invalid SecureLocation");
+        assert_matches!(err.kind, ErrorKind::InvalidSecureLocation(ref loc)
+            if loc == "http://192.168.0.15/xml/device_description.xml"
+        );
+        assert!(err.source().is_none());
     }
 }

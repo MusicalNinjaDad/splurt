@@ -1,8 +1,6 @@
 use std::fmt::Display;
 
-use uuid::Uuid;
-
-use crate::message::header::UserAgent;
+use crate::message::header::{ControlPointUuid, UserAgent};
 
 use super::{FriendlyName, HeaderExt, Host, Man, Method, Mx, ST};
 
@@ -12,7 +10,7 @@ pub struct MSearch {
     pub mx: Mx,
     pub user_agent: Option<UserAgent>,
     pub friendly_name: FriendlyName,
-    pub uuid: Option<Uuid>,
+    pub uuid: Option<ControlPointUuid>,
 }
 
 /// Entire valid M-SEARCH message including initial method line,

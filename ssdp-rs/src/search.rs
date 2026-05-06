@@ -3,11 +3,11 @@
 //! ## Example usage
 //! ```no_run
 //! # // no reply possible so not run as test to avoid endless loop
-//! # use std::{io, net::Ipv4Addr};
+//! # use std::net::Ipv4Addr;
 //! use futures::StreamExt;
-//! use ssdp_rs::{Listener, Searcher};
+//! use ssdp_rs::{Listener, Result, Searcher};
 //!
-//! # fn main() -> io::Result<()> {
+//! # fn main() -> Result<()> {
 //! // Create a new searcher
 //! let mut searcher = Searcher::new(
 //!     "splurt",
@@ -44,7 +44,7 @@ use futures_udp::{EventedUdpSocket, UdpSink};
 use uuid::Uuid;
 
 use crate::{
-    MULTICAST, SSDP_PORT,
+    MULTICAST, Result, SSDP_PORT,
     message::{Message, Mx},
 };
 
@@ -69,7 +69,7 @@ pub struct Searcher {
 
 /// Create a new Searcher with default values as per [UpnpMessenger::build_searcher]
 impl Searcher {
-    pub fn new(product_name: &str, product_version: &str, friendly_name: &str) -> io::Result<Self> {
+    pub fn new(product_name: &str, product_version: &str, friendly_name: &str) -> Result<Self> {
         UpnpMessenger::new(product_name, product_version, friendly_name).build_searcher()
     }
 
@@ -219,7 +219,7 @@ impl<'bldr> UpnpMessenger<'bldr> {
     /// - Repeat: 5
     /// - Repeat delay: 5s
     /// - Resend every: 15 mins
-    pub fn build_searcher(&mut self) -> io::Result<Searcher> {
+    pub fn build_searcher(&mut self) -> Result<Searcher> {
         let ip = self.addr.unwrap_or(Ipv4Addr::UNSPECIFIED);
         let port = self.port.unwrap_or(SSDP_PORT);
         let addr = SocketAddrV4::new(ip, port).into();

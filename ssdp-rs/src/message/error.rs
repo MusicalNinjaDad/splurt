@@ -18,6 +18,7 @@ pub enum ErrorKind {
     InvalidIPAddress(net::AddrParseError),
     InvalidLocation(String),
     InvalidMethod(String),
+    InvalidMx(String),
     InvalidNT(String),
     InvalidNTS(String),
     InvalidPort(String),
@@ -108,6 +109,10 @@ impl Display for ErrorKind {
             ErrorKind::InvalidIPAddress(err) => write!(f, "{err}"),
             ErrorKind::InvalidLocation(location) => write!(f, "{location} is not a valid url"),
             ErrorKind::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
+            ErrorKind::InvalidMx(mx) => write!(
+                f,
+                "{mx} is not a valid MX value. Only integers 0..=5 are valid."
+            ),
             ErrorKind::InvalidNT(nt) => write!(f, "{} is not a valid NT in this context", nt),
             ErrorKind::InvalidNTS(nts) => write!(f, "{} is not a valid NTS in this context", nts),
             ErrorKind::InvalidPort(port) => write!(f, "{port} is not a valid IP port"),

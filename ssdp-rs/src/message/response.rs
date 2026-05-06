@@ -1,6 +1,9 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
 
-use crate::message::header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2};
+use crate::message::{
+    HeaderExt,
+    header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2Ext},
+};
 
 use super::{ErrorKind, Header, MaxAge, ParseError, RFC1123, ST, UpnpHeader, UpnpPort};
 
@@ -12,21 +15,21 @@ use super::{ErrorKind, Header, MaxAge, ParseError, RFC1123, ST, UpnpHeader, Upnp
 /// these messages.
 pub struct Response {
     /// `CACHE-CONTROL`: Duration (in seconds) until advertisement expires
-    max_age: MaxAge,
+    pub max_age: MaxAge,
     /// `DATE`: when response was generated
-    date: Option<DateTime<Utc>>,
+    pub date: Option<DateTime<Utc>>,
     /// `EXT`: Required for backwards compatibility with UPnP 1.0. (Header field name only; no field value.)
     ext: Option<!>,
     /// `URL` for UPnP description for root device
-    location: Location,
+    pub location: Location,
     /// `SERVER`: OS/version UPnP/2.0 product/version
-    server: Server,
+    pub server: Server,
     /// `ST`: search target
-    st: ST,
+    pub st: ST,
     /// `USN`: composite identifier for the advertisement
     ///
     /// **TODO** handle USN nicely
-    usn: String,
+    pub usn: String,
     /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
     /// increasing value. Control points can use this header field to detect the case when a device
     /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
@@ -34,7 +37,7 @@ pub struct Response {
     /// checking for changes to the device state that were not evented since the device was off-line.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    boot_id: BootId,
+    pub boot_id: Option<BootId>,
     /// `CONFIGID.UPNP.ORG`: number used for caching description information.
     /// If a device sends out two messages with a `CONFIGID.UPNP.ORG` header field with the same field
     /// value, the configuration shall be the same at the moments that these messages were sent.
@@ -42,20 +45,20 @@ pub struct Response {
     /// control point receives an announcement of an unknown configuration is downloading required.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    config_id: ConfigId,
+    pub config_id: Option<ConfigId>,
     /// `SEARCHPORT.UPNP.ORG`: number identifies port on which device responds to unicast M-SEARCH
     ///
     /// Optional (handled semantically in [UpnpPort])
-    port: UpnpPort,
+    pub port: UpnpPort,
     /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
     /// Required when device protection is implemented.
-    secure_location: SecureLocation,
+    pub secure_location: Option<SecureLocation>,
 }
 impl<'h> TryFrom<UpnpHeader<'h>> for Response {
     type Error = ParseError;
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
-        let max_age = header.try_get(MaxAge::HEADER_KEY)?.parse()?;
+        let max_age = MaxAge::get_from(&header)?;
         let date = header
             .get("DATE")
             .map(|date| {
@@ -65,17 +68,14 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             })
             .transpose()?;
         let ext = None;
-        let location = header.try_get(Location::HEADER_KEY)?.parse()?;
-        let server: Server = header.try_get(Server::HEADER_KEY)?.parse()?;
-        let st = header.try_get(ST::HEADER_KEY)?.parse()?;
+        let location = Location::get_from(&header)?;
+        let server = Server::get_from(&header)?;
+        let st = ST::get_from(&header)?;
         let usn = header.try_get("USN")?.to_string();
-        let boot_id: BootId = header.get(BootId::HEADER_KEY).try_into()?;
-        boot_id.validate(server.upnp_version)?;
-        let config_id: ConfigId = header.get(ConfigId::HEADER_KEY).try_into()?;
-        config_id.validate(server.upnp_version)?;
+        let boot_id = Option::<BootId>::get_validated(&header, server.upnp_version)?;
+        let config_id = Option::<ConfigId>::get_validated(&header, server.upnp_version)?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
-        let secure_location: SecureLocation = header.get(SecureLocation::HEADER_KEY).try_into()?;
-        secure_location.validate()?;
+        let secure_location = Option::<SecureLocation>::get_from(&header)?;
         Ok(Self {
             max_age,
             date,
