@@ -1,6 +1,6 @@
 //! `NOTIFY *` messages
 
-use std::{fmt::Display, str::FromStr};
+use std::{fmt::Display, marker::PhantomData, str::FromStr};
 
 use derive_more::Display;
 use uuid::Uuid;
@@ -272,27 +272,41 @@ impl FromStr for NTS {
 
 /// USN as a type to validate invariances
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
-pub struct Usn(Uuid);
+#[display("{uuid}")]
+pub struct Usn<NTST> {
+    uuid: Uuid,
+    _ntst: PhantomData<NTST>,
+}
 
-impl Header for Usn {
+impl<_NTST> Header for Usn<_NTST> {
     const HEADER_KEY: &'static str = "USN";
 }
 
-impl Usn {
-    pub fn get_validated(header: &UpnpHeader<'_>, nt: &NT) -> Result<Self, ParseError> {
+impl<NTST> Usn<NTST>
+where
+    NTST: PartialEq<Uri>,
+    Uri: PartialEq<NTST>,
+{
+    pub fn get_validated(header: &UpnpHeader<'_>, ntst: &NTST) -> Result<Self, ParseError> {
         let uri = header.try_get(Self::HEADER_KEY)?.parse::<Uri>()?;
         match uri {
-            Uri::Uuid { uuid, suffix: None } if *nt == uri => Ok(Self(uuid)),
+            Uri::Uuid { uuid, suffix: None } if *ntst == uri => Ok(Self {
+                uuid,
+                _ntst: PhantomData,
+            }),
             Uri::Uuid {
                 uuid,
                 suffix: Some(suffix),
-            } if *suffix == *nt => Ok(Self(uuid)),
+            } if *suffix == *ntst => Ok(Self {
+                uuid,
+                _ntst: PhantomData,
+            }),
             _ => Err(ErrorKind::InvalidUsn(uri.to_string()))?,
         }
     }
 
     pub fn as_uuid(&self) -> &Uuid {
-        &self.0
+        &self.uuid
     }
 }
 
