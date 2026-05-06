@@ -232,7 +232,7 @@ name: my_bulb
         assert_eq!(parsed.server.upnp_version, Version { major: 1, minor: 0 });
         assert_eq!(parsed.server.product_name, "YGLC");
         assert_eq!(parsed.server.product_version, "1");
-        assert_eq!(parsed.uuid, uuid!("f351ef6b-d281-4413-b33a-a75fac0c5ea5"));
+        assert_eq!(parsed.usn, uuid!("f351ef6b-d281-4413-b33a-a75fac0c5ea5"));
     }
 
     #[test]

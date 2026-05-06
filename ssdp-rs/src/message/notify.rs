@@ -48,9 +48,9 @@ pub struct Alive {
     pub(crate) nt: NT,
     /// `SERVER`: OS/version UPnP/2.0 product/version
     pub(crate) server: Server,
-    /// UUID extracted from `USN`
-    /// TODO: Validate match for NT::Uuid
-    pub(crate) uuid: Uuid,
+    /// `USN`: Field value contains Unique Service Name. Identifies a unique instance of a device
+    /// or service. Obeys strict rules in relation to `NT`.
+    pub(crate) usn: Usn<NT>,
     /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
     /// increasing value. Control points can use this header field to detect the case when a device
     /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
@@ -84,7 +84,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
         let location = Location::get_from(&header)?;
         let nt = NT::get_from(&header)?;
         let server = Server::get_from(&header)?;
-        let uuid = *Usn::get_validated(&header, &nt)?.as_uuid();
+        let usn = Usn::get_validated(&header, &nt)?;
         let boot_id = Option::<BootId>::get_validated(&header, server.upnp_version)?;
         let config_id = Option::<ConfigId>::get_validated(&header, server.upnp_version)?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
@@ -94,7 +94,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
             location,
             nt,
             server,
-            uuid,
+            usn,
             boot_id,
             config_id,
             port,
@@ -307,6 +307,18 @@ where
 
     pub fn as_uuid(&self) -> &Uuid {
         &self.uuid
+    }
+}
+
+impl<_NTST> PartialEq<Uuid> for Usn<_NTST> {
+    fn eq(&self, uuid: &Uuid) -> bool {
+        self.uuid == *uuid
+    }
+}
+
+impl<_NTST> PartialEq<Usn<_NTST>> for Uuid {
+    fn eq(&self, usn: &Usn<_NTST>) -> bool {
+        *self == usn.uuid
     }
 }
 
