@@ -536,8 +536,19 @@ impl Header for SecureLocation {
 impl FromStr for SecureLocation {
     type Err = ErrorKind;
 
-    fn from_str(_s: &str) -> Result<Self, Self::Err> {
-        todo!("fromstr for sec loc")
+    fn from_str(url: &str) -> Result<Self, Self::Err> {
+        let err = |_| ErrorKind::InvalidSecureLocation(url.to_string());
+        let url = url.parse::<Url>().map_err(err)?;
+        let secure_location = url.try_into()?;
+        Ok(secure_location)
+    }
+}
+
+impl TryFrom<Url> for SecureLocation {
+    type Error = ErrorKind;
+
+    fn try_from(value: Url) -> Result<Self, Self::Error> {
+        todo!("try from url for sec loc")
     }
 }
 
@@ -782,7 +793,7 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003"#;
     }
 
     #[test]
-    #[should_panic(expected = "fromstr for sec loc")]
+    #[should_panic(expected = "try from url for sec loc")]
     fn secure_location() {
         let msg = r#"SECURELOCATION.UPNP.ORG: https://192.168.0.15:8001/xml/device_description.xml
 "#;
@@ -793,7 +804,7 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003"#;
     }
 
     #[test]
-    #[should_panic(expected = "fromstr for sec loc")]
+    #[should_panic(expected = "try from url for sec loc")]
     fn secure_location_invalid_scheme() {
         let msg = r#"SECURELOCATION.UPNP.ORG: http://192.168.0.15:8001/xml/device_description.xml
 "#;
