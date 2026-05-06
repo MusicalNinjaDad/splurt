@@ -547,45 +547,14 @@ impl FromStr for SecureLocation {
 impl TryFrom<Url> for SecureLocation {
     type Error = ErrorKind;
 
-    fn try_from(value: Url) -> Result<Self, Self::Error> {
-        todo!("try from url for sec loc")
+    fn try_from(url: Url) -> Result<Self, Self::Error> {
+        if url.scheme() == "https" && url.port().is_some() && !url.cannot_be_a_base() {
+            Ok(Self(url))
+        } else {
+            Err(ErrorKind::InvalidSecureLocation(url.to_string()))
+        }
     }
 }
-
-// impl TryFrom<Option<&str>> for SecureLocation {
-//     type Error = ErrorKind;
-
-//     fn try_from(url: Option<&str>) -> Result<Self, Self::Error> {
-//         match url {
-//             Some(url) => {
-//                 Ok(Self(Some(url.parse().map_err(|_| {
-//                     ErrorKind::InvalidSecureLocation(url.to_string())
-//                 })?)))
-//             }
-//             None => Ok(Self(None)),
-//         }
-//     }
-// }
-
-// impl SecureLocation {
-//     pub fn as_option(&self) -> &Option<Url> {
-//         &self.0
-//     }
-
-//     pub fn validate(&self) -> Result<&Self, ErrorKind> {
-//         match self.as_option() {
-//             None => Ok(self),
-//             Some(secure_location)
-//                 if secure_location.scheme() == "https" && secure_location.port().is_some() =>
-//             {
-//                 Ok(self)
-//             }
-//             Some(insecure_location) => Err(ErrorKind::InvalidSecureLocation(
-//                 insecure_location.to_string(),
-//             )),
-//         }
-//     }
-// }
 
 pub type Server = ProductTokens<"SERVER">;
 
@@ -793,7 +762,6 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003"#;
     }
 
     #[test]
-    #[should_panic(expected = "try from url for sec loc")]
     fn secure_location() {
         let msg = r#"SECURELOCATION.UPNP.ORG: https://192.168.0.15:8001/xml/device_description.xml
 "#;
@@ -804,7 +772,6 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003"#;
     }
 
     #[test]
-    #[should_panic(expected = "try from url for sec loc")]
     fn secure_location_invalid_scheme() {
         let msg = r#"SECURELOCATION.UPNP.ORG: http://192.168.0.15:8001/xml/device_description.xml
 "#;
