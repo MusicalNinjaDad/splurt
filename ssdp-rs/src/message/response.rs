@@ -17,19 +17,19 @@ pub struct Response {
     /// `CACHE-CONTROL`: Duration (in seconds) until advertisement expires
     pub max_age: MaxAge,
     /// `DATE`: when response was generated
-    date: Option<DateTime<Utc>>,
+    pub date: Option<DateTime<Utc>>,
     /// `EXT`: Required for backwards compatibility with UPnP 1.0. (Header field name only; no field value.)
     ext: Option<!>,
     /// `URL` for UPnP description for root device
-    location: Location,
+    pub location: Location,
     /// `SERVER`: OS/version UPnP/2.0 product/version
-    server: Server,
+    pub server: Server,
     /// `ST`: search target
-    st: ST,
+    pub st: ST,
     /// `USN`: composite identifier for the advertisement
     ///
     /// **TODO** handle USN nicely
-    usn: String,
+    pub usn: String,
     /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
     /// increasing value. Control points can use this header field to detect the case when a device
     /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
@@ -37,7 +37,7 @@ pub struct Response {
     /// checking for changes to the device state that were not evented since the device was off-line.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    boot_id: BootId,
+    pub boot_id: BootId,
     /// `CONFIGID.UPNP.ORG`: number used for caching description information.
     /// If a device sends out two messages with a `CONFIGID.UPNP.ORG` header field with the same field
     /// value, the configuration shall be the same at the moments that these messages were sent.
@@ -45,14 +45,14 @@ pub struct Response {
     /// control point receives an announcement of an unknown configuration is downloading required.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    config_id: ConfigId,
+    pub config_id: ConfigId,
     /// `SEARCHPORT.UPNP.ORG`: number identifies port on which device responds to unicast M-SEARCH
     ///
     /// Optional (handled semantically in [UpnpPort])
-    port: UpnpPort,
+    pub port: UpnpPort,
     /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
     /// Required when device protection is implemented.
-    secure_location: Option<SecureLocation>,
+    pub secure_location: Option<SecureLocation>,
 }
 impl<'h> TryFrom<UpnpHeader<'h>> for Response {
     type Error = ParseError;
