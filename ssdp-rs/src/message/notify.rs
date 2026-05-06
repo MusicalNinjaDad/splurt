@@ -276,6 +276,32 @@ impl<_NTST> Header for Usn<_NTST> {
     const HEADER_KEY: &'static str = "USN";
 }
 
+impl<NTST> FromStr for Usn<NTST>
+where
+    //TODO: Work out how to avoid hard-coding ParseError here ...
+    NTST: TryFrom<Uri, Error = ParseError>,
+{
+    type Err = ParseError;
+
+    fn from_str(usn: &str) -> Result<Self, Self::Err> {
+        let uri = usn.parse()?;
+        match uri {
+            Uri::Uuid {
+                uuid,
+                suffix: Some(ntst),
+            } => Ok(Self {
+                uuid,
+                ntst: NTST::try_from(*ntst)?,
+            }),
+            Uri::Uuid { uuid, suffix: None } => Ok(Self {
+                uuid,
+                ntst: NTST::try_from(uri)?,
+            }),
+            _ => todo!(),
+        }
+    }
+}
+
 impl<NTST> Usn<NTST>
 where
     NTST: PartialEq<Uri>,
