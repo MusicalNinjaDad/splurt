@@ -106,7 +106,11 @@ where
     }
 }
 
-impl<H: Header + HeaderExt> HeaderExt for Option<H> {
+impl<H, E> HeaderExt for Option<H>
+where
+    H: Header + HeaderExt + FromStr<Err = E>,
+    ParseError: From<E>,
+{
     /// Generate a valid header line
     ///
     /// #### Note
@@ -131,11 +135,14 @@ impl<H: Header + HeaderExt> HeaderExt for Option<H> {
         }
     }
 
-    fn get_from(_header: &UpnpHeader<'_>) -> Result<Self, ParseError>
+    fn get_from(header: &UpnpHeader<'_>) -> Result<Self, ParseError>
     where
         Self: Sized,
     {
-        todo!("get_from for option")
+        Ok(header
+            .get(H::HEADER_KEY)
+            .map(|val| val.parse::<H>())
+            .transpose()?)
     }
 }
 
@@ -722,7 +729,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     #[test]
-    #[should_panic(expected = "not yet implemented: get_from for option")]
+    #[should_panic(expected = "not yet implemented: from str mx")]
     fn get_option() {
         let msg = r#"HOST: 239.255.255.250:1900
 MAN: "ssdp:discover"
