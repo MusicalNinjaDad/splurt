@@ -553,7 +553,7 @@ impl FromStr for ST {
             Uri::Upnp(UpnpNss::RootDevice) => Ok(ST::Root),
             Uri::Urn(Target::Device(device)) => Ok(ST::Device(device)),
             Uri::Urn(Target::Service(service)) => Ok(ST::Service(service)),
-            // TODO: parse UUID
+            Uri::Uuid { uuid, suffix: None } => Ok(Self::Uuid(uuid)),
             _ => Err(ErrorKind::InvalidST(s.to_string()))?,
         }
     }
