@@ -217,6 +217,25 @@ impl PartialEq<Uri> for NT {
     }
 }
 
+impl PartialEq<NT> for Uri {
+    fn eq(&self, nt: &NT) -> bool {
+        match self {
+            Uri::Upnp(UpnpNss::RootDevice) => matches!(nt, NT::RootDevice),
+            Uri::Uuid {
+                uuid: this_uuid,
+                suffix: None,
+            } => matches!(nt, NT::Uuid(uuid) if uuid == this_uuid),
+            Uri::Urn(Target::Device(this_device)) => {
+                matches!(nt, NT::Device(device) if device == this_device)
+            }
+            Uri::Urn(Target::Service(this_service)) => {
+                matches!(nt, NT::Service(service) if service == this_service)
+            }
+            _ => false,
+        }
+    }
+}
+
 impl Display for NT {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -277,7 +296,7 @@ impl Usn {
                 uuid,
                 suffix: Some(suffix),
             } = uri
-                && *nt == **suffix =>
+                && **suffix == *nt =>
             {
                 Ok(Self(*uuid))
             }
