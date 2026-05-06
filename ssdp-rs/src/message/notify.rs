@@ -8,7 +8,6 @@ use uuid::Uuid;
 use crate::message::{
     DeviceDetails, Header, HeaderExt, Host, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort,
     header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2Ext},
-    uri::UriExt,
 };
 
 use super::{ErrorKind, ParseError, SsdpNss, UpnpHeader, Uri};
@@ -186,20 +185,6 @@ impl Header for NT {
     const HEADER_KEY: &'static str = "NT";
 }
 
-impl UriExt for NT {
-    fn to_uri(&self) -> Uri {
-        match self {
-            NT::RootDevice => Uri::Upnp(UpnpNss::RootDevice),
-            NT::Uuid(uuid) => Uri::Uuid {
-                uuid: *uuid,
-                suffix: None,
-            },
-            NT::Device(device_details) => Uri::Urn(Target::Device(device_details.clone())),
-            NT::Service(service_details) => Uri::Urn(Target::Service(service_details.clone())),
-        }
-    }
-}
-
 impl FromStr for NT {
     type Err = ParseError;
 
@@ -211,6 +196,23 @@ impl FromStr for NT {
             Uri::Urn(Target::Service(service)) => Ok(Self::Service(service)),
             Uri::Uuid { uuid, suffix } if suffix.is_none() => Ok(Self::Uuid(uuid)),
             _ => Err(ErrorKind::InvalidNT(s.to_string()))?,
+        }
+    }
+}
+
+impl PartialEq<Uri> for NT {
+    fn eq(&self, uri: &Uri) -> bool {
+        match self {
+            NT::RootDevice => matches!(uri, Uri::Upnp(UpnpNss::RootDevice)),
+            NT::Uuid(this_uuid) => {
+                matches!(uri, Uri::Uuid { uuid, suffix: None } if uuid == this_uuid)
+            }
+            NT::Device(this_device) => {
+                matches!(uri, Uri::Urn(Target::Device(device)) if device == this_device)
+            }
+            NT::Service(this_service) => {
+                matches!(uri, Uri::Urn(Target::Service(service)) if service == this_service)
+            }
         }
     }
 }
@@ -275,7 +277,7 @@ impl Usn {
                 uuid,
                 suffix: Some(suffix),
             } = uri
-                && **suffix == nt.to_uri() =>
+                && *nt == **suffix =>
             {
                 Ok(Self(*uuid))
             }

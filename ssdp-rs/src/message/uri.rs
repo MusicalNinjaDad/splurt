@@ -44,19 +44,6 @@ impl Display for Uri {
     }
 }
 
-/// For types which represent a subset or specific usage of a valid Upnp Uri.
-pub trait UriExt {
-    /// Provides infallible conversion to Uri e.g. for comparison with other `UriExt` types,
-    /// `Display` etc.
-    fn to_uri(&self) -> Uri;
-}
-
-impl UriExt for Uri {
-    fn to_uri(&self) -> Uri {
-        self.clone()
-    }
-}
-
 impl FromStr for Uri {
     type Err = ParseError;
 
