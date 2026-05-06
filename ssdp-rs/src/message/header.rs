@@ -199,6 +199,18 @@ impl PartialEq<BootId> for u32 {
     }
 }
 
+impl PartialEq<NextBootId> for BootId {
+    fn eq(&self, new: &NextBootId) -> bool {
+        self.0 == new.0
+    }
+}
+
+impl PartialOrd<NextBootId> for BootId {
+    fn partial_cmp(&self, new: &NextBootId) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&new.0)
+    }
+}
+
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into, FromStr,
 )]
@@ -426,6 +438,18 @@ impl PartialEq<u32> for NextBootId {
 impl PartialEq<NextBootId> for u32 {
     fn eq(&self, other: &NextBootId) -> bool {
         *self == other.0
+    }
+}
+
+impl PartialEq<BootId> for NextBootId {
+    fn eq(&self, old: &BootId) -> bool {
+        self.0 == old.0
+    }
+}
+
+impl PartialOrd<BootId> for NextBootId {
+    fn partial_cmp(&self, old: &BootId) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&old.0)
     }
 }
 

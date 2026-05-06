@@ -179,6 +179,42 @@ pub struct Update {
     secure_location: Option<SecureLocation>,
 }
 
+impl<'h> TryFrom<UpnpHeader<'h>> for Update {
+    type Error = ParseError;
+
+    fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
+        let location = Location::get_from(&header)?;
+        let nt = NT::get_from(&header)?;
+        let usn = Usn::get_validated(&header, &nt)?;
+        // No Server line so validation must happen downstream where info is cached.
+        let boot_id = Option::<BootId>::get_from(&header)?;
+        let config_id = Option::<ConfigId>::get_from(&header)?;
+        let next_boot_id = Option::<NextBootId>::get_from(&header)?;
+        match next_boot_id {
+            Some(new_id)
+                if let Some(old_id) = boot_id
+                    && new_id > old_id =>
+            {
+                ()
+            }
+            Some(new_id) => Err(ErrorKind::InvalidNextBootId(new_id.to_string()))?,
+            None if boot_id.is_none() => (),
+            None => Err(ErrorKind::MissingNextBootId)?,
+        }
+        let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
+        let secure_location = Option::<SecureLocation>::get_from(&header)?;
+        Ok(Self {
+            location,
+            usn,
+            boot_id,
+            config_id,
+            next_boot_id,
+            port,
+            secure_location,
+        })
+    }
+}
+
 /// The NT values available for NOTIFY. This should usually be refered to as `notify::NT`
 /// and not brought directly into scope via `use notify::NT` in order to disambiguate from
 /// `NT` values for other message types.
