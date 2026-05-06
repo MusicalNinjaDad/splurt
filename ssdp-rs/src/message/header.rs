@@ -149,6 +149,37 @@ where
 // pub trait Optional with blanket impl for UpnpPort & SecureLocation based on TryFrom option &str
 // provides validated get from header analog UpnpV2Ext
 
+pub trait UpnpV2
+where
+    Self: Sized,
+{
+    const ERR: ErrorKind;
+}
+
+pub trait UpnpV2Ext
+where
+    Self: Sized,
+{
+    fn get_validated(header: &UpnpHeader<'_>, upnp_version: Version) -> Result<Self, ParseError>;
+}
+
+impl<H, E> UpnpV2Ext for Option<H>
+where
+    H: UpnpV2 + Header + HeaderExt + FromStr<Err = E>,
+    ParseError: From<E>,
+{
+    fn get_validated(header: &UpnpHeader<'_>, upnp_version: Version) -> Result<Self, ParseError> {
+        let this = Option::<H>::get_from(header)?;
+        match upnp_version.major {
+            ..=1 => Ok(this),
+            2.. => match this {
+                Some(_) => Ok(this),
+                None => Err(H::ERR)?,
+            },
+        }
+    }
+}
+
 /// For types which are required in UPnP V2 but not V1 and can be represented as an `Option<T>`
 pub trait UpnpV2_<T> {
     const ERR: ErrorKind;
