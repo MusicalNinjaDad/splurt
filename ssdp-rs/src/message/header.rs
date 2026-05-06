@@ -182,30 +182,25 @@ where
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct BootId(Option<u32>);
+pub struct BootId(u32);
 
 impl Header for BootId {
     const HEADER_KEY: &'static str = "BOOTID.UPNP.ORG";
 }
 
-impl TryFrom<Option<&str>> for BootId {
-    type Error = ErrorKind;
+impl FromStr for BootId {
+    type Err = ErrorKind;
 
-    fn try_from(id: Option<&str>) -> Result<Self, Self::Error> {
-        match id {
-            Some(id) => Ok(Self(Some(
-                id.parse()
-                    .map_err(|_| ErrorKind::InvalidBootId(id.to_string()))?,
-            ))),
-            None => Ok(Self(None)),
-        }
+    fn from_str(id: &str) -> Result<Self, Self::Err> {
+        let err = |_| ErrorKind::InvalidBootId(id.to_string());
+        let id = id.parse::<u32>().map_err(err)?.into();
+        Ok(id)
     }
 }
 
-impl UpnpV2<u32> for BootId {
-    const ERR: ErrorKind = ErrorKind::MissingBootId;
-    fn as_option(&self) -> &Option<u32> {
-        &self.0
+impl From<u32> for BootId {
+    fn from(value: u32) -> Self {
+        Self(value)
     }
 }
 
