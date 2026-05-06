@@ -316,11 +316,10 @@ where
     }
 }
 
-impl<NTST, E> Usn<NTST>
+impl<NTST> Usn<NTST>
 where
-    Self: FromStr<Err = E> + Display,
+    Self: HeaderExt + Display,
     NTST: PartialEq,
-    ParseError: From<E>,
 {
     pub fn get_validated(header: &UpnpHeader<'_>, ntst: NTST) -> Result<Self, ParseError> {
         let usn = Self::get_from(header)?;
