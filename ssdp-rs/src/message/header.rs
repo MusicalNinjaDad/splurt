@@ -783,4 +783,17 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003"#;
         );
         assert!(err.source().is_none());
     }
+
+    #[test]
+    fn secure_location_no_port() {
+        let msg = r#"SECURELOCATION.UPNP.ORG: http://192.168.0.15/xml/device_description.xml
+"#;
+        let header: UpnpHeader = msg.lines().collect();
+        let err =
+            Option::<SecureLocation>::get_from(&header).expect_err("has invalid SecureLocation");
+        assert_matches!(err.kind, ErrorKind::InvalidSecureLocation(ref loc)
+            if loc == "http://192.168.0.15/xml/device_description.xml"
+        );
+        assert!(err.source().is_none());
+    }
 }
