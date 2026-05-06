@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::message::{
     DeviceDetails, Header, HeaderExt, Host, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort,
-    header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2Ext},
+    header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2Ext, Usn},
 };
 
 use super::{ErrorKind, ParseError, SsdpNss, UpnpHeader, Uri};
@@ -276,67 +276,6 @@ impl FromStr for NTS {
             Uri::Ssdp(SsdpNss::ByeBye) => Ok(Self::ByeBye),
             _ => Err(ErrorKind::InvalidNTS(uri.to_string()))?,
         }
-    }
-}
-
-/// USN as a type to validate invariances
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Usn<NTST> {
-    pub uuid: Uuid,
-    pub ntst: NTST,
-}
-
-impl<_NTST> Header for Usn<_NTST> {
-    const HEADER_KEY: &'static str = "USN";
-}
-
-impl<NTST, E> FromStr for Usn<NTST>
-where
-    NTST: TryFrom<Uri, Error = E>,
-    ParseError: From<E>,
-{
-    type Err = ParseError;
-
-    fn from_str(usn: &str) -> Result<Self, Self::Err> {
-        let uri = usn.parse::<Uri>()?;
-        match uri {
-            Uri::Uuid {
-                uuid,
-                suffix: Some(ntst),
-            } => Ok(Self {
-                uuid,
-                ntst: NTST::try_from(*ntst)?,
-            }),
-            Uri::Uuid { uuid, suffix: None } => Ok(Self {
-                uuid,
-                ntst: NTST::try_from(uri)?,
-            }),
-            _ => Err(ErrorKind::InvalidUsn(usn.to_string()))?,
-        }
-    }
-}
-
-impl<NTST> Usn<NTST>
-where
-    Self: HeaderExt + Display,
-    NTST: PartialEq,
-{
-    pub fn get_validated(header: &UpnpHeader<'_>, ntst: NTST) -> Result<Self, ParseError> {
-        let usn = Self::get_from(header)?;
-        if usn.ntst == ntst {
-            Ok(usn)
-        } else {
-            Err(ErrorKind::InvalidUsn(usn.to_string()))?
-        }
-    }
-}
-
-impl<NTST> Display for Usn<NTST>
-where
-    NTST: Display,
-{
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!("Display USN")
     }
 }
 
