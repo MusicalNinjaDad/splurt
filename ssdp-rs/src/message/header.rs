@@ -199,6 +199,18 @@ impl PartialEq<BootId> for u32 {
     }
 }
 
+impl PartialEq<NextBootId> for BootId {
+    fn eq(&self, new: &NextBootId) -> bool {
+        self.0 == new.0
+    }
+}
+
+impl PartialOrd<NextBootId> for BootId {
+    fn partial_cmp(&self, new: &NextBootId) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&new.0)
+    }
+}
+
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into, FromStr,
 )]
@@ -400,6 +412,44 @@ impl TryFrom<u8> for Mx {
             0..=5 => Ok(Self(mx)),
             _ => Err(ErrorKind::InvalidMx(mx.to_string())),
         }
+    }
+}
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into, FromStr,
+)]
+#[from_str(error(ErrorKind, |_| ErrorKind::InvalidNextBootId(s.to_string())))]
+pub struct NextBootId(u32);
+
+impl Header for NextBootId {
+    const HEADER_KEY: &'static str = "NEXTBOOTID.UPNP.ORG";
+}
+
+impl UpnpV2 for NextBootId {
+    const ERR: ErrorKind = ErrorKind::MissingNextBootId;
+}
+
+impl PartialEq<u32> for NextBootId {
+    fn eq(&self, other: &u32) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialEq<NextBootId> for u32 {
+    fn eq(&self, other: &NextBootId) -> bool {
+        *self == other.0
+    }
+}
+
+impl PartialEq<BootId> for NextBootId {
+    fn eq(&self, old: &BootId) -> bool {
+        self.0 == old.0
+    }
+}
+
+impl PartialOrd<BootId> for NextBootId {
+    fn partial_cmp(&self, old: &BootId) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&old.0)
     }
 }
 

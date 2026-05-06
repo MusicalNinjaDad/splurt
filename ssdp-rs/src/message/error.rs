@@ -21,6 +21,7 @@ pub enum ErrorKind {
     InvalidMx(String),
     InvalidNT(String),
     InvalidNTS(String),
+    InvalidNextBootId(String),
     InvalidPort(String),
     InvalidSecureLocation(String),
     InvalidST(String),
@@ -32,6 +33,7 @@ pub enum ErrorKind {
     MissingBootId,
     MissingConfigId,
     MissingField(String),
+    MissingNextBootId,
 }
 
 #[derive(Debug)]
@@ -113,6 +115,10 @@ impl Display for ErrorKind {
                 f,
                 "{mx} is not a valid MX value. Only integers 0..=5 are valid."
             ),
+            ErrorKind::InvalidNextBootId(id) => write!(
+                f,
+                "{id} is not a valid new BootId. It must be an integer and larger than the old BootId"
+            ),
             ErrorKind::InvalidNT(nt) => write!(f, "{} is not a valid NT in this context", nt),
             ErrorKind::InvalidNTS(nts) => write!(f, "{} is not a valid NTS in this context", nts),
             ErrorKind::InvalidPort(port) => write!(f, "{port} is not a valid IP port"),
@@ -147,6 +153,9 @@ impl Display for ErrorKind {
                 "a configuration number is required from UPnp/2.0 onwards"
             ),
             ErrorKind::MissingField(field) => write!(f, "header is missing field {field}"),
+            ErrorKind::MissingNextBootId => {
+                write!(f, "a new boot instance is required from UPnp/2.0 onwards")
+            }
         }
     }
 }
