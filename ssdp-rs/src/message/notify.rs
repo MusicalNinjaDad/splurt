@@ -1,6 +1,6 @@
 //! `NOTIFY *` messages
 
-use std::{fmt::Display, marker::PhantomData, str::FromStr};
+use std::{fmt::Display, str::FromStr};
 
 use uuid::Uuid;
 
@@ -43,12 +43,11 @@ pub struct Alive {
     pub(crate) max_age: MaxAge,
     /// `URL` for UPnP description for root device
     pub(crate) location: Location,
-    /// `NT`: notification type
-    pub(crate) nt: NT,
     /// `SERVER`: OS/version UPnP/2.0 product/version
     pub(crate) server: Server,
     /// `USN`: Field value contains Unique Service Name. Identifies a unique instance of a device
-    /// or service. Obeys strict rules in relation to `NT`.
+    /// or service. Obeys strict rules in relation to `NT` and therefore acts as the primary store
+    /// of both the NT and the UUID.
     pub(crate) usn: Usn<NT>,
     /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
     /// increasing value. Control points can use this header field to detect the case when a device
@@ -83,7 +82,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
         let location = Location::get_from(&header)?;
         let nt = NT::get_from(&header)?;
         let server = Server::get_from(&header)?;
-        let usn = Usn::get_validated(&header, &nt)?;
+        let usn = Usn::get_validated(&header, nt)?;
         let boot_id = Option::<BootId>::get_validated(&header, server.upnp_version)?;
         let config_id = Option::<ConfigId>::get_validated(&header, server.upnp_version)?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
@@ -91,7 +90,6 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
         Ok(Self {
             max_age,
             location,
-            nt,
             server,
             usn,
             boot_id,
@@ -104,10 +102,9 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ByeBye {
-    /// `NT`: notification type
-    pub(crate) nt: NT,
     /// `USN`: Field value contains Unique Service Name. Identifies a unique instance of a device
-    /// or service. Obeys strict rules in relation to `NT`.
+    /// or service. Obeys strict rules in relation to `NT` and therefore acts as the primary store
+    /// of both the NT and the UUID.
     pub(crate) usn: Usn<NT>,
     /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
     /// increasing value. Control points can use this header field to detect the case when a device
@@ -132,13 +129,12 @@ impl<'h> TryFrom<UpnpHeader<'h>> for ByeBye {
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
         let nt = NT::get_from(&header)?;
-        let usn = Usn::get_validated(&header, &nt)?;
+        let usn = Usn::get_validated(&header, nt)?;
         // TODO - document Boot & ConfigID validation must be done by something that has a
         // suitable cache from previous Alive & Update notifications
         let boot_id = Option::<BootId>::get_from(&header)?;
         let config_id = Option::<ConfigId>::get_from(&header)?;
         Ok(Self {
-            nt,
             usn,
             boot_id,
             config_id,
@@ -272,9 +268,8 @@ impl FromStr for NTS {
 /// USN as a type to validate invariances
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Usn<NTST> {
-    uuid: Uuid,
-    // TODO: Store ntst: &NTST to allow for proper Display implementation
-    _ntst: PhantomData<NTST>,
+    pub uuid: Uuid,
+    pub ntst: NTST,
 }
 
 impl<_NTST> Header for Usn<_NTST> {
@@ -286,38 +281,20 @@ where
     NTST: PartialEq<Uri>,
     Uri: PartialEq<NTST>,
 {
-    pub fn get_validated(header: &UpnpHeader<'_>, ntst: &NTST) -> Result<Self, ParseError> {
+    pub fn get_validated(header: &UpnpHeader<'_>, ntst: NTST) -> Result<Self, ParseError> {
         let uri = header.try_get(Self::HEADER_KEY)?.parse::<Uri>()?;
         match uri {
-            Uri::Uuid { uuid, suffix: None } if *ntst == uri => Ok(Self {
-                uuid,
-                _ntst: PhantomData,
-            }),
+            Uri::Uuid { uuid, suffix: None } if ntst == uri => Ok(Self { uuid, ntst }),
             Uri::Uuid {
                 uuid,
                 suffix: Some(suffix),
-            } if *suffix == *ntst => Ok(Self {
-                uuid,
-                _ntst: PhantomData,
-            }),
+            } if *suffix == ntst => Ok(Self { uuid, ntst }),
             _ => Err(ErrorKind::InvalidUsn(uri.to_string()))?,
         }
     }
 
     pub fn as_uuid(&self) -> &Uuid {
         &self.uuid
-    }
-}
-
-impl<_NTST> PartialEq<Uuid> for Usn<_NTST> {
-    fn eq(&self, uuid: &Uuid) -> bool {
-        self.uuid == *uuid
-    }
-}
-
-impl<_NTST> PartialEq<Usn<_NTST>> for Uuid {
-    fn eq(&self, usn: &Usn<_NTST>) -> bool {
-        *self == usn.uuid
     }
 }
 

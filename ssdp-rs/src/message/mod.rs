@@ -223,7 +223,7 @@ name: my_bulb
             parsed.location.to_string(),
             "yeelight://192.168.1.239:55443"
         );
-        assert_matches!(parsed.nt, notify::NT::Device(device)
+        assert_matches!(parsed.usn.ntst, notify::NT::Device(device)
             if matches!(device.vendor, Vendor::Standard)
             && matches!(&device.device, Device::BinaryLight { ver } if ver == "1")
         );
@@ -232,7 +232,10 @@ name: my_bulb
         assert_eq!(parsed.server.upnp_version, Version { major: 1, minor: 0 });
         assert_eq!(parsed.server.product_name, "YGLC");
         assert_eq!(parsed.server.product_version, "1");
-        assert_eq!(parsed.usn, uuid!("f351ef6b-d281-4413-b33a-a75fac0c5ea5"));
+        assert_eq!(
+            parsed.usn.uuid,
+            uuid!("f351ef6b-d281-4413-b33a-a75fac0c5ea5")
+        );
     }
 
     #[test]
