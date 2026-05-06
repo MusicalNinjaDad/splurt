@@ -320,6 +320,15 @@ where
     }
 }
 
+impl<NTST> Display for Usn<NTST>
+where
+    NTST: Display,
+{
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!("Display USN")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
