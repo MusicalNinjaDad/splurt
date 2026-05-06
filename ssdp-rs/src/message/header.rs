@@ -425,7 +425,7 @@ impl FromStr for Mx {
     fn from_str(mx: &str) -> Result<Self, Self::Err> {
         let err = |_| ErrorKind::InvalidMx(mx.to_string());
         let mx = mx.parse::<u8>().map_err(err)?;
-        let mx = mx.try_into().expect("valid mx");
+        let mx = mx.try_into()?;
         Ok(mx)
     }
 }
@@ -729,6 +729,7 @@ mod tests {
 
     #[cfg(assert_matches_in_module)]
     use std::assert_matches::assert_matches;
+    use std::error::Error;
 
     #[test]
     fn get_option_some() {
@@ -755,5 +756,20 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003"#;
         let header: UpnpHeader = msg.lines().collect();
         let mx = Option::<Mx>::get_from(&header).expect("optional MX");
         assert_matches!(mx, None);
+    }
+
+    #[test]
+    fn get_option_invalid() {
+        let msg = r#"HOST: 239.255.255.250:1900
+MAN: "ssdp:discover"
+MX: 6
+ST: ssdp:all
+USER-AGENT: linux/6.6.87 UPnP/2.0 splurt/0.0.1
+CPFN.UPNP.ORG: splurt SSDP repeater
+CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003"#;
+        let header: UpnpHeader = msg.lines().collect();
+        let err = Option::<Mx>::get_from(&header).expect_err("invalid MX");
+        assert_matches!(err.kind, ErrorKind::InvalidMx(ref mx) if mx =="6");
+        assert!(err.source().is_none());
     }
 }
