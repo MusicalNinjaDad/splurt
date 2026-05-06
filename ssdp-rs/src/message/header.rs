@@ -13,7 +13,6 @@
 use std::{
     collections::HashMap,
     fmt::Display,
-    io,
     net::{AddrParseError, SocketAddr},
     str::FromStr,
     time::Duration,
@@ -432,12 +431,12 @@ impl FromStr for Mx {
 }
 
 impl TryFrom<u8> for Mx {
-    type Error = io::Error;
+    type Error = ErrorKind;
 
     fn try_from(mx: u8) -> Result<Self, Self::Error> {
         match mx {
             0..=5 => Ok(Self(mx)),
-            _ => Err(io::Error::from(io::ErrorKind::InvalidInput)),
+            _ => Err(ErrorKind::InvalidMx(mx.to_string())),
         }
     }
 }

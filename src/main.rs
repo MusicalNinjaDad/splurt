@@ -242,3 +242,9 @@ impl<T: _T> From<futures_util::task::SpawnError> for Exit<T> {
         Self::Error(e.to_string())
     }
 }
+
+impl<T: _T> From<ssdp_rs::Error> for Exit<T> {
+    fn from(e: ssdp_rs::Error) -> Self {
+        Self::Error(e.to_string())
+    }
+}
