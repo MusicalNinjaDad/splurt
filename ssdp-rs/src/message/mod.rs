@@ -400,6 +400,6 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             if secure_location == Url::from_str("https://192.168.0.84:1443/xml/device_description.xml").expect("parsed url")
         );
         assert_eq!(response.server.product_version, "85.0-64200 (ZPS29)");
-        // assert_matches!(response.boot_id, Some(id) if id == 6);
+        assert_matches!(response.boot_id, Some(id) if id == 6);
     }
 }

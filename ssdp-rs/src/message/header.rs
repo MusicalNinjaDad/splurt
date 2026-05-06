@@ -200,6 +200,18 @@ impl From<u32> for BootId {
     }
 }
 
+impl PartialEq<u32> for BootId {
+    fn eq(&self, other: &u32) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialEq<BootId> for u32 {
+    fn eq(&self, other: &BootId) -> bool {
+        *self == other.0
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
 pub struct ConfigId(u32);
 
