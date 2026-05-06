@@ -193,6 +193,20 @@ impl FromStr for NT {
     }
 }
 
+impl TryFrom<Uri> for NT {
+    type Error = ErrorKind;
+
+    fn try_from(uri: Uri) -> Result<Self, Self::Error> {
+        match uri {
+            Uri::Upnp(UpnpNss::RootDevice) => Ok(Self::RootDevice),
+            Uri::Urn(Target::Device(device)) => Ok(Self::Device(device)),
+            Uri::Urn(Target::Service(service)) => Ok(Self::Service(service)),
+            Uri::Uuid { uuid, suffix: None } => Ok(Self::Uuid(uuid)),
+            _ => Err(ErrorKind::InvalidNT(uri.to_string())),
+        }
+    }
+}
+
 impl PartialEq<Uri> for NT {
     fn eq(&self, uri: &Uri) -> bool {
         match self {
@@ -276,15 +290,15 @@ impl<_NTST> Header for Usn<_NTST> {
     const HEADER_KEY: &'static str = "USN";
 }
 
-impl<NTST> FromStr for Usn<NTST>
+impl<NTST, E> FromStr for Usn<NTST>
 where
-    //TODO: Work out how to avoid hard-coding ParseError here ...
-    NTST: TryFrom<Uri, Error = ParseError>,
+    NTST: TryFrom<Uri, Error = E>,
+    ParseError: From<E>,
 {
     type Err = ParseError;
 
     fn from_str(usn: &str) -> Result<Self, Self::Err> {
-        let uri = usn.parse()?;
+        let uri = usn.parse::<Uri>()?;
         match uri {
             Uri::Uuid {
                 uuid,
@@ -302,12 +316,15 @@ where
     }
 }
 
-impl<NTST> Usn<NTST>
+impl<NTST, E> Usn<NTST>
 where
+    Self: FromStr<Err = E> + Display,
     NTST: PartialEq<Uri>,
     Uri: PartialEq<NTST>,
+    ParseError: From<E>,
 {
     pub fn get_validated(header: &UpnpHeader<'_>, ntst: NTST) -> Result<Self, ParseError> {
+        let foo = Self::get_from(header);
         let uri = header.try_get(Self::HEADER_KEY)?.parse::<Uri>()?;
         match uri {
             Uri::Uuid { uuid, suffix: None } if ntst == uri => Ok(Self { uuid, ntst }),
