@@ -181,16 +181,9 @@ impl Header for NT {
 impl FromStr for NT {
     type Err = ParseError;
 
-    //TODO use TryFrom Uri
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let uri = s.parse()?;
-        match uri {
-            Uri::Upnp(UpnpNss::RootDevice) => Ok(Self::RootDevice),
-            Uri::Urn(Target::Device(device)) => Ok(Self::Device(device)),
-            Uri::Urn(Target::Service(service)) => Ok(Self::Service(service)),
-            Uri::Uuid { uuid, suffix } if suffix.is_none() => Ok(Self::Uuid(uuid)),
-            _ => Err(ErrorKind::InvalidNT(s.to_string()))?,
-        }
+        let uri = s.parse::<Uri>()?;
+        Ok(uri.try_into()?)
     }
 }
 
