@@ -731,7 +731,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     #[test]
-    fn get_option() {
+    fn get_option_some() {
         let msg = r#"HOST: 239.255.255.250:1900
 MAN: "ssdp:discover"
 MX: 5
@@ -742,5 +742,18 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003"#;
         let header: UpnpHeader = msg.lines().collect();
         let mx = Option::<Mx>::get_from(&header).expect("optional MX");
         assert_matches!(mx, Some(mx) if mx == Mx(5));
+    }
+
+    #[test]
+    fn get_option_none() {
+        let msg = r#"HOST: 239.255.255.250:1900
+MAN: "ssdp:discover"
+ST: ssdp:all
+USER-AGENT: linux/6.6.87 UPnP/2.0 splurt/0.0.1
+CPFN.UPNP.ORG: splurt SSDP repeater
+CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003"#;
+        let header: UpnpHeader = msg.lines().collect();
+        let mx = Option::<Mx>::get_from(&header).expect("optional MX");
+        assert_matches!(mx, None);
     }
 }
