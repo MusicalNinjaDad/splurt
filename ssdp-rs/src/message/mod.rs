@@ -332,9 +332,9 @@ EXT:
 CACHE-CONTROL: max-age=100
 LOCATION: http://192.168.0.71:80/description.xml
 SERVER: Hue/1.0 UPnP/1.0 IpBridge/1.76.0
-hue-bridgeid: ECB55AF4FE12E2C4
+hue-bridgeid: A30F740847D9
 ST: upnp:rootdevice
-USN: uuid:2f402f80-da50-11e1-9b23-ecb55af4fe12e2c4::upnp:rootdevice
+USN: uuid:53d67f46-bb9b-4d22-99d6-a30f740847d9::upnp:rootdevice
 "#;
         let response: Message = raw_response.parse().expect("parsed as response");
         assert_matches!(response, Message::Response(_));
@@ -382,7 +382,7 @@ EXT:
 LOCATION: http://192.168.0.84:1400/xml/device_description.xml
 SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
 ST: urn:schemas-upnp-org:service:VirtualLineIn:1
-USN: uuid:RINCON_38420B91BAF001400_MR::urn:schemas-upnp-org:service:VirtualLineIn:1
+USN: uuid:c4248768-d6b6-4232-a273-5b1701524493::urn:schemas-upnp-org:service:VirtualLineIn:1
 X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
 X-RINCON-BOOTSEQ: 6
 BOOTID.UPNP.ORG: 6

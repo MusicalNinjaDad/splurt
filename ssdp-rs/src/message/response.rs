@@ -2,7 +2,7 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 
 use crate::message::{
     HeaderExt,
-    header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2Ext},
+    header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2Ext, Usn},
 };
 
 use super::{ErrorKind, Header, MaxAge, ParseError, RFC1123, ST, UpnpHeader, UpnpPort};
@@ -24,12 +24,10 @@ pub struct Response {
     pub location: Location,
     /// `SERVER`: OS/version UPnP/2.0 product/version
     pub server: Server,
-    /// `ST`: search target
-    pub st: ST,
-    /// `USN`: composite identifier for the advertisement
-    ///
-    /// **TODO** handle USN nicely
-    pub usn: String,
+    /// `USN`: Field value contains Unique Service Name. Identifies a unique instance of a device
+    /// or service. Obeys strict rules in relation to `ST` and therefore acts as the primary store
+    /// of both the ST and the UUID.
+    pub usn: Usn<ST>,
     /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
     /// increasing value. Control points can use this header field to detect the case when a device
     /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
@@ -71,7 +69,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
         let location = Location::get_from(&header)?;
         let server = Server::get_from(&header)?;
         let st = ST::get_from(&header)?;
-        let usn = header.try_get("USN")?.to_string();
+        let usn = Usn::get_validated(&header, st)?;
         let boot_id = Option::<BootId>::get_validated(&header, server.upnp_version)?;
         let config_id = Option::<ConfigId>::get_validated(&header, server.upnp_version)?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
@@ -82,7 +80,6 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
             ext,
             location,
             server,
-            st,
             usn,
             boot_id,
             config_id,
