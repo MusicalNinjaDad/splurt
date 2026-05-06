@@ -551,6 +551,18 @@ impl TryFrom<Url> for SecureLocation {
     }
 }
 
+impl PartialEq<Url> for SecureLocation {
+    fn eq(&self, other: &Url) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialEq<SecureLocation> for Url {
+    fn eq(&self, other: &SecureLocation) -> bool {
+        *self == other.0
+    }
+}
+
 pub type Server = ProductTokens<"SERVER">;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]

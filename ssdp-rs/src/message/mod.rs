@@ -176,6 +176,7 @@ impl Display for Vendor {
 #[cfg(test)]
 mod tests {
 
+    use url::Url;
     use uuid::uuid;
 
     use crate::message::header::Version;
@@ -395,5 +396,8 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             panic!("{msg} not a response")
         };
         assert_eq!(response.max_age, Duration::from_secs(1800));
+        assert_matches!(response.secure_location, Some(secure_location)
+            if secure_location == Url::from_str("https://192.168.0.84:1443/xml/device_description.xml").expect("parsed url")
+        );
     }
 }
