@@ -481,6 +481,7 @@ impl<const _FLD: &'static str> FromStr for ProductTokens<_FLD> {
         let err = || ErrorKind::InvalidUserAgent(user_agent.to_string());
         let (os_token, rest) = user_agent.split_once("UPnP/").ok_or_else(err)?;
         // TODO: How to handle removing "," while allowing "OS Foo/6.3 (wibblish)"
+        // https://datatracker.ietf.org/doc/html/rfc9110#name-server for formal grammar
         let os_token = os_token.trim_matches(|c: char| !c.is_alphanumeric());
         let (os, os_version) = match os_token.split_once("/") {
             Some((os, os_version)) => (os.to_string(), os_version.to_string()),
