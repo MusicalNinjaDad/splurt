@@ -403,6 +403,32 @@ impl TryFrom<u8> for Mx {
     }
 }
 
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into, FromStr,
+)]
+#[from_str(error(ErrorKind, |_| ErrorKind::InvalidNextBootId(s.to_string())))]
+pub struct NextBootId(u32);
+
+impl Header for NextBootId {
+    const HEADER_KEY: &'static str = "NEXTBOOTID.UPNP.ORG";
+}
+
+impl UpnpV2 for NextBootId {
+    const ERR: ErrorKind = ErrorKind::MissingNextBootId;
+}
+
+impl PartialEq<u32> for NextBootId {
+    fn eq(&self, other: &u32) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialEq<NextBootId> for u32 {
+    fn eq(&self, other: &NextBootId) -> bool {
+        *self == other.0
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ProductTokens<const FIELD_NAME: &'static str> {
     pub os: String,

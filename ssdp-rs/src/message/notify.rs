@@ -6,16 +6,16 @@ use uuid::Uuid;
 
 use crate::message::{
     DeviceDetails, Header, HeaderExt, Host, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort,
-    header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2Ext, Usn},
+    header::{BootId, ConfigId, Location, NextBootId, SecureLocation, Server, UpnpV2Ext, Usn},
 };
 
 use super::{ErrorKind, ParseError, SsdpNss, UpnpHeader, Uri};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[expect(clippy::large_enum_variant, reason = "Alive is most common case")]
 pub enum Notify {
     Alive(Alive),
     ByeBye(ByeBye),
+    Update(Update),
 }
 
 impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
@@ -140,6 +140,43 @@ impl<'h> TryFrom<UpnpHeader<'h>> for ByeBye {
             config_id,
         })
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Update {
+    /// `URL` for UPnP description for root device
+    pub(crate) location: Location,
+    /// `USN`: Field value contains Unique Service Name. Identifies a unique instance of a device
+    /// or service. Obeys strict rules in relation to `NT` and therefore acts as the primary store
+    /// of both the NT and the UUID.
+    pub(crate) usn: Usn<NT>,
+    /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
+    /// increasing value. Control points can use this header field to detect the case when a device
+    /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
+    /// control points for a number of purposes such as re-establishing desired event subscriptions,
+    /// checking for changes to the device state that were not evented since the device was off-line.
+    ///
+    /// Required for UPnPv2, not present in UPnPv1
+    boot_id: Option<BootId>,
+    /// `CONFIGID.UPNP.ORG`: number used for caching description information.
+    /// If a device sends out two messages with a `CONFIGID.UPNP.ORG` header field with the same field
+    /// value, the configuration shall be the same at the moments that these messages were sent.
+    /// This reduces peak loads on UPnP devices during startup and during network hiccups. Only if a
+    /// control point receives an announcement of an unknown configuration is downloading required.
+    ///
+    /// Required for UPnPv2, not present in UPnPv1
+    config_id: Option<ConfigId>,
+    /// `NEXTBOOTID.UPNP.ORG`: contains the new BOOTID.UPNP.ORG field value that the device intends
+    /// to use in the subsequent device and service announcement messages. It shall be greater than
+    /// the field value of the BOOTID.UPNP.ORG header field.
+    next_boot_id: Option<NextBootId>,
+    /// `SEARCHPORT.UPNP.ORG`: number identifies port on which device responds to unicast M-SEARCH
+    ///
+    /// Optional (handled semantically in [UpnpPort])
+    port: UpnpPort,
+    /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
+    /// Required when device protection is implemented.
+    secure_location: Option<SecureLocation>,
 }
 
 /// The NT values available for NOTIFY. This should usually be refered to as `notify::NT`
