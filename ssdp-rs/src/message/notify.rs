@@ -181,6 +181,7 @@ impl Header for NT {
 impl FromStr for NT {
     type Err = ParseError;
 
+    //TODO use TryFrom Uri
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let uri = s.parse()?;
         match uri {

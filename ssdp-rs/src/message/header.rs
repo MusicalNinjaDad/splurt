@@ -547,14 +547,22 @@ impl FromStr for ST {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let uri = s.parse()?;
+        let uri = s.parse::<Uri>()?;
+        Ok(uri.try_into()?)
+    }
+}
+
+impl TryFrom<Uri> for ST {
+    type Error = ErrorKind;
+
+    fn try_from(uri: Uri) -> Result<Self, Self::Error> {
         match uri {
             Uri::Ssdp(SsdpNss::All) => Ok(ST::All),
             Uri::Upnp(UpnpNss::RootDevice) => Ok(ST::Root),
             Uri::Urn(Target::Device(device)) => Ok(ST::Device(device)),
             Uri::Urn(Target::Service(service)) => Ok(ST::Service(service)),
             Uri::Uuid { uuid, suffix: None } => Ok(Self::Uuid(uuid)),
-            _ => Err(ErrorKind::InvalidST(s.to_string()))?,
+            _ => Err(ErrorKind::InvalidST(uri.to_string()))?,
         }
     }
 }
