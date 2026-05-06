@@ -311,7 +311,7 @@ where
                 uuid,
                 ntst: NTST::try_from(uri)?,
             }),
-            _ => todo!(),
+            _ => Err(ErrorKind::InvalidUsn(usn.to_string()))?,
         }
     }
 }
