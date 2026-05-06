@@ -146,24 +146,20 @@ where
 }
 
 /// For types which are required in UPnP V2 but not V1 and can be represented as an `Option<T>`
-pub trait UpnpV2
-where
-    Self: Sized,
-{
+pub trait UpnpV2 {
     const ERR: ErrorKind;
 }
 
-pub trait UpnpV2Ext
-where
-    Self: Sized,
-{
-    fn get_validated(header: &UpnpHeader<'_>, upnp_version: Version) -> Result<Self, ParseError>;
+pub trait UpnpV2Ext {
+    fn get_validated(header: &UpnpHeader<'_>, upnp_version: Version) -> Result<Self, ParseError>
+    where
+        Self: Sized;
 }
 
-impl<H, E> UpnpV2Ext for Option<H>
+impl<H> UpnpV2Ext for Option<H>
 where
-    H: UpnpV2 + Header + HeaderExt + FromStr<Err = E>,
-    ParseError: From<E>,
+    H: UpnpV2,
+    Option<H>: HeaderExt,
 {
     fn get_validated(header: &UpnpHeader<'_>, upnp_version: Version) -> Result<Self, ParseError> {
         let this = Option::<H>::get_from(header)?;
@@ -177,7 +173,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
 pub struct BootId(u32);
 
 impl Header for BootId {
@@ -204,8 +200,8 @@ impl From<u32> for BootId {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ConfigId(Option<u32>);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+pub struct ConfigId(u32);
 
 impl Header for ConfigId {
     const HEADER_KEY: &'static str = "CONFIGID.UPNP.ORG";
@@ -215,18 +211,19 @@ impl UpnpV2 for ConfigId {
     const ERR: ErrorKind = ErrorKind::MissingConfigId;
 }
 
-impl TryFrom<Option<&str>> for ConfigId {
-    type Error = ErrorKind;
+impl FromStr for ConfigId {
+    type Err = ErrorKind;
 
-    fn try_from(id: Option<&str>) -> Result<Self, Self::Error> {
-        match id {
-            Some(id) => {
-                Ok(Self(Some(id.parse().map_err(|_| {
-                    ErrorKind::InvalidConfigId(id.to_string())
-                })?)))
-            }
-            None => Ok(Self(None)),
-        }
+    fn from_str(id: &str) -> Result<Self, Self::Err> {
+        let err = |_| ErrorKind::InvalidConfigId(id.to_string());
+        let id = id.parse::<u32>().map_err(err)?.into();
+        Ok(id)
+    }
+}
+
+impl From<u32> for ConfigId {
+    fn from(value: u32) -> Self {
+        Self(value)
     }
 }
 

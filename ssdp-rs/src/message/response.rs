@@ -2,7 +2,7 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 
 use crate::message::{
     HeaderExt,
-    header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2Ext_},
+    header::{BootId, ConfigId, Location, SecureLocation, Server},
 };
 
 use super::{ErrorKind, Header, MaxAge, ParseError, RFC1123, ST, UpnpHeader, UpnpPort};
@@ -37,7 +37,7 @@ pub struct Response {
     /// checking for changes to the device state that were not evented since the device was off-line.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    pub boot_id: BootId,
+    pub boot_id: Option<BootId>,
     /// `CONFIGID.UPNP.ORG`: number used for caching description information.
     /// If a device sends out two messages with a `CONFIGID.UPNP.ORG` header field with the same field
     /// value, the configuration shall be the same at the moments that these messages were sent.
@@ -45,7 +45,7 @@ pub struct Response {
     /// control point receives an announcement of an unknown configuration is downloading required.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    pub config_id: ConfigId,
+    pub config_id: Option<ConfigId>,
     /// `SEARCHPORT.UPNP.ORG`: number identifies port on which device responds to unicast M-SEARCH
     ///
     /// Optional (handled semantically in [UpnpPort])
@@ -72,8 +72,8 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
         let server = Server::get_from(&header)?;
         let st = ST::get_from(&header)?;
         let usn = header.try_get("USN")?.to_string();
-        let boot_id = BootId::get_validated(&header, server.upnp_version)?;
-        let config_id = ConfigId::get_validated(&header, server.upnp_version)?;
+        let boot_id = Option::<BootId>::get_from(&header)?;
+        let config_id = Option::<ConfigId>::get_from(&header)?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
         let secure_location = Option::<SecureLocation>::get_from(&header)?;
         Ok(Self {

@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::message::{
     DeviceDetails, Header, HeaderExt, Host, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort,
-    header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2Ext_},
+    header::{BootId, ConfigId, Location, SecureLocation, Server},
     uri::UriExt,
 };
 
@@ -59,7 +59,7 @@ pub struct Alive {
     /// checking for changes to the device state that were not evented since the device was off-line.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    boot_id: BootId,
+    boot_id: Option<BootId>,
     /// `CONFIGID.UPNP.ORG`: number used for caching description information.
     /// If a device sends out two messages with a `CONFIGID.UPNP.ORG` header field with the same field
     /// value, the configuration shall be the same at the moments that these messages were sent.
@@ -67,7 +67,7 @@ pub struct Alive {
     /// control point receives an announcement of an unknown configuration is downloading required.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    config_id: ConfigId,
+    config_id: Option<ConfigId>,
     /// `SEARCHPORT.UPNP.ORG`: number identifies port on which device responds to unicast M-SEARCH
     ///
     /// Optional (handled semantically in [UpnpPort])
@@ -87,8 +87,8 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
         let server = Server::get_from(&header)?;
         let uuid = *Usn::from_uri_and_nt(&header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?, &nt)?
             .as_uuid();
-        let boot_id = BootId::get_validated(&header, server.upnp_version)?;
-        let config_id = ConfigId::get_validated(&header, server.upnp_version)?;
+        let boot_id = Option::<BootId>::get_from(&header)?;
+        let config_id = Option::<ConfigId>::get_from(&header)?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
         let secure_location = Option::<SecureLocation>::get_from(&header)?;
         Ok(Self {
@@ -119,7 +119,7 @@ pub struct ByeBye {
     /// checking for changes to the device state that were not evented since the device was off-line.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    boot_id: BootId,
+    boot_id: Option<BootId>,
     /// `CONFIGID.UPNP.ORG`: number used for caching description information.
     /// If a device sends out two messages with a `CONFIGID.UPNP.ORG` header field with the same field
     /// value, the configuration shall be the same at the moments that these messages were sent.
@@ -127,7 +127,7 @@ pub struct ByeBye {
     /// control point receives an announcement of an unknown configuration is downloading required.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    config_id: ConfigId,
+    config_id: Option<ConfigId>,
 }
 
 impl<'h> TryFrom<UpnpHeader<'h>> for ByeBye {
@@ -139,8 +139,8 @@ impl<'h> TryFrom<UpnpHeader<'h>> for ByeBye {
             .as_uuid();
         // TODO - document Boot & ConfigID validation must be done by something that has a
         // suitable cache from previous Alive & Update notifications
-        let boot_id: BootId = header.get(BootId::HEADER_KEY).try_into()?;
-        let config_id: ConfigId = header.get(ConfigId::HEADER_KEY).try_into()?;
+        let boot_id = Option::<BootId>::get_from(&header)?;
+        let config_id = Option::<ConfigId>::get_from(&header)?;
         Ok(Self {
             nt,
             uuid,
