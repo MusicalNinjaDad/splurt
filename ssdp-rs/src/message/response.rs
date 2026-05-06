@@ -2,7 +2,7 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 
 use crate::message::{
     HeaderExt,
-    header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2Ext},
+    header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2Ext_},
 };
 
 use super::{ErrorKind, Header, MaxAge, ParseError, RFC1123, ST, UpnpHeader, UpnpPort};

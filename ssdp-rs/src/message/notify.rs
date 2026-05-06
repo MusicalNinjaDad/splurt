@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::message::{
     DeviceDetails, Header, HeaderExt, Host, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort,
-    header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2Ext},
+    header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2Ext_},
     uri::UriExt,
 };
 

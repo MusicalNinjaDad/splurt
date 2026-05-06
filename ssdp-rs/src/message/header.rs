@@ -150,7 +150,7 @@ where
 // provides validated get from header analog UpnpV2Ext
 
 /// For types which are required in UPnP V2 but not V1 and can be represented as an `Option<T>`
-pub trait UpnpV2<T> {
+pub trait UpnpV2_<T> {
     const ERR: ErrorKind;
 
     fn as_option(&self) -> &Option<T>;
@@ -165,13 +165,13 @@ pub trait UpnpV2<T> {
     }
 }
 
-pub trait UpnpV2Ext<T>: UpnpV2<T> + Header + Sized {
+pub trait UpnpV2Ext_<T>: UpnpV2_<T> + Header + Sized {
     fn get_validated(header: &UpnpHeader, upnp_version: Version) -> Result<Self, ErrorKind>;
 }
 
-impl<U, T, E> UpnpV2Ext<T> for U
+impl<U, T, E> UpnpV2Ext_<T> for U
 where
-    U: UpnpV2<T> + for<'a> TryFrom<Option<&'a str>, Error = E> + Header + Sized,
+    U: UpnpV2_<T> + for<'a> TryFrom<Option<&'a str>, Error = E> + Header + Sized,
     ErrorKind: From<E>,
 {
     fn get_validated(header: &UpnpHeader, upnp_version: Version) -> Result<Self, ErrorKind> {
@@ -226,7 +226,7 @@ impl TryFrom<Option<&str>> for ConfigId {
     }
 }
 
-impl UpnpV2<u32> for ConfigId {
+impl UpnpV2_<u32> for ConfigId {
     const ERR: ErrorKind = ErrorKind::MissingConfigId;
     fn as_option(&self) -> &Option<u32> {
         &self.0
