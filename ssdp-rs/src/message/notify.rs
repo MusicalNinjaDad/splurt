@@ -190,17 +190,18 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Update {
         let boot_id = Option::<BootId>::get_from(&header)?;
         let config_id = Option::<ConfigId>::get_from(&header)?;
         let next_boot_id = Option::<NextBootId>::get_from(&header)?;
-        match next_boot_id {
+        let valid_next_boot_id = match next_boot_id {
             Some(new_id)
                 if let Some(old_id) = boot_id
                     && new_id > old_id =>
             {
-                ()
+                Ok(())
             }
-            Some(new_id) => Err(ErrorKind::InvalidNextBootId(new_id.to_string()))?,
-            None if boot_id.is_none() => (),
-            None => Err(ErrorKind::MissingNextBootId)?,
-        }
+            Some(new_id) => Err(ErrorKind::InvalidNextBootId(new_id.to_string())),
+            None if boot_id.is_none() => Ok(()),
+            None => Err(ErrorKind::MissingNextBootId),
+        };
+        valid_next_boot_id?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
         let secure_location = Option::<SecureLocation>::get_from(&header)?;
         Ok(Self {
