@@ -31,3 +31,12 @@ impl From<ErrorKind> for Error {
         Self::ParseError(err.into())
     }
 }
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::ParseError(parse_error) => Some(parse_error),
+            Error::IOError(error) => Some(error),
+        }
+    }
+}
