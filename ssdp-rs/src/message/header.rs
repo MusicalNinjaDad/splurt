@@ -710,3 +710,29 @@ impl Display for Version {
         write!(f, "{}.{}", self.major, self.minor)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(assert_matches_in_root)]
+    use std::assert_matches;
+
+    #[cfg(assert_matches_in_module)]
+    use std::assert_matches::assert_matches;
+
+    #[test]
+    #[should_panic(expected = "not yet implemented: get_from for option")]
+    fn get_option() {
+        let msg = r#"HOST: 239.255.255.250:1900
+MAN: "ssdp:discover"
+MX: 5
+ST: ssdp:all
+USER-AGENT: linux/6.6.87 UPnP/2.0 splurt/0.0.1
+CPFN.UPNP.ORG: splurt SSDP repeater
+CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003"#;
+        let header: UpnpHeader = msg.lines().collect();
+        let mx = Option::<Mx>::get_from(&header).expect("optional MX");
+        assert_matches!(mx, Some(mx) if mx == Mx(5));
+    }
+}
