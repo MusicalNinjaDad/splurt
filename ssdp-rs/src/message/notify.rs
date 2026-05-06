@@ -292,10 +292,6 @@ where
             _ => Err(ErrorKind::InvalidUsn(uri.to_string()))?,
         }
     }
-
-    pub fn as_uuid(&self) -> &Uuid {
-        &self.uuid
-    }
 }
 
 #[cfg(test)]
