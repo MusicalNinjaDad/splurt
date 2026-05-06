@@ -18,7 +18,7 @@ use std::{
     time::Duration,
 };
 
-use derive_more::Display;
+use derive_more::{Display, From, Into};
 use url::Url;
 use uuid::Uuid;
 
@@ -173,7 +173,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into)]
 pub struct BootId(u32);
 
 impl Header for BootId {
@@ -194,12 +194,6 @@ impl FromStr for BootId {
     }
 }
 
-impl From<u32> for BootId {
-    fn from(value: u32) -> Self {
-        Self(value)
-    }
-}
-
 impl PartialEq<u32> for BootId {
     fn eq(&self, other: &u32) -> bool {
         self.0 == *other
@@ -212,7 +206,7 @@ impl PartialEq<BootId> for u32 {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into)]
 pub struct ConfigId(u32);
 
 impl Header for ConfigId {
@@ -233,13 +227,7 @@ impl FromStr for ConfigId {
     }
 }
 
-impl From<u32> for ConfigId {
-    fn from(value: u32) -> Self {
-        Self(value)
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into)]
 pub struct ControlPointUuid(Uuid);
 
 impl Header for ControlPointUuid {
@@ -254,12 +242,7 @@ impl FromStr for ControlPointUuid {
     }
 }
 
-impl From<Uuid> for ControlPointUuid {
-    fn from(uuid: Uuid) -> Self {
-        Self(uuid)
-    }
-}
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, From, Into)]
 // TODO make private inner when impl FromStr
 pub struct FriendlyName(pub String);
 
@@ -288,7 +271,7 @@ impl Display for FriendlyName {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into)]
 // TODO: A way to get the addr back out
 pub struct Host(SocketAddr);
 
@@ -318,12 +301,6 @@ impl FromStr for Host {
     }
 }
 
-impl From<SocketAddr> for Host {
-    fn from(addr: SocketAddr) -> Self {
-        Self(addr)
-    }
-}
-
 impl Host {
     /// Return [ErrorKind::InvalidHost] if not [MULTICAST]
     pub fn check_multicast(&self) -> Result<(), ErrorKind> {
@@ -334,7 +311,7 @@ impl Host {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into)]
 pub struct Location(Url);
 
 impl Header for Location {
@@ -379,13 +356,14 @@ impl Display for Man {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Into)]
 pub struct MaxAge(pub(crate) Duration);
 
 impl Header for MaxAge {
     const HEADER_KEY: &'static str = "CACHE-CONTROL";
 }
 
+// TODO: Update to TryFrom pattern
 impl FromStr for MaxAge {
     // TODO: #50 Move all FromStr impls to use Err = ParseError
     type Err = ErrorKind;
@@ -417,7 +395,7 @@ impl Display for MaxAge {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Into)]
 /// A valid MX value (0..=5) (see UPnP spec para 1.3.2)
 ///
 /// - Construct via `TryFrom<u8>`
@@ -448,12 +426,6 @@ impl TryFrom<u8> for Mx {
             0..=5 => Ok(Self(mx)),
             _ => Err(ErrorKind::InvalidMx(mx.to_string())),
         }
-    }
-}
-
-impl From<Mx> for u8 {
-    fn from(mx: Mx) -> Self {
-        mx.0
     }
 }
 
@@ -523,7 +495,7 @@ impl<const _FLD: &'static str> Display for ProductTokens<_FLD> {
         )
     }
 }
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display, Into)]
 pub struct SecureLocation(Url);
 
 impl Header for SecureLocation {
