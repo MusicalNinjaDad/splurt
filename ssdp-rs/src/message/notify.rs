@@ -2,13 +2,11 @@
 
 use std::{fmt::Display, str::FromStr};
 
-use derive_more::Display;
 use uuid::Uuid;
 
 use crate::message::{
     DeviceDetails, Header, HeaderExt, Host, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort,
-    header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2Ext},
-    uri::UriExt,
+    header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2Ext, Usn},
 };
 
 use super::{ErrorKind, ParseError, SsdpNss, UpnpHeader, Uri};
@@ -45,13 +43,12 @@ pub struct Alive {
     pub(crate) max_age: MaxAge,
     /// `URL` for UPnP description for root device
     pub(crate) location: Location,
-    /// `NT`: notification type
-    pub(crate) nt: NT,
     /// `SERVER`: OS/version UPnP/2.0 product/version
     pub(crate) server: Server,
-    /// UUID extracted from `USN`
-    /// TODO: Validate match for NT::Uuid
-    pub(crate) uuid: Uuid,
+    /// `USN`: Field value contains Unique Service Name. Identifies a unique instance of a device
+    /// or service. Obeys strict rules in relation to `NT` and therefore acts as the primary store
+    /// of both the NT and the UUID.
+    pub(crate) usn: Usn<NT>,
     /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
     /// increasing value. Control points can use this header field to detect the case when a device
     /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
@@ -85,8 +82,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
         let location = Location::get_from(&header)?;
         let nt = NT::get_from(&header)?;
         let server = Server::get_from(&header)?;
-        let uuid = *Usn::from_uri_and_nt(&header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?, &nt)?
-            .as_uuid();
+        let usn = Usn::get_validated(&header, &nt)?;
         let boot_id = Option::<BootId>::get_validated(&header, server.upnp_version)?;
         let config_id = Option::<ConfigId>::get_validated(&header, server.upnp_version)?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
@@ -94,9 +90,8 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
         Ok(Self {
             max_age,
             location,
-            nt,
             server,
-            uuid,
+            usn,
             boot_id,
             config_id,
             port,
@@ -107,11 +102,10 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ByeBye {
-    /// `NT`: notification type
-    pub(crate) nt: NT,
-    /// UUID extracted from `USN`
-    /// TODO: Validate match for NT::Uuid
-    pub(crate) uuid: Uuid,
+    /// `USN`: Field value contains Unique Service Name. Identifies a unique instance of a device
+    /// or service. Obeys strict rules in relation to `NT` and therefore acts as the primary store
+    /// of both the NT and the UUID.
+    pub(crate) usn: Usn<NT>,
     /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
     /// increasing value. Control points can use this header field to detect the case when a device
     /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
@@ -135,15 +129,13 @@ impl<'h> TryFrom<UpnpHeader<'h>> for ByeBye {
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
         let nt = NT::get_from(&header)?;
-        let uuid = *Usn::from_uri_and_nt(&header.try_get(Usn::HEADER_KEY)?.parse::<Uri>()?, &nt)?
-            .as_uuid();
+        let usn = Usn::get_validated(&header, &nt)?;
         // TODO - document Boot & ConfigID validation must be done by something that has a
         // suitable cache from previous Alive & Update notifications
         let boot_id = Option::<BootId>::get_from(&header)?;
         let config_id = Option::<ConfigId>::get_from(&header)?;
         Ok(Self {
-            nt,
-            uuid,
+            usn,
             boot_id,
             config_id,
         })
@@ -186,31 +178,61 @@ impl Header for NT {
     const HEADER_KEY: &'static str = "NT";
 }
 
-impl UriExt for NT {
-    fn to_uri(&self) -> Uri {
-        match self {
-            NT::RootDevice => Uri::Upnp(UpnpNss::RootDevice),
-            NT::Uuid(uuid) => Uri::Uuid {
-                uuid: *uuid,
-                suffix: None,
-            },
-            NT::Device(device_details) => Uri::Urn(Target::Device(device_details.clone())),
-            NT::Service(service_details) => Uri::Urn(Target::Service(service_details.clone())),
-        }
-    }
-}
-
 impl FromStr for NT {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let uri = s.parse()?;
+        let uri = s.parse::<Uri>()?;
+        Ok(uri.try_into()?)
+    }
+}
+
+impl TryFrom<Uri> for NT {
+    type Error = ErrorKind;
+
+    fn try_from(uri: Uri) -> Result<Self, Self::Error> {
         match uri {
             Uri::Upnp(UpnpNss::RootDevice) => Ok(Self::RootDevice),
             Uri::Urn(Target::Device(device)) => Ok(Self::Device(device)),
             Uri::Urn(Target::Service(service)) => Ok(Self::Service(service)),
-            Uri::Uuid { uuid, suffix } if suffix.is_none() => Ok(Self::Uuid(uuid)),
-            _ => Err(ErrorKind::InvalidNT(s.to_string()))?,
+            Uri::Uuid { uuid, suffix: None } => Ok(Self::Uuid(uuid)),
+            _ => Err(ErrorKind::InvalidNT(uri.to_string())),
+        }
+    }
+}
+
+impl PartialEq<Uri> for NT {
+    fn eq(&self, uri: &Uri) -> bool {
+        match self {
+            Self::RootDevice => matches!(uri, Uri::Upnp(UpnpNss::RootDevice)),
+            Self::Uuid(this_uuid) => {
+                matches!(uri, Uri::Uuid { uuid, suffix: None } if uuid == this_uuid)
+            }
+            Self::Device(this_device) => {
+                matches!(uri, Uri::Urn(Target::Device(device)) if device == this_device)
+            }
+            Self::Service(this_service) => {
+                matches!(uri, Uri::Urn(Target::Service(service)) if service == this_service)
+            }
+        }
+    }
+}
+
+impl PartialEq<NT> for Uri {
+    fn eq(&self, nt: &NT) -> bool {
+        match self {
+            Uri::Upnp(UpnpNss::RootDevice) => matches!(nt, NT::RootDevice),
+            Uri::Uuid {
+                uuid: this_uuid,
+                suffix: None,
+            } => matches!(nt, NT::Uuid(uuid) if uuid == this_uuid),
+            Uri::Urn(Target::Device(this_device)) => {
+                matches!(nt, NT::Device(device) if device == this_device)
+            }
+            Uri::Urn(Target::Service(this_service)) => {
+                matches!(nt, NT::Service(service) if service == this_service)
+            }
+            _ => false,
         }
     }
 }
@@ -248,43 +270,6 @@ impl FromStr for NTS {
             Uri::Ssdp(SsdpNss::ByeBye) => Ok(Self::ByeBye),
             _ => Err(ErrorKind::InvalidNTS(uri.to_string()))?,
         }
-    }
-}
-
-/// USN as a type to validate invariances
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
-pub struct Usn(Uuid);
-
-impl Header for Usn {
-    const HEADER_KEY: &'static str = "USN";
-}
-
-impl Usn {
-    pub fn from_uri_and_nt(uri: &Uri, nt: &NT) -> Result<Self, ErrorKind> {
-        match nt {
-            NT::Uuid(uuid)
-                if let Uri::Uuid {
-                    uuid: uri_uuid,
-                    suffix: None,
-                } = uri
-                    && uri_uuid == uuid =>
-            {
-                Ok(Self(*uuid))
-            }
-            _ if let Uri::Uuid {
-                uuid,
-                suffix: Some(suffix),
-            } = uri
-                && **suffix == nt.to_uri() =>
-            {
-                Ok(Self(*uuid))
-            }
-            _ => Err(ErrorKind::InvalidUsn(uri.to_string())),
-        }
-    }
-
-    pub fn as_uuid(&self) -> &Uuid {
-        &self.0
     }
 }
 

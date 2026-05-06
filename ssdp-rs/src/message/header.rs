@@ -547,14 +547,60 @@ impl FromStr for ST {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let uri = s.parse()?;
+        let uri = s.parse::<Uri>()?;
+        Ok(uri.try_into()?)
+    }
+}
+
+impl TryFrom<Uri> for ST {
+    type Error = ErrorKind;
+
+    fn try_from(uri: Uri) -> Result<Self, Self::Error> {
         match uri {
             Uri::Ssdp(SsdpNss::All) => Ok(ST::All),
             Uri::Upnp(UpnpNss::RootDevice) => Ok(ST::Root),
             Uri::Urn(Target::Device(device)) => Ok(ST::Device(device)),
             Uri::Urn(Target::Service(service)) => Ok(ST::Service(service)),
-            // TODO: parse UUID
-            _ => Err(ErrorKind::InvalidST(s.to_string()))?,
+            Uri::Uuid { uuid, suffix: None } => Ok(Self::Uuid(uuid)),
+            _ => Err(ErrorKind::InvalidST(uri.to_string()))?,
+        }
+    }
+}
+
+impl PartialEq<Uri> for ST {
+    fn eq(&self, uri: &Uri) -> bool {
+        match self {
+            Self::All => matches!(uri, Uri::Ssdp(SsdpNss::All)),
+            Self::Root => matches!(uri, Uri::Upnp(UpnpNss::RootDevice)),
+            Self::Uuid(this_uuid) => {
+                matches!(uri, Uri::Uuid { uuid, suffix: None } if uuid == this_uuid)
+            }
+            Self::Device(this_device) => {
+                matches!(uri, Uri::Urn(Target::Device(device)) if device == this_device)
+            }
+            Self::Service(this_service) => {
+                matches!(uri, Uri::Urn(Target::Service(service)) if service == this_service)
+            }
+        }
+    }
+}
+
+impl PartialEq<ST> for Uri {
+    fn eq(&self, st: &ST) -> bool {
+        match self {
+            Uri::Ssdp(SsdpNss::All) => matches!(st, ST::All),
+            Uri::Upnp(UpnpNss::RootDevice) => matches!(st, ST::Root),
+            Uri::Uuid {
+                uuid: this_uuid,
+                suffix: None,
+            } => matches!(st, ST::Uuid(uuid) if uuid == this_uuid),
+            Uri::Urn(Target::Device(this_device)) => {
+                matches!(st, ST::Device(device) if device == this_device)
+            }
+            Uri::Urn(Target::Service(this_service)) => {
+                matches!(st, ST::Service(service) if service == this_service)
+            }
+            _ => false,
         }
     }
 }
@@ -629,6 +675,76 @@ impl From<UpnpPort> for u16 {
 }
 
 pub type UserAgent = ProductTokens<"USER-AGENT">;
+
+/// USN as a type to validate invariances
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Usn<NTST> {
+    pub uuid: Uuid,
+    pub ntst: NTST,
+}
+
+impl<_NTST> Header for Usn<_NTST> {
+    const HEADER_KEY: &'static str = "USN";
+}
+
+impl<NTST, E> FromStr for Usn<NTST>
+where
+    NTST: TryFrom<Uri, Error = E>,
+    ParseError: From<E>,
+{
+    type Err = ParseError;
+
+    fn from_str(usn: &str) -> Result<Self, Self::Err> {
+        let uri = usn.parse::<Uri>()?;
+        match uri {
+            Uri::Uuid {
+                uuid,
+                suffix: Some(ntst),
+            } => Ok(Self {
+                uuid,
+                ntst: NTST::try_from(*ntst)?,
+            }),
+            Uri::Uuid { uuid, suffix: None } => Ok(Self {
+                uuid,
+                ntst: NTST::try_from(uri)?,
+            }),
+            _ => Err(ErrorKind::InvalidUsn(usn.to_string()))?,
+        }
+    }
+}
+
+impl<NTST> Usn<NTST>
+where
+    Self: HeaderExt + Display,
+    NTST: PartialEq,
+{
+    pub fn get_validated(header: &UpnpHeader<'_>, ntst: &NTST) -> Result<Self, ParseError> {
+        let usn = Self::get_from(header)?;
+        if usn.ntst == *ntst {
+            Ok(usn)
+        } else {
+            Err(ErrorKind::InvalidUsn(usn.to_string()))?
+        }
+    }
+}
+
+impl<NTST> Display for Usn<NTST>
+where
+    NTST: Display + PartialEq<Uri>,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "uuid:{}", self.uuid)?;
+        if self.ntst
+            != (Uri::Uuid {
+                uuid: self.uuid,
+                suffix: None,
+            })
+        {
+            write!(f, "::{}", self.ntst)?;
+        }
+        Ok(())
+    }
+}
 
 /// Upnp version
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
