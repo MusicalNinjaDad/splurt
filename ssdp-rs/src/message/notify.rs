@@ -31,8 +31,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
         match nts {
             NTS::Alive => Ok(Self::Alive(header.try_into()?)),
             NTS::ByeBye => Ok(Self::ByeBye(header.try_into()?)),
-            #[expect(unreachable_patterns)]
-            _ => todo!("tryfrom header for update"),
+            NTS::Update => Ok(Self::Update(header.try_into()?)),
         }
     }
 }
@@ -329,6 +328,7 @@ impl Display for NT {
 pub enum NTS {
     Alive,
     ByeBye,
+    Update
 }
 
 impl Header for NTS {
@@ -342,6 +342,7 @@ impl FromStr for NTS {
         match uri.parse()? {
             Uri::Ssdp(SsdpNss::Alive) => Ok(Self::Alive),
             Uri::Ssdp(SsdpNss::ByeBye) => Ok(Self::ByeBye),
+            Uri::Ssdp(SsdpNss::Update) => Ok(Self::Update),
             _ => Err(ErrorKind::InvalidNTS(uri.to_string()))?,
         }
     }
