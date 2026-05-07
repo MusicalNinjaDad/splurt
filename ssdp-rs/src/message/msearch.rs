@@ -2,10 +2,13 @@ use std::{fmt::Display, net::SocketAddr};
 
 use derive_more::From;
 
-use crate::{MULTICAST, message::{
-    Header, ParseError, UPNP_VERSION1, UpnpHeader, UpnpPort,
-    header::{ControlPointUuid, UpnpV2Ext, UserAgent},
-}};
+use crate::{
+    MULTICAST,
+    message::{
+        Header, ParseError, UPNP_VERSION1, UpnpHeader, UpnpPort,
+        header::{ControlPointUuid, UpnpV2Ext, UserAgent},
+    },
+};
 
 use super::{FriendlyName, HeaderExt, Host, Man, Method, Mx, ST};
 
@@ -18,6 +21,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for MSearch {
     type Error = ParseError;
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
+        Man::get_from(&header)?.check_discover()?;
         match *Host::get_from(&header)?.as_socket_addr() {
             MULTICAST => Ok(Self::Multicast(header.try_into()?)),
             SocketAddr::V4(_addr) => todo!("Unicast search"),
@@ -41,8 +45,6 @@ impl<'h> TryFrom<UpnpHeader<'h>> for MulticastSearch {
     type Error = ParseError;
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
-        Host::get_from(&header)?.check_multicast()?;
-        Man::get_from(&header)?.check_discover()?;
         let mx = Mx::get_from(&header)?;
         let st = ST::get_from(&header)?;
         let user_agent = Option::<UserAgent>::get_from(&header)?;
