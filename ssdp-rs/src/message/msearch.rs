@@ -12,7 +12,7 @@ pub struct MSearch {
     pub host: Host,
     pub mx: Mx,
     pub user_agent: Option<UserAgent>,
-    pub friendly_name: FriendlyName,
+    pub friendly_name: Option<FriendlyName>,
     pub uuid: Option<ControlPointUuid>,
 }
 

@@ -34,6 +34,7 @@ pub enum ErrorKind {
     MissingBootId,
     MissingConfigId,
     MissingField(String),
+    MissingFriendlyName,
     MissingNextBootId,
 }
 
@@ -155,6 +156,9 @@ impl Display for ErrorKind {
                 "a configuration number is required from UPnp/2.0 onwards"
             ),
             ErrorKind::MissingField(field) => write!(f, "header is missing field {field}"),
+            ErrorKind::MissingFriendlyName => {
+                write!(f, "a friendly name is required from UPnp/2.0 onwards")
+            }
             ErrorKind::MissingNextBootId => {
                 write!(f, "a new boot instance is required from UPnp/2.0 onwards")
             }

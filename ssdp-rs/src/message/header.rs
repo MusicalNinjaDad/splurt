@@ -248,6 +248,10 @@ impl Header for FriendlyName {
     const HEADER_KEY: &'static str = "CPFN.UPNP.ORG";
 }
 
+impl UpnpV2 for FriendlyName {
+    const ERR: ErrorKind = ErrorKind::MissingFriendlyName;
+}
+
 impl FromStr for FriendlyName {
     type Err = ErrorKind;
 
