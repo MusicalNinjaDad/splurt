@@ -109,9 +109,15 @@ pub struct UnicastSearch {
 impl<'h> TryFrom<UpnpHeader<'h>> for UnicastSearch {
     type Error = ParseError;
 
-    #[expect(unused_variables, reason = "todo")]
-    fn try_from(value: UpnpHeader<'h>) -> Result<Self, Self::Error> {
-        todo!("try_from header for unicast")
+    fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
+        let host = Host::get_from(&header)?;
+        let st = ST::get_from(&header)?;
+        let user_agent = Option::<UserAgent>::get_from(&header)?;
+        Ok(Self {
+            host,
+            st,
+            user_agent,
+        })
     }
 }
 
