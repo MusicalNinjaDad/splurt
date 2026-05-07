@@ -25,15 +25,17 @@ pub use error::{ErrorKind, ParseError};
 pub use header::{
     FriendlyName, Header, HeaderExt, Host, Man, MaxAge, Mx, ProductTokens, ST, UpnpHeader, UpnpPort,
 };
-pub use msearch::MSearch;
+pub use msearch::MulticastSearch;
 pub use notify::Notify;
 pub use response::Response;
 pub use services::{Service, ServiceDetails};
 pub use uri::{SsdpNss, Target, UpnpNss, Uri, UriToken};
 
-use crate::message::header::Version;
+use crate::message::{header::Version, msearch::MSearch};
 
 const UPNP_VERSION: Version = Version { major: 2, minor: 0 };
+const UPNP_VERSION1: Version = Version { major: 1, minor: 0 };
+
 /// RFC1123 date format, e.g.: "Wed, 29 Apr 2026 08:22:03 GMT"
 ///
 /// ## Note
@@ -108,14 +110,16 @@ impl Message {
             product_name: product_name.to_string(),
             product_version: product_version.to_string(),
         };
-        let host = Default::default();
-        Message::Search(MSearch {
-            host,
+        let st = ST::All;
+        let port = UpnpPort::Default;
+        Message::Search(MSearch::Multicast(MulticastSearch {
             mx,
+            st,
             user_agent: Some(user_agent),
-            friendly_name: friendly_name.into(),
+            port,
+            friendly_name: Some(friendly_name.into()),
             uuid: Some(uuid.into()),
-        })
+        }))
     }
 }
 
@@ -127,7 +131,7 @@ impl FromStr for Message {
         let method: Method = lines.next().ok_or(ErrorKind::EmptyMessage)?.parse()?;
         let header: UpnpHeader = lines.collect();
         match method {
-            Method::MSearch => todo!("parse MSearch"),
+            Method::MSearch => Ok(Message::Search(header.try_into()?)),
             Method::Notify => Ok(Message::Notify(header.try_into()?)),
             Method::Response => Ok(Message::Response(header.try_into()?)),
         }
@@ -188,7 +192,7 @@ mod tests {
 
     #[cfg(assert_matches_in_module)]
     use std::assert_matches::assert_matches;
-    use std::time::Duration;
+    use std::{net::SocketAddr, time::Duration};
 
     #[test]
     fn parse_alive() {
@@ -215,7 +219,7 @@ name: my_bulb
 "#;
         let msg: Message = alive.parse().expect("parsed as NOTIFY");
         let Message::Notify(Notify::Alive(parsed)) = msg else {
-            panic!("{} is not an alive notification", msg)
+            panic!("{msg:?} is not an alive notification")
         };
         let max_age = Duration::from_secs(3600);
         assert_eq!(parsed.max_age, MaxAge(max_age));
@@ -312,11 +316,12 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003
         let mx = 5.try_into().expect("valid mx");
         let friendly_name = "splurt SSDP repeater";
         let uuid = uuid!("2fac1234-31f8-11b4-a222-08002b34c003");
-        let msg = MSearch {
-            host: Default::default(),
+        let msg = MulticastSearch {
             mx,
+            st: ST::All,
             user_agent: None,
-            friendly_name: FriendlyName(friendly_name.to_string()),
+            port: Default::default(),
+            friendly_name: Some(FriendlyName(friendly_name.to_string())),
             uuid: Some(uuid.into()),
         };
         let msg_text = msg.to_string();
@@ -396,7 +401,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 "#;
         let msg: Message = sonos.parse().expect("sonos valid message");
         let Message::Response(response) = msg else {
-            panic!("{msg} not a response")
+            panic!("{msg:?} not a response")
         };
         assert_eq!(response.max_age, Duration::from_secs(1800));
         assert_matches!(response.secure_location, Some(secure_location)
@@ -404,5 +409,50 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         );
         assert_eq!(response.server.product_version, "85.0-64200 (ZPS29)");
         assert_matches!(response.boot_id, Some(id) if id == 6);
+    }
+
+    #[test]
+    fn parse_multicast_search() {
+        let symfonium = r#"M-SEARCH * HTTP/1.1
+HOST: 239.255.255.250:1900
+MAN: "ssdp:discover"
+MX: 1
+ST: urn:schemas-upnp-org:service:AVTransport:3
+"#;
+        let msg = symfonium
+            .parse::<Message>()
+            .expect("valid symfonium message");
+        let Message::Search(MSearch::Multicast(search)) = msg else {
+            panic!("{msg:?} not a multicast search");
+        };
+        assert_eq!(search.mx.as_u8(), &1);
+        assert_matches!(search.st, ST::Service(ServiceDetails { vendor, service })
+            if matches!(vendor, Vendor::Standard)
+            && matches!(service, Service::AVTransport { ver } if ver == 3)
+        );
+    }
+
+    #[test]
+    fn parse_unicast_search() {
+        let search = r#"M-SEARCH * HTTP/1.1
+HOST: 192.168.2.56:1945
+MAN: "ssdp:discover"
+ST: urn:schemas-upnp-org:service:AVTransport:3
+USER-AGENT: Ubuntu/22.4.0.0 UPnP/2.0 splurt/v0.0.1
+"#;
+        let msg = search
+            .parse::<Message>()
+            .expect("valid unicast search message");
+        let Message::Search(MSearch::Unicast(search)) = msg else {
+            panic!("{msg:?} not a unicast search");
+        };
+        assert_eq!(
+            search.host.as_socket_addr(),
+            &"192.168.2.56:1945".parse::<SocketAddr>().expect("valid IP")
+        );
+        assert_matches!(search.st, ST::Service(ServiceDetails { vendor, service })
+            if matches!(vendor, Vendor::Standard)
+            && matches!(service, Service::AVTransport { ver } if ver == 3)
+        );
     }
 }

@@ -66,6 +66,7 @@ impl<'h> UpnpHeader<'h> {
 }
 
 /// Marker trait for Upnp header fields, with details of the relevant key
+#[doc(notable_trait)]
 pub trait Header {
     /// Key as per spec
     const HEADER_KEY: &'static str;
@@ -74,6 +75,7 @@ pub trait Header {
 /// Handles constructing valid header lines.
 ///
 /// This is a separate trait from [Header] to allow for it to also be implemented on `Option<H>`
+#[doc(notable_trait)]
 pub trait HeaderExt {
     /// Generate a valid header line
     fn to_header(&self) -> String;
@@ -146,6 +148,7 @@ where
 }
 
 /// For types which are required in UPnP V2 but not V1 and can be represented as an `Option<T>`
+#[doc(notable_trait)]
 pub trait UpnpV2 {
     const ERR: ErrorKind;
 }
@@ -240,12 +243,16 @@ impl FromStr for ControlPointUuid {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, From, Into)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, From, Into)]
 // TODO make private inner when impl FromStr
 pub struct FriendlyName(pub String);
 
 impl Header for FriendlyName {
     const HEADER_KEY: &'static str = "CPFN.UPNP.ORG";
+}
+
+impl UpnpV2 for FriendlyName {
+    const ERR: ErrorKind = ErrorKind::MissingFriendlyName;
 }
 
 impl FromStr for FriendlyName {
@@ -306,6 +313,10 @@ impl Host {
             _ => Err(ErrorKind::InvalidHost(self.0.to_string())),
         }
     }
+
+    pub fn as_socket_addr(&self) -> &SocketAddr {
+        &self.0
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into, FromStr)]
@@ -326,10 +337,34 @@ impl Header for Man {
 }
 
 impl FromStr for Man {
-    type Err = ErrorKind;
+    type Err = ParseError;
 
-    fn from_str(_s: &str) -> Result<Self, Self::Err> {
-        todo!("man from str")
+    fn from_str(man: &str) -> Result<Self, Self::Err> {
+        let err = || ErrorKind::InvalidMan(man.to_string());
+        let man = man.strip_circumfix('"', '"').ok_or_else(err)?;
+        let man = man.parse::<Uri>()?;
+        Ok(man.try_into()?)
+    }
+}
+
+impl TryFrom<Uri> for Man {
+    type Error = ErrorKind;
+
+    fn try_from(uri: Uri) -> Result<Self, Self::Error> {
+        match uri {
+            Uri::Ssdp(SsdpNss::Discover) => Ok(Man::Discover),
+            _ => Err(ErrorKind::InvalidMan(uri.to_string())),
+        }
+    }
+}
+
+impl Man {
+    /// `MAN` can (currently) only be `"ssdp:discover"`. While parsing effectively confirms this
+    /// this function is provided to make code more readable in expressing this invariant and
+    /// future-proof against any additions to the spec. It is a no-op which the compiler should
+    /// optimise away.
+    pub fn check_discover(&self) -> Result<(), ErrorKind> {
+        Ok(())
     }
 }
 
@@ -381,7 +416,7 @@ impl Display for MaxAge {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Into, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Into, Display)]
 /// A valid MX value (0..=5) (see UPnP spec para 1.3.2)
 ///
 /// - Construct via `TryFrom<u8>`
@@ -412,6 +447,12 @@ impl TryFrom<u8> for Mx {
             0..=5 => Ok(Self(mx)),
             _ => Err(ErrorKind::InvalidMx(mx.to_string())),
         }
+    }
+}
+
+impl Mx {
+    pub fn as_u8(&self) -> &u8 {
+        &self.0
     }
 }
 
@@ -558,7 +599,7 @@ impl PartialEq<SecureLocation> for Url {
 
 pub type Server = ProductTokens<"SERVER">;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// Search Target
 pub enum ST {
     /// `ssdp:all`: Search for all devices and services.
