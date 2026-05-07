@@ -9,6 +9,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[expect(unused, reason = "nice to have, not yet implemented in message")]
 pub enum Lenient<T> {
     Valid(T),
     Invalid(String),
@@ -16,7 +17,7 @@ pub enum Lenient<T> {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RootDevice {
-    id: Lenient<Uuid>,
+    id: Uuid,
     last_seen: DateTime<Utc>,
     valid_until: DateTime<Utc>,
     /// URL for UPnP description for root device
