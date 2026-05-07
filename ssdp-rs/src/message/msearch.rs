@@ -28,6 +28,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for MSearch {
             .try_get(Man::HEADER_KEY)?
             .parse::<Man>()?
             .check_discover()?;
+        let mx = header.try_get(Mx::HEADER_KEY)?.parse::<Mx>()?;
         todo!("try from header for msearch")
     }
 }
