@@ -9,7 +9,7 @@ use super::{FriendlyName, HeaderExt, Host, Man, Method, Mx, ST};
 
 // TODO - enum Multicast/Unicast
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct MSearch {
+pub struct MulticastSearch {
     pub mx: Mx,
     pub st: ST,
     pub user_agent: Option<UserAgent>,
@@ -18,7 +18,7 @@ pub struct MSearch {
     pub uuid: Option<ControlPointUuid>,
 }
 
-impl<'h> TryFrom<UpnpHeader<'h>> for MSearch {
+impl<'h> TryFrom<UpnpHeader<'h>> for MulticastSearch {
     type Error = ParseError;
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
@@ -51,7 +51,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for MSearch {
 /// #### Note:
 /// I've rarely actually seen a well-formed spec-conform M-SEARCH flying around my network
 /// but there's nothing wrong with actually being fully valid!
-impl Display for MSearch {
+impl Display for MulticastSearch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self {
             mx,

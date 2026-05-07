@@ -25,7 +25,7 @@ pub use error::{ErrorKind, ParseError};
 pub use header::{
     FriendlyName, Header, HeaderExt, Host, Man, MaxAge, Mx, ProductTokens, ST, UpnpHeader, UpnpPort,
 };
-pub use msearch::MSearch;
+pub use msearch::MulticastSearch;
 pub use notify::Notify;
 pub use response::Response;
 pub use services::{Service, ServiceDetails};
@@ -84,7 +84,7 @@ pub enum Message {
     /// NOTIFY *
     Notify(Notify),
     /// MAN: ssdp:discover
-    Search(MSearch),
+    Search(MulticastSearch),
     /// A direct response to an `M-SEARCH` request
     Response(Response),
 }
@@ -112,7 +112,7 @@ impl Message {
         };
         let st = ST::All;
         let port = UpnpPort::Default;
-        Message::Search(MSearch {
+        Message::Search(MulticastSearch {
             mx,
             st,
             user_agent: Some(user_agent),
@@ -316,7 +316,7 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003
         let mx = 5.try_into().expect("valid mx");
         let friendly_name = "splurt SSDP repeater";
         let uuid = uuid!("2fac1234-31f8-11b4-a222-08002b34c003");
-        let msg = MSearch {
+        let msg = MulticastSearch {
             mx,
             st: ST::All,
             user_agent: None,
