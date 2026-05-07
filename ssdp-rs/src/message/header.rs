@@ -326,10 +326,34 @@ impl Header for Man {
 }
 
 impl FromStr for Man {
-    type Err = ErrorKind;
+    type Err = ParseError;
 
-    fn from_str(_s: &str) -> Result<Self, Self::Err> {
-        todo!("man from str")
+    fn from_str(man: &str) -> Result<Self, Self::Err> {
+        let err = || ErrorKind::InvalidMan(man.to_string());
+        let man = man.strip_circumfix('"', '"').ok_or_else(err)?;
+        let man = man.parse::<Uri>()?;
+        Ok(man.try_into()?)
+    }
+}
+
+impl TryFrom<Uri> for Man {
+    type Error = ErrorKind;
+
+    fn try_from(uri: Uri) -> Result<Self, Self::Error> {
+        match uri {
+            Uri::Ssdp(SsdpNss::Discover) => Ok(Man::Discover),
+            _ => Err(ErrorKind::InvalidMan(uri.to_string())),
+        }
+    }
+}
+
+impl Man {
+    /// `MAN` can (currently) only be `"ssdp:discover"`. While parsing effectively confirms this
+    /// this function is provided to make code more readable in expressing this invariant and
+    /// future-proof against any additions to the spec. It is a no-op which the compiler should
+    /// optimise away.
+    pub fn check_discover(&self) -> Result<(), ErrorKind> {
+        Ok(())
     }
 }
 

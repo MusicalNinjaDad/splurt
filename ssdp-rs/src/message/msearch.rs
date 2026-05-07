@@ -24,6 +24,10 @@ impl<'h> TryFrom<UpnpHeader<'h>> for MSearch {
             .try_get(Host::HEADER_KEY)?
             .parse::<Host>()?
             .check_multicast()?;
+        header
+            .try_get(Man::HEADER_KEY)?
+            .parse::<Man>()?
+            .check_discover()?;
         todo!("try from header for msearch")
     }
 }

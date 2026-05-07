@@ -115,6 +115,7 @@ pub enum SsdpNss {
     All,
     Alive,
     ByeBye,
+    Discover,
     Update,
 }
 

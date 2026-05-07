@@ -17,6 +17,7 @@ pub enum ErrorKind {
     InvalidHost(String),
     InvalidIPAddress(net::AddrParseError),
     InvalidLocation(String),
+    InvalidMan(String),
     InvalidMethod(String),
     InvalidMx(String),
     InvalidNT(String),
@@ -110,6 +111,7 @@ impl Display for ErrorKind {
             ErrorKind::InvalidHost(host) => write!(f, "{host} is not a valid host in this context"),
             ErrorKind::InvalidIPAddress(err) => write!(f, "{err}"),
             ErrorKind::InvalidLocation(location) => write!(f, "{location} is not a valid url"),
+            ErrorKind::InvalidMan(man) => write!(f, "{man} is not a valid MAN value"),
             ErrorKind::InvalidMethod(method) => write!(f, "{} is not a valid upnp method", method),
             ErrorKind::InvalidMx(mx) => write!(
                 f,
