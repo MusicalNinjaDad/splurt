@@ -31,7 +31,6 @@ impl<'h> TryFrom<UpnpHeader<'h>> for MSearch {
     }
 }
 
-// TODO - enum Multicast/Unicast
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MulticastSearch {
     pub mx: Mx,
