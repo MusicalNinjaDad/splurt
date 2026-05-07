@@ -22,19 +22,28 @@ impl<'h> TryFrom<UpnpHeader<'h>> for MSearch {
     type Error = ParseError;
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
-        Host::get_from(&header)?.check_multicast()?;
+        let host = Host::get_from(&header)?;
+        host.check_multicast()?;
         Man::get_from(&header)?.check_discover()?;
         let mx = Mx::get_from(&header)?;
-        let st = ST::get_from(&header);
+        let st = ST::get_from(&header)?;
         let user_agent = Option::<UserAgent>::get_from(&header)?;
         let upnp_version = match user_agent {
-            Some(user_agent) => user_agent.upnp_version,
+            Some(ref user_agent) => user_agent.upnp_version,
             None => UPNP_VERSION1,
         };
         let port: UpnpPort = header.get(UpnpPort::HEADER_KEY).try_into()?;
         let friendly_name = Option::<FriendlyName>::get_validated(&header, upnp_version)?;
         let uuid = Option::<ControlPointUuid>::get_from(&header)?;
-        todo!("try from header for msearch")
+        Ok(Self {
+            host,
+            mx,
+            st,
+            user_agent,
+            port,
+            friendly_name,
+            uuid,
+        })
     }
 }
 
