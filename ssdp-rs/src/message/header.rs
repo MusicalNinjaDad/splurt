@@ -450,6 +450,12 @@ impl TryFrom<u8> for Mx {
     }
 }
 
+impl Mx {
+    pub fn as_u8(&self) -> &u8 {
+        &self.0
+    }
+}
+
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into, FromStr,
 )]

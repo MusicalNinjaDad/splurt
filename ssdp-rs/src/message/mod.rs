@@ -192,7 +192,7 @@ mod tests {
 
     #[cfg(assert_matches_in_module)]
     use std::assert_matches::assert_matches;
-    use std::time::Duration;
+    use std::{net::SocketAddr, time::Duration};
 
     #[test]
     fn parse_alive() {
@@ -219,7 +219,7 @@ name: my_bulb
 "#;
         let msg: Message = alive.parse().expect("parsed as NOTIFY");
         let Message::Notify(Notify::Alive(parsed)) = msg else {
-            panic!("{} is not an alive notification", msg)
+            panic!("{msg:?} is not an alive notification")
         };
         let max_age = Duration::from_secs(3600);
         assert_eq!(parsed.max_age, MaxAge(max_age));
@@ -401,7 +401,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 "#;
         let msg: Message = sonos.parse().expect("sonos valid message");
         let Message::Response(response) = msg else {
-            panic!("{msg} not a response")
+            panic!("{msg:?} not a response")
         };
         assert_eq!(response.max_age, Duration::from_secs(1800));
         assert_matches!(response.secure_location, Some(secure_location)
@@ -422,7 +422,10 @@ ST: urn:schemas-upnp-org:service:AVTransport:3
         let msg = symfonium
             .parse::<Message>()
             .expect("valid symfonium message");
-        assert_matches!(msg, Message::Search(_));
+        let Message::Search(MSearch::Multicast(search)) = msg else {
+            panic!("{msg:?} not a multicast search");
+        };
+        assert_eq!(search.mx.as_u8(), &1);
     }
 
     #[test]
@@ -436,6 +439,12 @@ USER-AGENT: Ubuntu/22.4.0.0 UPnP/2.0 splurt/v0.0.1
         let msg = search
             .parse::<Message>()
             .expect("valid unicast search message");
-        assert_matches!(msg, Message::Search(_));
+        let Message::Search(MSearch::Unicast(search)) = msg else {
+            panic!("{msg:?} not a unicast search");
+        };
+        assert_eq!(
+            search.host.as_socket_addr(),
+            &"192.168.2.56:1945".parse::<SocketAddr>().expect("valid IP")
+        );
     }
 }
