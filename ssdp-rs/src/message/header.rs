@@ -66,6 +66,7 @@ impl<'h> UpnpHeader<'h> {
 }
 
 /// Marker trait for Upnp header fields, with details of the relevant key
+#[doc(notable_trait)]
 pub trait Header {
     /// Key as per spec
     const HEADER_KEY: &'static str;
@@ -74,6 +75,7 @@ pub trait Header {
 /// Handles constructing valid header lines.
 ///
 /// This is a separate trait from [Header] to allow for it to also be implemented on `Option<H>`
+#[doc(notable_trait)]
 pub trait HeaderExt {
     /// Generate a valid header line
     fn to_header(&self) -> String;
@@ -146,6 +148,7 @@ where
 }
 
 /// For types which are required in UPnP V2 but not V1 and can be represented as an `Option<T>`
+#[doc(notable_trait)]
 pub trait UpnpV2 {
     const ERR: ErrorKind;
 }

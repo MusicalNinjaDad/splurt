@@ -3,6 +3,7 @@
 #![cfg_attr(unstable_if_let_guard, feature(if_let_guard))]
 #![cfg_attr(unstable_let_chains, feature(let_chains))]
 #![cfg_attr(unstable_never_type, feature(never_type))]
+#![feature(doc_notable_trait)]
 #![feature(strip_circumfix)]
 #![feature(try_blocks_heterogeneous)]
 #![allow(incomplete_features)]
