@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use derive_more::From;
+
 use crate::message::{
     Header, ParseError, UPNP_VERSION1, UpnpHeader, UpnpPort,
     header::{ControlPointUuid, UpnpV2Ext, UserAgent},
@@ -7,7 +9,7 @@ use crate::message::{
 
 use super::{FriendlyName, HeaderExt, Host, Man, Method, Mx, ST};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, From)]
 pub enum MSearch {
     Multicast(MulticastSearch),
 }
