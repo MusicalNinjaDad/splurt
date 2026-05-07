@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::message::{
-    ParseError, UpnpHeader,
+    Header, ParseError, UpnpHeader,
     header::{ControlPointUuid, UserAgent},
 };
 
@@ -20,6 +20,10 @@ impl<'h> TryFrom<UpnpHeader<'h>> for MSearch {
     type Error = ParseError;
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
+        header
+            .try_get(Host::HEADER_KEY)?
+            .parse::<Host>()?
+            .check_multicast()?;
         todo!("try from header for msearch")
     }
 }
