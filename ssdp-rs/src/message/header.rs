@@ -243,7 +243,7 @@ impl FromStr for ControlPointUuid {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, From, Into)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, From, Into)]
 // TODO make private inner when impl FromStr
 pub struct FriendlyName(pub String);
 
@@ -412,7 +412,7 @@ impl Display for MaxAge {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Into, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Into, Display)]
 /// A valid MX value (0..=5) (see UPnP spec para 1.3.2)
 ///
 /// - Construct via `TryFrom<u8>`
@@ -589,7 +589,7 @@ impl PartialEq<SecureLocation> for Url {
 
 pub type Server = ProductTokens<"SERVER">;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// Search Target
 pub enum ST {
     /// `ssdp:all`: Search for all devices and services.

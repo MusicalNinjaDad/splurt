@@ -7,8 +7,13 @@ use crate::message::{
 
 use super::{FriendlyName, HeaderExt, Host, Man, Method, Mx, ST};
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum MSearch {
+    Multicast(MulticastSearch),
+}
+
 // TODO - enum Multicast/Unicast
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MulticastSearch {
     pub mx: Mx,
     pub st: ST,
