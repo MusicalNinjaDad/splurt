@@ -14,6 +14,14 @@ pub enum MSearch {
     Multicast(MulticastSearch),
 }
 
+impl<'h> TryFrom<UpnpHeader<'h>> for MSearch {
+    type Error = ParseError;
+
+    fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
+        todo!("tryfrom header for MSearch enum")
+    }
+}
+
 // TODO - enum Multicast/Unicast
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MulticastSearch {
