@@ -1,6 +1,9 @@
 use std::fmt::Display;
 
-use crate::message::header::{ControlPointUuid, UserAgent};
+use crate::message::{
+    ParseError, UpnpHeader,
+    header::{ControlPointUuid, UserAgent},
+};
 
 use super::{FriendlyName, HeaderExt, Host, Man, Method, Mx, ST};
 
@@ -11,6 +14,14 @@ pub struct MSearch {
     pub user_agent: Option<UserAgent>,
     pub friendly_name: FriendlyName,
     pub uuid: Option<ControlPointUuid>,
+}
+
+impl<'h> TryFrom<UpnpHeader<'h>> for MSearch {
+    type Error = ParseError;
+
+    fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
+        todo!("try from header for msearch")
+    }
 }
 
 /// Entire valid M-SEARCH message including initial method line,

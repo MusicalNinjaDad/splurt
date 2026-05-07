@@ -127,7 +127,7 @@ impl FromStr for Message {
         let method: Method = lines.next().ok_or(ErrorKind::EmptyMessage)?.parse()?;
         let header: UpnpHeader = lines.collect();
         match method {
-            Method::MSearch => todo!("parse MSearch"),
+            Method::MSearch => Ok(Message::Search(header.try_into()?)),
             Method::Notify => Ok(Message::Notify(header.try_into()?)),
             Method::Response => Ok(Message::Response(header.try_into()?)),
         }
@@ -407,7 +407,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented: parse MSearch")]
+    #[should_panic(expected = "not yet implemented: try from header for msearch")]
     fn parse_multicast_search() {
         let symfonium = r#"M-SEARCH * HTTP/1.1
 HOST: 239.255.255.250:1900
