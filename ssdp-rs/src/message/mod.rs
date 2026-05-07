@@ -112,11 +112,13 @@ impl Message {
         };
         let host = Default::default();
         let st = ST::All;
+        let port = UpnpPort::Default;
         Message::Search(MSearch {
             host,
             mx,
             st,
             user_agent: Some(user_agent),
+            port,
             friendly_name: Some(friendly_name.into()),
             uuid: Some(uuid.into()),
         })
@@ -321,6 +323,7 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003
             mx,
             st: ST::All,
             user_agent: None,
+            port: Default::default(),
             friendly_name: Some(FriendlyName(friendly_name.to_string())),
             uuid: Some(uuid.into()),
         };

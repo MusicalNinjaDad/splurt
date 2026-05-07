@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::message::{
-    ParseError, UPNP_VERSION1, UpnpHeader,
+    Header, ParseError, UPNP_VERSION1, UpnpHeader, UpnpPort,
     header::{ControlPointUuid, UpnpV2Ext, UserAgent},
 };
 
@@ -13,6 +13,7 @@ pub struct MSearch {
     pub mx: Mx,
     pub st: ST,
     pub user_agent: Option<UserAgent>,
+    pub port: UpnpPort,
     pub friendly_name: Option<FriendlyName>,
     pub uuid: Option<ControlPointUuid>,
 }
@@ -30,6 +31,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for MSearch {
             Some(user_agent) => user_agent.upnp_version,
             None => UPNP_VERSION1,
         };
+        let port: UpnpPort = header.get(UpnpPort::HEADER_KEY).try_into()?;
         let friendly_name = Option::<FriendlyName>::get_validated(&header, upnp_version)?;
         todo!("try from header for msearch")
     }
@@ -48,6 +50,8 @@ impl Display for MSearch {
             mx,
             st,
             user_agent,
+            #[expect(unused_variables, reason = "todo handle port in MSearch output")]
+            port,
             friendly_name,
             uuid,
         } = self;
