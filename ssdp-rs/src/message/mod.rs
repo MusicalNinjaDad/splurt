@@ -34,6 +34,8 @@ pub use uri::{SsdpNss, Target, UpnpNss, Uri, UriToken};
 use crate::message::header::Version;
 
 const UPNP_VERSION: Version = Version { major: 2, minor: 0 };
+const UPNP_VERSION1: Version = Version { major: 1, minor: 0 };
+
 /// RFC1123 date format, e.g.: "Wed, 29 Apr 2026 08:22:03 GMT"
 ///
 /// ## Note

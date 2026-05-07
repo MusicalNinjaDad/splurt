@@ -1,8 +1,8 @@
 use std::fmt::Display;
 
 use crate::message::{
-    Header, ParseError, UpnpHeader,
-    header::{ControlPointUuid, UserAgent},
+    Header, ParseError, ProductTokens, UPNP_VERSION, UPNP_VERSION1, UpnpHeader,
+    header::{ControlPointUuid, UpnpV2Ext, UserAgent, Version},
 };
 
 use super::{FriendlyName, HeaderExt, Host, Man, Method, Mx, ST};
@@ -24,6 +24,11 @@ impl<'h> TryFrom<UpnpHeader<'h>> for MSearch {
         Man::get_from(&header)?.check_discover()?;
         let mx = Mx::get_from(&header)?;
         let user_agent = Option::<UserAgent>::get_from(&header)?;
+        let upnp_version = match user_agent {
+            Some(user_agent) => user_agent.upnp_version,
+            None => UPNP_VERSION1,
+        };
+        let friendly_name = Option::<FriendlyName>::get_validated(&header, upnp_version)?;
         todo!("try from header for msearch")
     }
 }
