@@ -33,6 +33,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for MSearch {
         };
         let port: UpnpPort = header.get(UpnpPort::HEADER_KEY).try_into()?;
         let friendly_name = Option::<FriendlyName>::get_validated(&header, upnp_version)?;
+        let uuid = Option::<ControlPointUuid>::get_from(&header)?;
         todo!("try from header for msearch")
     }
 }
