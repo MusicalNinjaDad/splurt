@@ -405,4 +405,19 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         assert_eq!(response.server.product_version, "85.0-64200 (ZPS29)");
         assert_matches!(response.boot_id, Some(id) if id == 6);
     }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented: parse MSearch")]
+    fn parse_multicast_search() {
+        let symfonium = r#"M-SEARCH * HTTP/1.1
+HOST: 239.255.255.250:1900
+MAN: "ssdp:discover"
+MX: 1
+ST: urn:schemas-upnp-org:service:AVTransport:3
+"#;
+        let msg = symfonium
+            .parse::<Message>()
+            .expect("valid symfonium message");
+        assert_matches!(msg, Message::Search(_));
+    }
 }
