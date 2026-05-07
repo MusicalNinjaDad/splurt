@@ -8,10 +8,8 @@ use crate::message::{
 use super::{FriendlyName, HeaderExt, Host, Man, Method, Mx, ST};
 
 // TODO - enum Multicast/Unicast
-// TODO - don't store host
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MSearch {
-    pub host: Host,
     pub mx: Mx,
     pub st: ST,
     pub user_agent: Option<UserAgent>,
@@ -24,8 +22,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for MSearch {
     type Error = ParseError;
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
-        let host = Host::get_from(&header)?;
-        host.check_multicast()?;
+        Host::get_from(&header)?.check_multicast()?;
         Man::get_from(&header)?.check_discover()?;
         let mx = Mx::get_from(&header)?;
         let st = ST::get_from(&header)?;
@@ -38,7 +35,6 @@ impl<'h> TryFrom<UpnpHeader<'h>> for MSearch {
         let friendly_name = Option::<FriendlyName>::get_validated(&header, upnp_version)?;
         let uuid = Option::<ControlPointUuid>::get_from(&header)?;
         Ok(Self {
-            host,
             mx,
             st,
             user_agent,
@@ -58,7 +54,6 @@ impl<'h> TryFrom<UpnpHeader<'h>> for MSearch {
 impl Display for MSearch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self {
-            host,
             mx,
             st,
             user_agent,
@@ -68,7 +63,7 @@ impl Display for MSearch {
             uuid,
         } = self;
         writeln!(f, "{}", Method::MSearch)?;
-        host.write_header(f)?;
+        Host::default().write_header(f)?;
         Man::Discover.write_header(f)?;
         mx.write_header(f)?;
         st.write_header(f)?;

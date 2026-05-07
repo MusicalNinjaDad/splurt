@@ -110,11 +110,9 @@ impl Message {
             product_name: product_name.to_string(),
             product_version: product_version.to_string(),
         };
-        let host = Default::default();
         let st = ST::All;
         let port = UpnpPort::Default;
         Message::Search(MSearch {
-            host,
             mx,
             st,
             user_agent: Some(user_agent),
@@ -319,7 +317,6 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003
         let friendly_name = "splurt SSDP repeater";
         let uuid = uuid!("2fac1234-31f8-11b4-a222-08002b34c003");
         let msg = MSearch {
-            host: Default::default(),
             mx,
             st: ST::All,
             user_agent: None,
