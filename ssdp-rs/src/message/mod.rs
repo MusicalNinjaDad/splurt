@@ -31,7 +31,7 @@ pub use response::Response;
 pub use services::{Service, ServiceDetails};
 pub use uri::{SsdpNss, Target, UpnpNss, Uri, UriToken};
 
-use crate::message::header::Version;
+use crate::message::{header::Version, msearch::MSearch};
 
 const UPNP_VERSION: Version = Version { major: 2, minor: 0 };
 const UPNP_VERSION1: Version = Version { major: 1, minor: 0 };
@@ -84,7 +84,7 @@ pub enum Message {
     /// NOTIFY *
     Notify(Notify),
     /// MAN: ssdp:discover
-    Search(MulticastSearch),
+    Search(MSearch),
     /// A direct response to an `M-SEARCH` request
     Response(Response),
 }
@@ -112,14 +112,14 @@ impl Message {
         };
         let st = ST::All;
         let port = UpnpPort::Default;
-        Message::Search(MulticastSearch {
+        Message::Search(MSearch::Multicast(MulticastSearch {
             mx,
             st,
             user_agent: Some(user_agent),
             port,
             friendly_name: Some(friendly_name.into()),
             uuid: Some(uuid.into()),
-        })
+        }))
     }
 }
 

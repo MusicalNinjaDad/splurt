@@ -1,6 +1,6 @@
 use std::{fmt::Display, net::SocketAddr};
 
-use derive_more::From;
+use derive_more::{Display, From};
 
 use crate::{
     MULTICAST,
@@ -12,7 +12,7 @@ use crate::{
 
 use super::{FriendlyName, HeaderExt, Host, Man, Method, Mx, ST};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, From)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, From, Display)]
 pub enum MSearch {
     Multicast(MulticastSearch),
 }
