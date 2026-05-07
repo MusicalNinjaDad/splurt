@@ -426,7 +426,7 @@ ST: urn:schemas-upnp-org:service:AVTransport:3
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented: Unicast search")]
+    #[should_panic(expected = "not yet implemented: try_from header for unicast")]
     fn parse_unicast_search() {
         let search = r#"M-SEARCH * HTTP/1.1
 HOST: 192.168.2.56:1945

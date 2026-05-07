@@ -15,6 +15,7 @@ use super::{FriendlyName, HeaderExt, Host, Man, Method, Mx, ST};
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, From, Display)]
 pub enum MSearch {
     Multicast(MulticastSearch),
+    Unicast(UnicastSearch),
 }
 
 impl<'h> TryFrom<UpnpHeader<'h>> for MSearch {
@@ -24,7 +25,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for MSearch {
         Man::get_from(&header)?.check_discover()?;
         match *Host::get_from(&header)?.as_socket_addr() {
             MULTICAST => Ok(Self::Multicast(header.try_into()?)),
-            SocketAddr::V4(_addr) => todo!("Unicast search"),
+            SocketAddr::V4(_addr) => Ok(Self::Unicast(header.try_into()?)),
             SocketAddr::V6(_) => unimplemented!("IPv6 support, MSearch parsing"),
         }
     }
@@ -95,5 +96,28 @@ impl Display for MulticastSearch {
         //   "Note: No body is present in requests with method M-SEARCH, but note that the
         //          message shall have a blank line following the last header field."
         writeln!(f)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct UnicastSearch {
+    pub host: Host,
+    pub st: ST,
+    pub user_agent: Option<UserAgent>,
+}
+
+impl<'h> TryFrom<UpnpHeader<'h>> for UnicastSearch {
+    type Error = ParseError;
+
+    #[expect(unused_variables, reason = "todo")]
+    fn try_from(value: UpnpHeader<'h>) -> Result<Self, Self::Error> {
+        todo!("try_from header for unicast")
+    }
+}
+
+impl Display for UnicastSearch {
+    #[expect(unused_variables, reason = "todo")]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!("display UnicastSearch")
     }
 }
