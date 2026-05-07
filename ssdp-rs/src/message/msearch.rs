@@ -7,6 +7,8 @@ use crate::message::{
 
 use super::{FriendlyName, HeaderExt, Host, Man, Method, Mx, ST};
 
+// TODO - enum Multicast/Unicast
+// TODO - don't store host
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MSearch {
     pub host: Host,
