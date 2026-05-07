@@ -426,6 +426,10 @@ ST: urn:schemas-upnp-org:service:AVTransport:3
             panic!("{msg:?} not a multicast search");
         };
         assert_eq!(search.mx.as_u8(), &1);
+        assert_matches!(search.st, ST::Service(ServiceDetails { vendor, service })
+            if matches!(vendor, Vendor::Standard)
+            && matches!(service, Service::AVTransport { ver } if ver == 3)
+        );
     }
 
     #[test]
@@ -445,6 +449,10 @@ USER-AGENT: Ubuntu/22.4.0.0 UPnP/2.0 splurt/v0.0.1
         assert_eq!(
             search.host.as_socket_addr(),
             &"192.168.2.56:1945".parse::<SocketAddr>().expect("valid IP")
+        );
+        assert_matches!(search.st, ST::Service(ServiceDetails { vendor, service })
+            if matches!(vendor, Vendor::Standard)
+            && matches!(service, Service::AVTransport { ver } if ver == 3)
         );
     }
 }
