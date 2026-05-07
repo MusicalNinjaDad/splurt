@@ -111,9 +111,11 @@ impl Message {
             product_version: product_version.to_string(),
         };
         let host = Default::default();
+        let st = ST::All;
         Message::Search(MSearch {
             host,
             mx,
+            st,
             user_agent: Some(user_agent),
             friendly_name: Some(friendly_name.into()),
             uuid: Some(uuid.into()),
@@ -317,6 +319,7 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003
         let msg = MSearch {
             host: Default::default(),
             mx,
+            st: ST::All,
             user_agent: None,
             friendly_name: Some(FriendlyName(friendly_name.to_string())),
             uuid: Some(uuid.into()),

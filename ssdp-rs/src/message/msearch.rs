@@ -1,8 +1,8 @@
 use std::fmt::Display;
 
 use crate::message::{
-    Header, ParseError, ProductTokens, UPNP_VERSION, UPNP_VERSION1, UpnpHeader,
-    header::{ControlPointUuid, UpnpV2Ext, UserAgent, Version},
+    ParseError, UPNP_VERSION1, UpnpHeader,
+    header::{ControlPointUuid, UpnpV2Ext, UserAgent},
 };
 
 use super::{FriendlyName, HeaderExt, Host, Man, Method, Mx, ST};
@@ -11,6 +11,7 @@ use super::{FriendlyName, HeaderExt, Host, Man, Method, Mx, ST};
 pub struct MSearch {
     pub host: Host,
     pub mx: Mx,
+    pub st: ST,
     pub user_agent: Option<UserAgent>,
     pub friendly_name: Option<FriendlyName>,
     pub uuid: Option<ControlPointUuid>,
@@ -23,6 +24,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for MSearch {
         Host::get_from(&header)?.check_multicast()?;
         Man::get_from(&header)?.check_discover()?;
         let mx = Mx::get_from(&header)?;
+        let st = ST::get_from(&header);
         let user_agent = Option::<UserAgent>::get_from(&header)?;
         let upnp_version = match user_agent {
             Some(user_agent) => user_agent.upnp_version,
@@ -44,6 +46,7 @@ impl Display for MSearch {
         let Self {
             host,
             mx,
+            st,
             user_agent,
             friendly_name,
             uuid,
@@ -52,7 +55,7 @@ impl Display for MSearch {
         host.write_header(f)?;
         Man::Discover.write_header(f)?;
         mx.write_header(f)?;
-        ST::All.write_header(f)?;
+        st.write_header(f)?;
         user_agent.write_header(f)?;
         friendly_name.write_header(f)?;
         uuid.write_header(f)?;
