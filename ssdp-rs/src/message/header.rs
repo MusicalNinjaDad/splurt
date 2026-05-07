@@ -313,6 +313,10 @@ impl Host {
             _ => Err(ErrorKind::InvalidHost(self.0.to_string())),
         }
     }
+
+    pub fn as_socket_addr(&self) -> &SocketAddr {
+        &self.0
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into, FromStr)]

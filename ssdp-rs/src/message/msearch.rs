@@ -1,11 +1,11 @@
-use std::fmt::Display;
+use std::{fmt::Display, net::SocketAddr};
 
 use derive_more::From;
 
-use crate::message::{
+use crate::{MULTICAST, message::{
     Header, ParseError, UPNP_VERSION1, UpnpHeader, UpnpPort,
     header::{ControlPointUuid, UpnpV2Ext, UserAgent},
-};
+}};
 
 use super::{FriendlyName, HeaderExt, Host, Man, Method, Mx, ST};
 
@@ -18,7 +18,11 @@ impl<'h> TryFrom<UpnpHeader<'h>> for MSearch {
     type Error = ParseError;
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
-        todo!("tryfrom header for MSearch enum")
+        match *Host::get_from(&header)?.as_socket_addr() {
+            MULTICAST => Ok(Self::Multicast(header.try_into()?)),
+            SocketAddr::V4(_addr) => todo!("Unicast search"),
+            SocketAddr::V6(_) => unimplemented!("IPv6 support, MSearch parsing"),
+        }
     }
 }
 
