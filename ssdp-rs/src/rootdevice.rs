@@ -10,7 +10,7 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[expect(unused, reason = "nice to have, not yet implemented in message")]
-pub enum Lenient<T> {
+enum Lenient<T> {
     Valid(T),
     Invalid(String),
 }
@@ -59,7 +59,11 @@ impl TryFrom<Message> for RootDevice {
             #[expect(unused_variables, reason = "todo")]
             Message::Search(msearch) => todo!("error for parsing a search"),
             Message::Response(response) => match response.usn.ntst {
-                crate::message::ST::Root => todo!("actually parse the thing"),
+                crate::message::ST::Root => {
+                    let id = response.usn.uuid;
+                    let last_seen = response.date;
+                    todo!("actually parse the thing")
+                }
                 _ => todo!("reasonable error message"),
             },
         }
