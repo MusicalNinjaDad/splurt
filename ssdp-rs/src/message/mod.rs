@@ -424,4 +424,19 @@ ST: urn:schemas-upnp-org:service:AVTransport:3
             .expect("valid symfonium message");
         assert_matches!(msg, Message::Search(_));
     }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented: Unicast search")]
+    fn parse_unicast_search() {
+        let search = r#"M-SEARCH * HTTP/1.1
+HOST: 192.168.2.56:1945
+MAN: "ssdp:discover"
+ST: urn:schemas-upnp-org:service:AVTransport:3
+USER-AGENT: Ubuntu/22.4.0.0 UPnP/2.0 splurt/v0.0.1
+"#;
+        let msg = search
+            .parse::<Message>()
+            .expect("valid unicast search message");
+        assert_matches!(msg, Message::Search(_));
+    }
 }
