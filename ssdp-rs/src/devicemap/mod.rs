@@ -33,11 +33,17 @@ impl Default for DeviceMap {
 mod tests {
     use crate::{devicemap::rootdevice::RootDevice, message::Message};
 
+    #[cfg(assert_matches_in_root)]
+    use std::assert_matches;
+
+    #[cfg(assert_matches_in_module)]
+    use std::assert_matches::assert_matches;
+
     use super::*;
 
     #[test]
     fn add_new_root_device() {
-        let msg = r#"HTTP/1.1 200 OK
+        let response = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1800
 DATE: Wed, 29 Apr 2026 08:22:03 GMT
 EXT:
@@ -57,9 +63,61 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
 "#;
         let mut devices = DeviceMap::new();
-        let msg = msg.parse::<Message>().expect("valid message");
+        let msg = response.parse::<Message>().expect("valid message");
         let root_device: RootDevice = msg.try_into().expect("a root device");
         let old_entry = devices.insert(root_device);
         assert!(old_entry.is_none());
+    }
+
+    #[test]
+    fn update_from_notify() {
+        let response = r#"HTTP/1.1 200 OK
+CACHE-CONTROL: max-age = 1800
+DATE: Wed, 29 Apr 2026 08:22:03 GMT
+EXT:
+LOCATION: http://192.168.0.84:1400/xml/device_description.xml
+SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
+ST: upnp:rootdevice
+USN: uuid:c4248768-d6b6-4232-a273-5b1701524493::upnp:rootdevice
+X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
+X-RINCON-BOOTSEQ: 6
+BOOTID.UPNP.ORG: 6
+X-RINCON-WIFIMODE: 1
+X-RINCON-VARIANT: 2
+HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
+LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
+SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
+X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
+
+"#;
+        let mut devices = DeviceMap::new();
+        let response = response.parse::<Message>().expect("valid message");
+        let root_device: RootDevice = response.try_into().expect("a root device");
+        let root_device1 = root_device.clone();
+        let old_entry = devices.insert(root_device);
+        assert!(old_entry.is_none());
+        let notify = r#"NOTIFY * HTTP/1.1
+HOST: 239.255.255.250:1900
+CACHE-CONTROL: max-age = 1800
+LOCATION: http://192.168.0.84:1400/xml/device_description.xml
+NT: upnp:rootdevice
+NTS: ssdp:alive
+SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
+USN: uuid:c4248768-d6b6-4232-a273-5b1701524493::upnp:rootdevice
+X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
+X-RINCON-BOOTSEQ: 6
+BOOTID.UPNP.ORG: 6
+X-RINCON-WIFIMODE: 1
+X-RINCON-VARIANT: 2
+HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
+LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
+SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
+X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
+
+"#;
+        let notify = notify.parse::<Message>().expect("valid message");
+        let root_device: RootDevice = notify.try_into().expect("a root device");
+        let old_entry = devices.insert(root_device);
+        assert_matches!(old_entry, Some(old_entry) if old_entry == root_device1);
     }
 }
