@@ -21,7 +21,7 @@ enum Lenient<T> {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RootDevice {
-    id: Uuid,
+    pub id: Uuid,
     last_seen: DateTime<Utc>,
     valid_until: DateTime<Utc>,
     /// URL for UPnP description for root device

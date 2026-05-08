@@ -18,8 +18,8 @@ impl DeviceMap {
         }
     }
 
-    pub fn add_or_update(&mut self, root_device: RootDevice) {
-        todo!("add")
+    pub fn insert(&mut self, root_device: RootDevice) -> Option<RootDevice> {
+        self.inner.insert(root_device.id, root_device)
     }
 }
 
@@ -36,7 +36,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[should_panic(expected = "add")]
     fn add_new_root_device() {
         let msg = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1800
@@ -60,6 +59,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         let mut devices = DeviceMap::new();
         let msg = msg.parse::<Message>().expect("valid message");
         let root_device: RootDevice = msg.try_into().expect("a root device");
-        devices.add_or_update(root_device);
+        let old_entry = devices.insert(root_device);
+        assert!(old_entry.is_none());
     }
 }
