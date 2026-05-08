@@ -1,10 +1,14 @@
 use std::collections::HashMap;
 
+use chrono::Utc;
 use uuid::Uuid;
 
 use crate::{
     devicemap::rootdevice::RootDevice,
-    message::{Message, notify::NT},
+    message::{
+        Message, Notify, Response, ST, ServiceDetails,
+        notify::{Alive, NT},
+    },
 };
 
 pub mod rootdevice;
@@ -12,31 +16,66 @@ pub mod rootdevice;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Error {}
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Information {
-    RootDevice(Message),
+    RootDevice(RootDevice),
     Device(Message),
-    Service(Message),
+    Service(ServiceInfo),
     ControlPoint(Message),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ServiceInfo {
+    service: ServiceDetails,
+    id: Uuid,
 }
 
 impl From<Message> for Information {
     fn from(msg: Message) -> Self {
-        match &msg {
-            Message::Notify(notify) => match notify.nt() {
-                NT::RootDevice => Self::RootDevice(msg),
-                NT::Uuid(_) => Self::Device(msg),
-                NT::Device(_) => Self::Device(msg),
-                NT::Service(_) => Self::Service(msg),
+        match msg {
+            Message::Notify(Notify::Alive(Alive { usn, .. })) => match usn.ntst {
+                NT::Service(service) => Self::Service(ServiceInfo {
+                    service,
+                    id: usn.uuid,
+                }),
+                _ => todo!("other alive"),
             },
             Message::Search(_) => Self::ControlPoint(msg),
-            Message::Response(response) => match response.st() {
-                crate::message::ST::All => Self::Device(msg),
-                crate::message::ST::RootDevice => Self::RootDevice(msg),
-                crate::message::ST::Uuid(_) => Self::Device(msg),
-                crate::message::ST::Device(_) => Self::Device(msg),
-                crate::message::ST::Service(_) => Self::Service(msg),
+            Message::Response(Response {
+                max_age,
+                date,
+                location,
+                server,
+                usn,
+                boot_id,
+                config_id,
+                port,
+                secure_location,
+                ..
+            }) => match usn.ntst {
+                ST::Service(service) => Self::Service(ServiceInfo {
+                    service,
+                    id: usn.uuid,
+                }),
+                ST::RootDevice => {
+                    let last_seen = date.unwrap_or_else(Utc::now);
+                    let valid_until = last_seen + *max_age.as_duration();
+                    Self::RootDevice(RootDevice {
+                        id: usn.uuid,
+                        last_seen,
+                        valid_until,
+                        location: location.into_url(),
+                        product: Some(server),
+                        boot_id: boot_id.map(|id| *id.as_u32()),
+                        config_id: config_id.map(|id| *id.as_u32()),
+                        port,
+                        secure_location: secure_location.map(|loc| loc.into_url()),
+                        services: Default::default(),
+                    })
+                }
+                _ => todo!("other response"),
             },
+            _ => todo!("other stuff"),
         }
     }
 }
@@ -60,17 +99,15 @@ impl DeviceMap {
     pub fn process(&mut self, message: Message) -> Result<(), Error> {
         let info = message.into();
         match info {
-            Information::RootDevice(message) => {
-                let root_device = message.try_into()?;
+            Information::RootDevice(root_device) => {
                 self.insert(root_device);
                 Ok(())
             }
+            #[expect(unused_variables, reason = "todo")]
             Information::Device(message) => todo!("process devices"),
-            Information::Service(message) => match message {
-                Message::Notify(notify) => todo!("process services"),
-                Message::Search(msearch) => todo!("impossible search is always control"),
-                Message::Response(response) => todo!("process services"),
-            },
+            #[expect(unused_variables, reason = "todo")]
+            Information::Service(serviceinfo) => todo!("process services"),
+            #[expect(unused_variables, reason = "todo")]
             Information::ControlPoint(message) => todo!("process control points"),
         }
     }

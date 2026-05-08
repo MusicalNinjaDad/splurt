@@ -24,12 +24,12 @@ enum Lenient<T> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RootDevice {
     pub id: Uuid,
-    last_seen: DateTime<Utc>,
-    valid_until: DateTime<Utc>,
+    pub last_seen: DateTime<Utc>,
+    pub valid_until: DateTime<Utc>,
     /// URL for UPnP description for root device
-    location: Url,
+    pub location: Url,
     /// OS/version UPnP/2.0 product/version
-    product: Option<Server>,
+    pub product: Option<Server>,
     /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
     /// increasing value. Control points can use this header field to detect the case when a device
     /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
@@ -37,7 +37,7 @@ pub struct RootDevice {
     /// checking for changes to the device state that were not evented since the device was off-line.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    boot_id: Option<u32>,
+    pub boot_id: Option<u32>,
     /// `CONFIGID.UPNP.ORG`: number used for caching description information.
     /// If a device sends out two messages with a `CONFIGID.UPNP.ORG` header field with the same field
     /// value, the configuration shall be the same at the moments that these messages were sent.
@@ -45,18 +45,19 @@ pub struct RootDevice {
     /// control point receives an announcement of an unknown configuration is downloading required.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    config_id: Option<u32>,
+    pub config_id: Option<u32>,
     /// `SEARCHPORT.UPNP.ORG`: number identifies port on which device responds to unicast M-SEARCH
     ///
     /// Optional (handled semantically in [UpnpPort])
-    port: UpnpPort,
+    pub port: UpnpPort,
     /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
     /// Required when device protection is implemented.
-    secure_location: Option<Url>,
+    pub secure_location: Option<Url>,
     /// Services offered by this device
-    services: HashSet<ServiceDetails>,
+    pub services: HashSet<ServiceDetails>,
 }
 
+#[expect(clippy::infallible_try_from, reason = "probably to be deprecated")]
 impl TryFrom<Message> for RootDevice {
     type Error = Error;
 
