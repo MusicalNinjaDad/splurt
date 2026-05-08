@@ -1,5 +1,7 @@
 //! A heirarchical map of rootdevice[/device]/service
 
+use std::collections::HashSet;
+
 use chrono::{DateTime, Utc};
 use url::Url;
 use uuid::Uuid;
@@ -19,7 +21,7 @@ enum Lenient<T> {
     Invalid(String),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RootDevice {
     pub id: Uuid,
     last_seen: DateTime<Utc>,
@@ -52,7 +54,7 @@ pub struct RootDevice {
     /// Required when device protection is implemented.
     secure_location: Option<Url>,
     /// Services offered by this device
-    services: Vec<ServiceDetails>,
+    services: HashSet<ServiceDetails>,
 }
 
 impl TryFrom<Message> for RootDevice {
@@ -86,7 +88,7 @@ impl TryFrom<Message> for RootDevice {
                         config_id: config_id.map(|id| *id.as_u32()),
                         port,
                         secure_location: secure_location.map(|loc| loc.into_url()),
-                        services: vec![],
+                        services: Default::default(),
                     })
                 }
                 #[expect(unused_variables, reason = "todo")]
@@ -119,7 +121,7 @@ impl TryFrom<Message> for RootDevice {
                     config_id: config_id.map(|id| *id.as_u32()),
                     port,
                     secure_location: secure_location.map(|loc| loc.into_url()),
-                    services: vec![],
+                    services: Default::default(),
                 })
             }
             _ => todo!("error for parsing somthing that's not a root_device"),
