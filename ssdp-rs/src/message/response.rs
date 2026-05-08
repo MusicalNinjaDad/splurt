@@ -93,4 +93,8 @@ impl Response {
     pub fn st(&self) -> &ST {
         &self.usn.ntst
     }
+
+    pub fn into_st(self) -> ST {
+        self.usn.ntst
+    }
 }

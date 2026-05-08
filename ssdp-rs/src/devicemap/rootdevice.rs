@@ -130,22 +130,18 @@ impl TryFrom<Message> for RootDevice {
 }
 
 impl RootDevice {
-    pub fn insert(&mut self, service: Message) -> Option<ServiceDetails> {
+    pub fn insert(&mut self, service: Message) -> bool {
         match service {
-            #[expect(unused_variables, reason = "todo")]
-            Message::Notify(notify) if let NT::Service(service) = notify.nt() => {
-                todo!("add service to root device")
-            }
-            #[expect(unused_variables, reason = "todo")]
-            Message::Response(response) if let ST::Service(service) = response.st() => {
-                todo!("add service to root device")
-            }
-            #[expect(unused_variables, reason = "todo")]
-            Message::Notify(notify) => todo!("error message"),
+            Message::Notify(notify) => match notify.into_nt() {
+                NT::Service(service) => self.services.insert(service),
+                _ => todo!("error message"),
+            },
+            Message::Response(response) => match response.into_st() {
+                ST::Service(service) => self.services.insert(service),
+                _ => todo!("error message"),
+            },
             #[expect(unused_variables, reason = "todo")]
             Message::Search(msearch) => todo!("error message"),
-            #[expect(unused_variables, reason = "todo")]
-            Message::Response(response) => todo!("error message"),
         }
     }
 }
@@ -281,7 +277,6 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     }
 
     #[test]
-    #[should_panic(expected = "add service to root device")]
     fn add_service() {
         let sonos = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1800
@@ -322,7 +317,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
 "#;
         let service = service.parse::<Message>().expect("valid service");
-        let previous_service = root_device.insert(service);
-        assert!(previous_service.is_none());
+        let inserted = root_device.insert(service);
+        assert!(inserted);
     }
 }

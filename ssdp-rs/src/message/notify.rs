@@ -44,6 +44,14 @@ impl Notify {
             Notify::Update(update) => &update.usn.ntst,
         }
     }
+
+    pub fn into_nt(self) -> NT {
+        match self {
+            Notify::Alive(alive) => alive.usn.ntst,
+            Notify::ByeBye(bye_bye) => bye_bye.usn.ntst,
+            Notify::Update(update) => update.usn.ntst,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
