@@ -14,10 +14,10 @@
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
+pub mod devicemap;
 pub mod error;
 pub mod listener;
 pub mod message;
-pub mod rootdevice;
 pub mod search;
 
 pub use error::{Error, Result};
