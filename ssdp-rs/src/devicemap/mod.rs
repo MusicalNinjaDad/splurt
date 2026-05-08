@@ -60,7 +60,11 @@ impl DeviceMap {
     pub fn process(&mut self, message: Message) -> Result<(), Error> {
         let info = message.into();
         match info {
-            Information::RootDevice(message) => todo!("process root devices"),
+            Information::RootDevice(message) => {
+                let root_device = message.try_into()?;
+                self.insert(root_device);
+                Ok(())
+            }
             Information::Device(message) => todo!("process devices"),
             Information::Service(message) => todo!("process services"),
             Information::ControlPoint(message) => todo!("process control points"),
@@ -85,6 +89,8 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use super::*;
+
+    use uuid::uuid;
 
     #[test]
     fn add_new_root_device() {
@@ -167,7 +173,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented: process root devices")]
+    // #[should_panic(expected = "not yet implemented: process root devices")]
     fn add_service() {
         let mut devices = DeviceMap::new();
 
@@ -193,5 +199,10 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         devices
             .process(root_device)
             .expect("proces root device message");
+        assert!(
+            devices
+                .inner
+                .contains_key(&uuid!("c4248768-d6b6-4232-a273-5b1701524493"))
+        );
     }
 }

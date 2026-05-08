@@ -7,7 +7,7 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    Error,
+    devicemap::Error,
     message::{
         Message, Notify, Response, ST, Server, ServiceDetails, UpnpPort,
         notify::{Alive, NT},
