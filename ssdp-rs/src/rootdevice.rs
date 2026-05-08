@@ -109,7 +109,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn root_from_header() {
+    fn root_from_response() {
         let sonos = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1800
 EXT:
@@ -130,6 +130,62 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 "#;
         let response = sonos.parse::<Message>().expect("valid message");
         let root_device: RootDevice = response.try_into().expect("a root device");
+        let RootDevice {
+            id,
+            last_seen,
+            valid_until,
+            location,
+            product,
+            boot_id,
+            config_id,
+            port,
+            secure_location,
+        } = root_device;
+        assert_eq!(id, uuid!("c4248768-d6b6-4232-a273-5b1701524493"));
+        assert!(
+            last_seen
+                > DateTime::parse_from_rfc3339("2026-05-08T07:36:00+02:00")
+                    .expect("when this test was written")
+        );
+        assert_eq!(valid_until, last_seen + Duration::from_secs(1800));
+        assert_eq!(
+            location,
+            Url::parse("http://192.168.0.84:1400/xml/device_description.xml").expect("valid url")
+        );
+        assert_matches!(product, Some(product) if product == Server { os: "Linux".to_string(), os_version: "".to_string(),
+         upnp_version: UPNP_VERSION1, product_name: "Sonos".to_string(), product_version: "85.0-64200 (ZPS29)".to_string() });
+        assert_matches!(boot_id, Some(id) if id ==6);
+        assert!(config_id.is_none());
+        assert_matches!(port, UpnpPort::Default);
+        assert_matches!(secure_location, Some(secure_location)
+            if secure_location == Url::parse("https://192.168.0.84:1443/xml/device_description.xml").expect("valid https url")
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented: notify tryinto root_device")]
+    fn root_from_alive() {
+        let sonos = r#"NOTIFY * HTTP/1.1
+HOST: 239.255.255.250:1900
+CACHE-CONTROL: max-age = 1800
+LOCATION: http://192.168.0.84:1400/xml/device_description.xml
+NT: upnp:rootdevice
+NTS: ssdp:alive
+SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
+USN: uuid:c4248768-d6b6-4232-a273-5b1701524493::upnp:rootdevice
+X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
+X-RINCON-BOOTSEQ: 6
+BOOTID.UPNP.ORG: 6
+X-RINCON-WIFIMODE: 1
+X-RINCON-VARIANT: 2
+HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
+LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
+SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
+X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
+
+"#;
+        let alive = sonos.parse::<Message>().expect("valid message");
+        let root_device: RootDevice = alive.try_into().expect("a root device");
         let RootDevice {
             id,
             last_seen,
