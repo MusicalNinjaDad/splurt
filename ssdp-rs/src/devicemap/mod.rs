@@ -13,11 +13,19 @@ pub struct DeviceMap {
 
 impl DeviceMap {
     pub fn new() -> Self {
-        todo!("new devicemap")
+        Self {
+            inner: Default::default(),
+        }
     }
 
     pub fn add_or_update(&mut self, root_device: RootDevice) {
         todo!("add")
+    }
+}
+
+impl Default for DeviceMap {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -28,7 +36,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[should_panic(expected = "new devicemap")]
+    #[should_panic(expected = "add")]
     fn add_new_root_device() {
         let msg = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1800
