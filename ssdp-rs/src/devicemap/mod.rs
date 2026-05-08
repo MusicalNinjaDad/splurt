@@ -66,7 +66,11 @@ impl DeviceMap {
                 Ok(())
             }
             Information::Device(message) => todo!("process devices"),
-            Information::Service(message) => todo!("process services"),
+            Information::Service(message) => match message {
+                Message::Notify(notify) => todo!("process services"),
+                Message::Search(msearch) => todo!("impossible search is always control"),
+                Message::Response(response) => todo!("process services"),
+            },
             Information::ControlPoint(message) => todo!("process control points"),
         }
     }
