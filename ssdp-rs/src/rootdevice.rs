@@ -91,7 +91,7 @@ impl TryFrom<Message> for RootDevice {
                 #[expect(unused_variables, reason = "todo")]
                 Notify::Update(update) => todo!("update or infer root device from update"),
             },
-            Message::Response(response) if matches!(response.usn.ntst, ST::Root) => {
+            Message::Response(response) if matches!(response.usn.ntst, ST::RootDevice) => {
                 let Response {
                     max_age,
                     date,
