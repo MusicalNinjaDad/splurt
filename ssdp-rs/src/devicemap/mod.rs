@@ -105,8 +105,15 @@ impl DeviceMap {
             }
             #[expect(unused_variables, reason = "todo")]
             Information::Device(message) => todo!("process devices"),
-            #[expect(unused_variables, reason = "todo")]
-            Information::Service(serviceinfo) => todo!("process services"),
+            Information::Service(serviceinfo) => {
+                let root_device = self
+                    .inner
+                    .get_mut(&serviceinfo.id)
+                    .ok_or_else(|| todo!("handle missing root"))
+                    .unwrap();
+                root_device.services.insert(serviceinfo.service);
+                Ok(())
+            }
             #[expect(unused_variables, reason = "todo")]
             Information::ControlPoint(message) => todo!("process control points"),
         }
@@ -214,7 +221,6 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented: process services")]
     fn add_service() {
         let mut devices = DeviceMap::new();
 
