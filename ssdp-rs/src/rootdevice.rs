@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::{
     Error,
-    message::{Message, Response, Server, UpnpPort},
+    message::{Message, Response, ST, Server, UpnpPort},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -59,38 +59,34 @@ impl TryFrom<Message> for RootDevice {
             // This should be called on something known to be about a RootDevice
             #[expect(unused_variables, reason = "todo")]
             Message::Notify(notify) => todo!("notify tryinto root_device"),
-            #[expect(unused_variables, reason = "todo")]
-            Message::Search(msearch) => todo!("error for parsing a search"),
-            Message::Response(response) => match response.usn.ntst {
-                crate::message::ST::Root => {
-                    let Response {
-                        max_age,
-                        date,
-                        location,
-                        server,
-                        usn,
-                        boot_id,
-                        config_id,
-                        port,
-                        secure_location,
-                        ..
-                    } = response;
-                    let last_seen = date.unwrap_or_else(Utc::now);
-                    let valid_until = last_seen + *max_age.as_duration();
-                    Ok(Self {
-                        id: usn.uuid,
-                        last_seen,
-                        valid_until,
-                        location: location.into_url(),
-                        product: Some(server),
-                        boot_id: boot_id.map(|id| *id.as_u32()),
-                        config_id: config_id.map(|id| *id.as_u32()),
-                        port,
-                        secure_location: secure_location.map(|loc| loc.into_url()),
-                    })
-                }
-                _ => todo!("reasonable error message"),
-            },
+            Message::Response(response) if matches!(response.usn.ntst, ST::Root) => {
+                let Response {
+                    max_age,
+                    date,
+                    location,
+                    server,
+                    usn,
+                    boot_id,
+                    config_id,
+                    port,
+                    secure_location,
+                    ..
+                } = response;
+                let last_seen = date.unwrap_or_else(Utc::now);
+                let valid_until = last_seen + *max_age.as_duration();
+                Ok(Self {
+                    id: usn.uuid,
+                    last_seen,
+                    valid_until,
+                    location: location.into_url(),
+                    product: Some(server),
+                    boot_id: boot_id.map(|id| *id.as_u32()),
+                    config_id: config_id.map(|id| *id.as_u32()),
+                    port,
+                    secure_location: secure_location.map(|loc| loc.into_url()),
+                })
+            }
+            _ => todo!("error for parsing somthing that's not a root_device"),
         }
     }
 }
