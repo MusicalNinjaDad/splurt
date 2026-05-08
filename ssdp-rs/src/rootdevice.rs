@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::{
     Error,
-    message::{Message, Response, ST, Server, UpnpPort, notify::NT},
+    message::{Message, Notify, Response, ST, Server, UpnpPort, notify::NT},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -57,9 +57,15 @@ impl TryFrom<Message> for RootDevice {
         match msg {
             // TODO hint & document `cold_path()` on error arms.
             // This should be called on something known to be about a RootDevice
-            Message::Notify(notify) if matches!(notify.nt(), NT::RootDevice) => {
-                todo!("notify tryinto root_device")
-            }
+            Message::Notify(notify) if matches!(notify.nt(), NT::RootDevice) => match notify {
+                Notify::Alive(alive) => {
+                    todo!("notify tryinto root_device")
+                }
+                #[expect(unused_variables, reason = "todo")]
+                Notify::ByeBye(bye_bye) => todo!("update or infer root device from byebye"),
+                #[expect(unused_variables, reason = "todo")]
+                Notify::Update(update) => todo!("remove root device based on bybebye"),
+            },
             Message::Response(response) if matches!(response.usn.ntst, ST::Root) => {
                 let Response {
                     max_age,
