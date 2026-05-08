@@ -87,9 +87,9 @@ impl TryFrom<Message> for RootDevice {
                     })
                 }
                 #[expect(unused_variables, reason = "todo")]
-                Notify::ByeBye(bye_bye) => todo!("update or infer root device from byebye"),
+                Notify::ByeBye(bye_bye) => todo!("remove root device based on bybebye"),
                 #[expect(unused_variables, reason = "todo")]
-                Notify::Update(update) => todo!("remove root device based on bybebye"),
+                Notify::Update(update) => todo!("update or infer root device from update"),
             },
             Message::Response(response) if matches!(response.usn.ntst, ST::Root) => {
                 let Response {
