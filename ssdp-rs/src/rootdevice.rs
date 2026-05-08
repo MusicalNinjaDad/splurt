@@ -55,6 +55,8 @@ impl TryFrom<Message> for RootDevice {
 
     fn try_from(msg: Message) -> Result<Self, Self::Error> {
         match msg {
+            // TODO hint & document `cold_path()` on error arms.
+            // This should be called on something known to be about a RootDevice
             #[expect(unused_variables, reason = "todo")]
             Message::Notify(notify) => todo!("notify tryinto root_device"),
             #[expect(unused_variables, reason = "todo")]
