@@ -214,6 +214,12 @@ impl PartialOrd<NextBootId> for BootId {
     }
 }
 
+impl BootId {
+    pub fn as_u32(&self) -> &u32 {
+        &self.0
+    }
+}
+
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into, FromStr,
 )]
@@ -226,6 +232,12 @@ impl Header for ConfigId {
 
 impl UpnpV2 for ConfigId {
     const ERR: ErrorKind = ErrorKind::MissingConfigId;
+}
+
+impl ConfigId {
+    pub fn as_u32(&self) -> &u32 {
+        &self.0
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into)]
@@ -327,6 +339,16 @@ impl Header for Location {
     const HEADER_KEY: &'static str = "LOCATION";
 }
 
+impl Location {
+    pub fn as_url(&self) -> &Url {
+        &self.0
+    }
+
+    pub fn into_url(self) -> Url {
+        self.0
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Man {
     Discover,
@@ -407,6 +429,12 @@ impl PartialEq<Duration> for MaxAge {
 impl PartialEq<MaxAge> for Duration {
     fn eq(&self, other: &MaxAge) -> bool {
         *self == other.0
+    }
+}
+
+impl MaxAge {
+    pub fn as_duration(&self) -> &Duration {
+        &self.0
     }
 }
 
@@ -594,6 +622,15 @@ impl PartialEq<Url> for SecureLocation {
 impl PartialEq<SecureLocation> for Url {
     fn eq(&self, other: &SecureLocation) -> bool {
         *self == other.0
+    }
+}
+
+impl SecureLocation {
+    pub fn as_url(&self) -> &Url {
+        &self.0
+    }
+    pub fn into_url(self) -> Url {
+        self.0
     }
 }
 

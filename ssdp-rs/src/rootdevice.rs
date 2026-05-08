@@ -1,11 +1,12 @@
 //! A heirarchical map of rootdevice[/device]/service
 
 use chrono::{DateTime, Utc};
+use url::Url;
 use uuid::Uuid;
 
 use crate::{
     Error,
-    message::{Message, Server, UpnpPort, Uri},
+    message::{Message, Response, Server, UpnpPort},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -21,7 +22,7 @@ pub struct RootDevice {
     last_seen: DateTime<Utc>,
     valid_until: DateTime<Utc>,
     /// URL for UPnP description for root device
-    location: Uri,
+    location: Url,
     /// OS/version UPnP/2.0 product/version
     product: Option<Server>,
     /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
@@ -46,7 +47,7 @@ pub struct RootDevice {
     port: UpnpPort,
     /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
     /// Required when device protection is implemented.
-    secure_location: Option<Uri>,
+    secure_location: Option<Url>,
 }
 
 impl TryFrom<Message> for RootDevice {
@@ -60,9 +61,31 @@ impl TryFrom<Message> for RootDevice {
             Message::Search(msearch) => todo!("error for parsing a search"),
             Message::Response(response) => match response.usn.ntst {
                 crate::message::ST::Root => {
-                    let id = response.usn.uuid;
-                    let last_seen = response.date;
-                    todo!("actually parse the thing")
+                    let Response {
+                        max_age,
+                        date,
+                        location,
+                        server,
+                        usn,
+                        boot_id,
+                        config_id,
+                        port,
+                        secure_location,
+                        ..
+                    } = response;
+                    let last_seen = date.unwrap_or_else(Utc::now);
+                    let valid_until = last_seen + *max_age.as_duration();
+                    Ok(Self {
+                        id: usn.uuid,
+                        last_seen,
+                        valid_until,
+                        location: location.into_url(),
+                        product: Some(server),
+                        boot_id: boot_id.map(|id| *id.as_u32()),
+                        config_id: config_id.map(|id| *id.as_u32()),
+                        port,
+                        secure_location: secure_location.map(|loc| loc.into_url()),
+                    })
                 }
                 _ => todo!("reasonable error message"),
             },
@@ -72,10 +95,10 @@ impl TryFrom<Message> for RootDevice {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[test]
-    #[should_panic(expected = "not yet implemented: actually parse the thing")]
     fn root_from_header() {
         let sonos = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1800
