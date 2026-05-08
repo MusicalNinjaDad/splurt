@@ -173,7 +173,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     }
 
     #[test]
-    // #[should_panic(expected = "not yet implemented: process root devices")]
+    #[should_panic(expected = "not yet implemented: process services")]
     fn add_service() {
         let mut devices = DeviceMap::new();
 
@@ -198,11 +198,31 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         let root_device = root_device.parse::<Message>().expect("valid message");
         devices
             .process(root_device)
-            .expect("proces root device message");
+            .expect("process root device message");
         assert!(
             devices
                 .inner
                 .contains_key(&uuid!("c4248768-d6b6-4232-a273-5b1701524493"))
         );
+        let service = r#"HTTP/1.1 200 OK
+CACHE-CONTROL: max-age = 1800
+EXT:
+LOCATION: http://192.168.0.84:1400/xml/device_description.xml
+SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
+ST: urn:schemas-upnp-org:service:MusicServices:1
+USN: uuid:c4248768-d6b6-4232-a273-5b1701524493::urn:schemas-upnp-org:service:MusicServices:1
+X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
+X-RINCON-BOOTSEQ: 6
+BOOTID.UPNP.ORG: 6
+X-RINCON-WIFIMODE: 1
+X-RINCON-VARIANT: 2
+HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
+LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
+SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
+X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
+
+"#;
+        let service = service.parse::<Message>().expect("valid service");
+        devices.process(service).expect("proocess service message")
     }
 }
