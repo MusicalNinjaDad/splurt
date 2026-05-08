@@ -146,8 +146,8 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         assert_eq!(id, uuid!("c4248768-d6b6-4232-a273-5b1701524493"));
         assert!(
             last_seen
-                > DateTime::parse_from_rfc3339("1996-12-19T16:39:57-08:00")
-                    .expect("a long time ago")
+                > DateTime::parse_from_rfc3339("2026-05-08T07:36:00+02:00")
+                    .expect("when this test was written")
         );
         assert_eq!(valid_until, last_seen + Duration::from_secs(1800));
         assert_eq!(
