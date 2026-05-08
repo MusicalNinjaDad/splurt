@@ -236,15 +236,16 @@ SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
 X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
 "#;
+        let id = uuid!("c4248768-d6b6-4232-a273-5b1701524493");
         let root_device = root_device.parse::<Message>().expect("valid message");
         devices
             .process(root_device)
             .expect("process root device message");
-        assert!(
-            devices
-                .inner
-                .contains_key(&uuid!("c4248768-d6b6-4232-a273-5b1701524493"))
-        );
+        assert!(devices.inner.contains_key(&id));
+        {
+            let root_device = devices.inner.get(&id).expect("root device is there");
+            assert_eq!(root_device.services.len(), 0);
+        }
         let service = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1800
 EXT:
@@ -264,6 +265,10 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
 "#;
         let service = service.parse::<Message>().expect("valid service");
-        devices.process(service).expect("proocess service message")
+        devices.process(service).expect("process service message");
+        {
+            let root_device = devices.inner.get(&id).expect("root device still there");
+            assert_eq!(root_device.services.len(), 1);
+        }
     }
 }
