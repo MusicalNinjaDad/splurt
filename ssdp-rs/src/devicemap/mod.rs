@@ -2,9 +2,12 @@ use std::collections::HashMap;
 
 use uuid::Uuid;
 
-use crate::devicemap::rootdevice::RootDevice;
+use crate::{devicemap::rootdevice::RootDevice, message::Message};
 
 pub mod rootdevice;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Error {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeviceMap {
@@ -20,6 +23,14 @@ impl DeviceMap {
 
     pub fn insert(&mut self, root_device: RootDevice) -> Option<RootDevice> {
         self.inner.insert(root_device.id, root_device)
+    }
+
+    pub fn process(&mut self, message: Message) -> Result<(), Error> {
+        match message {
+            Message::Notify(notify) => todo!(),
+            Message::Search(msearch) => todo!(),
+            Message::Response(response) => todo!(),
+        }
     }
 }
 
@@ -119,5 +130,33 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         let root_device: RootDevice = notify.try_into().expect("a root device");
         let old_entry = devices.insert(root_device);
         assert_matches!(old_entry, Some(old_entry) if old_entry == root_device1);
+    }
+
+    #[test]
+    fn add_service() {
+        let mut devices = DeviceMap::new();
+
+        let root_device = r#"HTTP/1.1 200 OK
+CACHE-CONTROL: max-age = 1800
+EXT:
+LOCATION: http://192.168.0.84:1400/xml/device_description.xml
+SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
+ST: upnp:rootdevice
+USN: uuid:c4248768-d6b6-4232-a273-5b1701524493::upnp:rootdevice
+X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
+X-RINCON-BOOTSEQ: 6
+BOOTID.UPNP.ORG: 6
+X-RINCON-WIFIMODE: 1
+X-RINCON-VARIANT: 2
+HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
+LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
+SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
+X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
+
+"#;
+        let root_device = root_device.parse::<Message>().expect("valid message");
+        devices
+            .process(root_device)
+            .expect("proces root device message");
     }
 }
