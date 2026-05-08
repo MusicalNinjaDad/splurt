@@ -7,7 +7,7 @@ use crate::message::{
 
 use super::{ErrorKind, Header, MaxAge, ParseError, RFC1123, ST, UpnpHeader, UpnpPort};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// A direct response to an `M-SEARCH` message.
 ///
 /// "To be found by a network search, a device shall send a unicast UDP response to the source IP
