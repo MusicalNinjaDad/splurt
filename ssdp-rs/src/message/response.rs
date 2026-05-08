@@ -88,3 +88,9 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
         })
     }
 }
+
+impl Response {
+    pub fn st(&self) -> &ST {
+        &self.usn.ntst
+    }
+}
