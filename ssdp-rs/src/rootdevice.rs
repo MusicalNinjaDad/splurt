@@ -6,7 +6,10 @@ use uuid::Uuid;
 
 use crate::{
     Error,
-    message::{Message, Notify, Response, ST, Server, UpnpPort, notify::NT},
+    message::{
+        Message, Notify, Response, ST, Server, UpnpPort,
+        notify::{Alive, NT},
+    },
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -59,7 +62,29 @@ impl TryFrom<Message> for RootDevice {
             // This should be called on something known to be about a RootDevice
             Message::Notify(notify) if matches!(notify.nt(), NT::RootDevice) => match notify {
                 Notify::Alive(alive) => {
-                    todo!("notify tryinto root_device")
+                    let Alive {
+                        max_age,
+                        location,
+                        server,
+                        usn,
+                        boot_id,
+                        config_id,
+                        port,
+                        secure_location,
+                    } = alive;
+                    let last_seen = Utc::now();
+                    let valid_until = last_seen + *max_age.as_duration();
+                    Ok(Self {
+                        id: usn.uuid,
+                        last_seen,
+                        valid_until,
+                        location: location.into_url(),
+                        product: Some(server),
+                        boot_id: boot_id.map(|id| *id.as_u32()),
+                        config_id: config_id.map(|id| *id.as_u32()),
+                        port,
+                        secure_location: secure_location.map(|loc| loc.into_url()),
+                    })
                 }
                 #[expect(unused_variables, reason = "todo")]
                 Notify::ByeBye(bye_bye) => todo!("update or infer root device from byebye"),
@@ -170,7 +195,6 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented: notify tryinto root_device")]
     fn root_from_alive() {
         let sonos = r#"NOTIFY * HTTP/1.1
 HOST: 239.255.255.250:1900
