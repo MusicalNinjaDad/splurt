@@ -36,6 +36,16 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
     }
 }
 
+impl Notify {
+    pub fn nt(&self) -> &NT {
+        match self {
+            Notify::Alive(alive) => &alive.usn.ntst,
+            Notify::ByeBye(bye_bye) => &bye_bye.usn.ntst,
+            Notify::Update(update) => &update.usn.ntst,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Alive {
     /// `CACHE-CONTROL`: Duration (in seconds) until advertisement expires

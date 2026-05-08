@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::{
     Error,
-    message::{Message, Notify, Response, ST, Server, UpnpPort, notify::NT},
+    message::{Message, Response, ST, Server, UpnpPort, notify::NT},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -57,7 +57,7 @@ impl TryFrom<Message> for RootDevice {
         match msg {
             // TODO hint & document `cold_path()` on error arms.
             // This should be called on something known to be about a RootDevice
-            Message::Notify(Notify::Alive(notify)) if matches!(notify.usn.ntst, NT::RootDevice) => {
+            Message::Notify(notify) if matches!(notify.nt(), NT::RootDevice) => {
                 todo!("notify tryinto root_device")
             }
             Message::Response(response) if matches!(response.usn.ntst, ST::Root) => {
