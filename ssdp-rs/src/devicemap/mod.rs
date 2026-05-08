@@ -2,12 +2,44 @@ use std::collections::HashMap;
 
 use uuid::Uuid;
 
-use crate::{devicemap::rootdevice::RootDevice, message::Message};
+use crate::{
+    devicemap::rootdevice::RootDevice,
+    message::{Message, notify::NT},
+};
 
 pub mod rootdevice;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Error {}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Information {
+    RootDevice(Message),
+    Device(Message),
+    Service(Message),
+    ControlPoint(Message),
+}
+
+impl From<Message> for Information {
+    fn from(msg: Message) -> Self {
+        match &msg {
+            Message::Notify(notify) => match notify.nt() {
+                NT::RootDevice => Self::RootDevice(msg),
+                NT::Uuid(_) => Self::Device(msg),
+                NT::Device(_) => Self::Device(msg),
+                NT::Service(_) => Self::Service(msg),
+            },
+            Message::Search(_) => Self::ControlPoint(msg),
+            Message::Response(response) => match response.st() {
+                crate::message::ST::All => Self::Device(msg),
+                crate::message::ST::RootDevice => Self::RootDevice(msg),
+                crate::message::ST::Uuid(_) => Self::Device(msg),
+                crate::message::ST::Device(_) => Self::Device(msg),
+                crate::message::ST::Service(_) => Self::Service(msg),
+            },
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeviceMap {
@@ -26,10 +58,12 @@ impl DeviceMap {
     }
 
     pub fn process(&mut self, message: Message) -> Result<(), Error> {
-        match message {
-            Message::Notify(notify) => todo!(),
-            Message::Search(msearch) => todo!(),
-            Message::Response(response) => todo!(),
+        let info = message.into();
+        match info {
+            Information::RootDevice(message) => todo!("process root devices"),
+            Information::Device(message) => todo!("process devices"),
+            Information::Service(message) => todo!("process services"),
+            Information::ControlPoint(message) => todo!("process control points"),
         }
     }
 }
@@ -133,6 +167,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     }
 
     #[test]
+    #[should_panic(expected = "not yet implemented: process root devices")]
     fn add_service() {
         let mut devices = DeviceMap::new();
 
