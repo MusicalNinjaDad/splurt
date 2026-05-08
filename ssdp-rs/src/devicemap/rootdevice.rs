@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::{
     Error,
     message::{
-        Message, Notify, Response, ST, Server, UpnpPort,
+        Message, Notify, Response, ST, Server, ServiceDetails, UpnpPort,
         notify::{Alive, NT},
     },
 };
@@ -51,6 +51,8 @@ pub struct RootDevice {
     /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
     /// Required when device protection is implemented.
     secure_location: Option<Url>,
+    /// Services offered by this device
+    services: Vec<ServiceDetails>,
 }
 
 impl TryFrom<Message> for RootDevice {
@@ -84,6 +86,7 @@ impl TryFrom<Message> for RootDevice {
                         config_id: config_id.map(|id| *id.as_u32()),
                         port,
                         secure_location: secure_location.map(|loc| loc.into_url()),
+                        services: vec![],
                     })
                 }
                 #[expect(unused_variables, reason = "todo")]
@@ -116,10 +119,17 @@ impl TryFrom<Message> for RootDevice {
                     config_id: config_id.map(|id| *id.as_u32()),
                     port,
                     secure_location: secure_location.map(|loc| loc.into_url()),
+                    services: vec![],
                 })
             }
             _ => todo!("error for parsing somthing that's not a root_device"),
         }
+    }
+}
+
+impl RootDevice {
+    pub fn insert(&mut self, service: Message) -> Option<ServiceDetails> {
+        todo!("add service to root device")
     }
 }
 
@@ -172,6 +182,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             config_id,
             port,
             secure_location,
+            services,
         } = root_device;
         assert_eq!(id, uuid!("c4248768-d6b6-4232-a273-5b1701524493"));
         assert!(
@@ -192,6 +203,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         assert_matches!(secure_location, Some(secure_location)
             if secure_location == Url::parse("https://192.168.0.84:1443/xml/device_description.xml").expect("valid https url")
         );
+        assert!(services.is_empty());
     }
 
     #[test]
@@ -227,6 +239,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             config_id,
             port,
             secure_location,
+            services,
         } = root_device;
         assert_eq!(id, uuid!("c4248768-d6b6-4232-a273-5b1701524493"));
         assert!(
@@ -247,5 +260,52 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         assert_matches!(secure_location, Some(secure_location)
             if secure_location == Url::parse("https://192.168.0.84:1443/xml/device_description.xml").expect("valid https url")
         );
+        assert!(services.is_empty());
+    }
+
+    #[test]
+    #[should_panic(expected = "add service to root device")]
+    fn add_service() {
+        let sonos = r#"HTTP/1.1 200 OK
+CACHE-CONTROL: max-age = 1800
+EXT:
+LOCATION: http://192.168.0.84:1400/xml/device_description.xml
+SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
+ST: upnp:rootdevice
+USN: uuid:c4248768-d6b6-4232-a273-5b1701524493::upnp:rootdevice
+X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
+X-RINCON-BOOTSEQ: 6
+BOOTID.UPNP.ORG: 6
+X-RINCON-WIFIMODE: 1
+X-RINCON-VARIANT: 2
+HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
+LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
+SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
+X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
+
+"#;
+        let response = sonos.parse::<Message>().expect("valid message");
+        let mut root_device: RootDevice = response.try_into().expect("a root device");
+        let service = r#"HTTP/1.1 200 OK
+CACHE-CONTROL: max-age = 1800
+EXT:
+LOCATION: http://192.168.0.84:1400/xml/device_description.xml
+SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
+ST: urn:schemas-upnp-org:service:MusicServices:1
+USN: uuid:c4248768-d6b6-4232-a273-5b1701524493::urn:schemas-upnp-org:service:MusicServices:1
+X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
+X-RINCON-BOOTSEQ: 6
+BOOTID.UPNP.ORG: 6
+X-RINCON-WIFIMODE: 1
+X-RINCON-VARIANT: 2
+HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
+LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
+SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
+X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
+
+"#;
+        let service = service.parse::<Message>().expect("valid service");
+        let previous_service = root_device.insert(service);
+        assert!(previous_service.is_none());
     }
 }
