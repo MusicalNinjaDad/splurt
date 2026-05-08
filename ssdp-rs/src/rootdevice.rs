@@ -96,6 +96,18 @@ impl TryFrom<Message> for RootDevice {
 #[cfg(test)]
 mod tests {
 
+    use std::time::Duration;
+
+    #[cfg(assert_matches_in_root)]
+    use std::assert_matches;
+
+    #[cfg(assert_matches_in_module)]
+    use std::assert_matches::assert_matches;
+
+    use uuid::uuid;
+
+    use crate::message::UPNP_VERSION1;
+
     use super::*;
 
     #[test]
@@ -120,5 +132,35 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 "#;
         let response = sonos.parse::<Message>().expect("valid message");
         let root_device: RootDevice = response.try_into().expect("a root device");
+        let RootDevice {
+            id,
+            last_seen,
+            valid_until,
+            location,
+            product,
+            boot_id,
+            config_id,
+            port,
+            secure_location,
+        } = root_device;
+        assert_eq!(id, uuid!("c4248768-d6b6-4232-a273-5b1701524493"));
+        assert!(
+            last_seen
+                > DateTime::parse_from_rfc3339("1996-12-19T16:39:57-08:00")
+                    .expect("a long time ago")
+        );
+        assert_eq!(valid_until, last_seen + Duration::from_secs(1800));
+        assert_eq!(
+            location,
+            Url::parse("http://192.168.0.84:1400/xml/device_description.xml").expect("valid url")
+        );
+        assert_matches!(product, Some(product) if product == Server { os: "Linux".to_string(), os_version: "".to_string(),
+         upnp_version: UPNP_VERSION1, product_name: "Sonos".to_string(), product_version: "85.0-64200 (ZPS29)".to_string() });
+        assert_matches!(boot_id, Some(id) if id ==6);
+        assert!(config_id.is_none());
+        assert_matches!(port, UpnpPort::Default);
+        assert_matches!(secure_location, Some(secure_location)
+            if secure_location == Url::parse("https://192.168.0.84:1443/xml/device_description.xml").expect("valid https url")
+        );
     }
 }
