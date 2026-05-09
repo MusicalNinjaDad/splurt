@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::{
@@ -141,15 +140,16 @@ impl DeviceMap {
             Information::Service(serviceinfo) => {
                 let root_device = self
                     .inner
-                    .get_mut(&serviceinfo.id)
-                    .ok_or_else(|| todo!("handle missing root"))
-                    .unwrap();
+                    .entry(serviceinfo.id)
+                    // as long as a control point has received at least one advertisement that is still
+                    // valid from a root device, any of its embedded devices or any of its services,
+                    // then the control point can assume that all are available.
+                    .and_modify(|rd| {
+                        rd.last_seen = serviceinfo.inferred_root_device.last_seen;
+                        rd.valid_until = serviceinfo.inferred_root_device.valid_until;
+                    })
+                    .or_insert(serviceinfo.inferred_root_device);
                 root_device.services.insert(serviceinfo.service);
-                // as long as a control point has received at least one advertisement that is still
-                // valid from a root device, any of its embedded devices or any of its services,
-                // then the control point can assume that all are available.
-                root_device.last_seen = serviceinfo.inferred_root_device.last_seen;
-                root_device.valid_until = serviceinfo.inferred_root_device.valid_until;
                 Ok(())
             }
             #[expect(unused_variables, reason = "todo")]
@@ -177,7 +177,7 @@ mod tests {
 
     use super::*;
 
-    use chrono::DateTime;
+    use chrono::{DateTime, Utc};
     use uuid::uuid;
 
     #[test]
@@ -344,7 +344,6 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented: handle missing root")]
     fn infer_root_from_service() {
         let mut devices = DeviceMap::new();
         let id = uuid!("c4248768-d6b6-4232-a273-5b1701524493");
