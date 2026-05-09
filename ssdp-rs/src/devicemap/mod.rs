@@ -5,7 +5,7 @@ use url::Url;
 use crate::{
     devicemap::rootdevice::RootDevice,
     message::{
-        Message, Notify, Response, ST, ServiceDetails,
+        DeviceDetails, Message, Notify, Response, ST, ServiceDetails,
         notify::{Alive, NT},
     },
 };
@@ -18,7 +18,7 @@ pub enum Error {}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Information {
     RootDevice(RootDevice),
-    Device(Message),
+    Device(DeviceInfo),
     Service(ServiceInfo),
     ControlPoint(Message),
 }
@@ -26,6 +26,13 @@ pub enum Information {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ServiceInfo {
     service: ServiceDetails,
+    location: Url,
+    inferred_root_device: RootDevice,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeviceInfo {
+    device: DeviceDetails,
     location: Url,
     inferred_root_device: RootDevice,
 }
@@ -116,7 +123,24 @@ impl From<Message> for Information {
                     port,
                     secure_location,
                 )),
-                ST::Device(device) => todo!("parse device response"),
+                ST::Device(device) => {
+                    let inferred_root_device = RootDevice::new(
+                        usn.uuid,
+                        max_age,
+                        date,
+                        location.clone(),
+                        server,
+                        boot_id,
+                        config_id,
+                        port,
+                        secure_location,
+                    );
+                    Self::Device(DeviceInfo {
+                        device,
+                        location: location.into_url(),
+                        inferred_root_device,
+                    })
+                }
                 _ => todo!("other response"),
             },
             _ => todo!("other stuff"),
@@ -340,7 +364,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     }
 
     #[test]
-    #[should_panic(expected = "parse device response")]
+    #[should_panic(expected = "not yet implemented: process devices")]
     fn identify_root_device_type() {
         let mut devices = DeviceMap::new();
         let url =
