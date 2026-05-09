@@ -54,7 +54,7 @@ impl From<Message> for Information {
             })) => match usn.ntst {
                 NT::Service(service) => {
                     let inferred_root_device = RootDevice::new(
-                        usn.uuid,
+                        None,
                         max_age,
                         None,
                         location.clone(),
@@ -71,7 +71,7 @@ impl From<Message> for Information {
                     })
                 }
                 NT::RootDevice => Self::RootDevice(RootDevice::new(
-                    usn.uuid,
+                    Some(usn.uuid),
                     max_age,
                     None,
                     location,
@@ -98,7 +98,7 @@ impl From<Message> for Information {
             }) => match usn.ntst {
                 ST::Service(service) => {
                     let inferred_root_device = RootDevice::new(
-                        usn.uuid,
+                        None,
                         max_age,
                         date,
                         location.clone(),
@@ -115,7 +115,7 @@ impl From<Message> for Information {
                     })
                 }
                 ST::RootDevice => Self::RootDevice(RootDevice::new(
-                    usn.uuid,
+                    Some(usn.uuid),
                     max_age,
                     date,
                     location,
@@ -127,7 +127,7 @@ impl From<Message> for Information {
                 )),
                 ST::Device(device) => {
                     let inferred_root_device = RootDevice::new(
-                        usn.uuid,
+                        None,
                         max_age,
                         date,
                         location.clone(),
@@ -187,7 +187,9 @@ impl DeviceMap {
                     })
                     .or_insert(deviceinfo.inferred_root_device);
                 match root_device.id {
-                    id if id == deviceinfo.id => root_device.device_type = Some(deviceinfo.device),
+                    Some(id) if id == deviceinfo.id => {
+                        root_device.device_type = Some(deviceinfo.device)
+                    }
                     _ => todo!("store embedded device"),
                 }
                 Ok(())
@@ -280,7 +282,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             device_type,
             services,
         } = root_device;
-        assert_eq!(id, &uuid!("c4248768-d6b6-4232-a273-5b1701524493"));
+        assert_eq!(id, &Some(uuid!("c4248768-d6b6-4232-a273-5b1701524493")));
         assert_eq!(
             last_seen,
             &DateTime::parse_from_rfc3339("2026-04-29T08:22:03+00:00").unwrap()
@@ -366,7 +368,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             device_type,
             services,
         } = root_device;
-        assert_eq!(id, &uuid!("c4248768-d6b6-4232-a273-5b1701524493"));
+        assert_eq!(id, &Some(uuid!("c4248768-d6b6-4232-a273-5b1701524493")));
         assert!(last_seen > &DateTime::parse_from_rfc3339("2026-04-29T08:22:03+00:00").unwrap());
         assert_eq!(valid_until, &(*last_seen + Duration::from_secs(1800)));
         assert_eq!(location, &url);
@@ -572,6 +574,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         assert_eq!(
             root_device.valid_until,
             root_device.last_seen + Duration::from_secs(2400)
-        )
+        );
+        assert!(root_device.id.is_none());
     }
 }

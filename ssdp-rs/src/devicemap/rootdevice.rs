@@ -20,7 +20,8 @@ enum Lenient<T> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RootDevice {
-    pub id: Uuid,
+    /// None if this is an inferred root device
+    pub id: Option<Uuid>,
     pub last_seen: DateTime<Utc>,
     pub valid_until: DateTime<Utc>,
     /// URL for UPnP description for root device
@@ -78,7 +79,7 @@ impl RootDevice {
         Cannot use `From` implementations as nested matches on Messages need to own fields."
     )]
     pub fn new(
-        id: Uuid,
+        id: Option<Uuid>,
         max_age: MaxAge,
         date: Option<DateTime<Utc>>,
         location: Location,
