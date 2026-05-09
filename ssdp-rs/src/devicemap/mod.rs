@@ -71,22 +71,17 @@ impl From<Message> for Information {
                         valid_until,
                     })
                 }
-                ST::RootDevice => {
-                    let last_seen = date.unwrap_or_else(Utc::now);
-                    let valid_until = last_seen + *max_age.as_duration();
-                    Self::RootDevice(RootDevice {
-                        id: usn.uuid,
-                        last_seen,
-                        valid_until,
-                        location: location.into_url(),
-                        product: Some(server),
-                        boot_id: boot_id.map(|id| *id.as_u32()),
-                        config_id: config_id.map(|id| *id.as_u32()),
-                        port,
-                        secure_location: secure_location.map(|loc| loc.into_url()),
-                        services: Default::default(),
-                    })
-                }
+                ST::RootDevice => Self::RootDevice(RootDevice::new(
+                    usn.uuid,
+                    max_age,
+                    date,
+                    location,
+                    server,
+                    boot_id,
+                    config_id,
+                    port,
+                    secure_location,
+                )),
                 _ => todo!("other response"),
             },
             _ => todo!("other stuff"),

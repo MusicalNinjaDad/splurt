@@ -9,7 +9,8 @@ use uuid::Uuid;
 use crate::{
     devicemap::Error,
     message::{
-        Message, Notify, Response, ST, Server, ServiceDetails, UpnpPort,
+        BootId, ConfigId, Location, MaxAge, Message, Notify, Response, ST, SecureLocation, Server,
+        ServiceDetails, UpnpPort,
         notify::{Alive, NT},
     },
 };
@@ -143,6 +144,39 @@ impl RootDevice {
             },
             #[expect(unused_variables, reason = "todo")]
             Message::Search(msearch) => todo!("error message"),
+        }
+    }
+
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "Need to construct RootDevice from deconstructed Message fields.
+        Cannot use `From` implementations as nested matches on Messages need to own fields."
+    )]
+    pub fn new(
+        id: Uuid,
+        max_age: MaxAge,
+        date: Option<DateTime<Utc>>,
+        location: Location,
+        server: Server,
+        boot_id: Option<BootId>,
+        config_id: Option<ConfigId>,
+        port: UpnpPort,
+        secure_location: Option<SecureLocation>,
+    ) -> Self {
+        let last_seen = date.unwrap_or_else(Utc::now);
+        let valid_until = last_seen + *max_age.as_duration();
+
+        Self {
+            id,
+            last_seen,
+            valid_until,
+            location: location.into_url(),
+            product: Some(server),
+            boot_id: boot_id.map(|id| *id.as_u32()),
+            config_id: config_id.map(|id| *id.as_u32()),
+            port,
+            secure_location: secure_location.map(|loc| loc.into_url()),
+            services: Default::default(),
         }
     }
 }
