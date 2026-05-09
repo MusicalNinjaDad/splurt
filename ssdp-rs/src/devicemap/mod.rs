@@ -61,6 +61,17 @@ impl From<Message> for Information {
                         inferred_root_device,
                     })
                 }
+                NT::RootDevice => Self::RootDevice(RootDevice::new(
+                    usn.uuid,
+                    max_age,
+                    None,
+                    location,
+                    server,
+                    boot_id,
+                    config_id,
+                    port,
+                    secure_location,
+                )),
                 _ => todo!("other alive"),
             },
             Message::Search(_) => Self::ControlPoint(msg),
