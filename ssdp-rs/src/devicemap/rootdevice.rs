@@ -6,13 +6,9 @@ use chrono::{DateTime, Utc};
 use url::Url;
 use uuid::Uuid;
 
-use crate::{
-    devicemap::Error,
-    message::{
-        BootId, ConfigId, Location, MaxAge, Message, Notify, Response, ST, SecureLocation, Server,
-        ServiceDetails, UpnpPort,
-        notify::{Alive, NT},
-    },
+use crate::message::{
+    BootId, ConfigId, Location, MaxAge, Message, ST, SecureLocation, Server, ServiceDetails,
+    UpnpPort, notify::NT,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -56,79 +52,6 @@ pub struct RootDevice {
     pub secure_location: Option<Url>,
     /// Services offered by this device
     pub services: HashSet<ServiceDetails>,
-}
-
-#[expect(clippy::infallible_try_from, reason = "probably to be deprecated")]
-impl TryFrom<Message> for RootDevice {
-    type Error = Error;
-
-    fn try_from(msg: Message) -> Result<Self, Self::Error> {
-        match msg {
-            // TODO hint & document `cold_path()` on error arms.
-            // This should be called on something known to be about a RootDevice
-            Message::Notify(notify) if matches!(notify.nt(), NT::RootDevice) => match notify {
-                Notify::Alive(alive) => {
-                    let Alive {
-                        max_age,
-                        location,
-                        server,
-                        usn,
-                        boot_id,
-                        config_id,
-                        port,
-                        secure_location,
-                    } = alive;
-                    let last_seen = Utc::now();
-                    let valid_until = last_seen + *max_age.as_duration();
-                    Ok(Self {
-                        id: usn.uuid,
-                        last_seen,
-                        valid_until,
-                        location: location.into_url(),
-                        product: Some(server),
-                        boot_id: boot_id.map(|id| *id.as_u32()),
-                        config_id: config_id.map(|id| *id.as_u32()),
-                        port,
-                        secure_location: secure_location.map(|loc| loc.into_url()),
-                        services: Default::default(),
-                    })
-                }
-                #[expect(unused_variables, reason = "todo")]
-                Notify::ByeBye(bye_bye) => todo!("remove root device based on bybebye"),
-                #[expect(unused_variables, reason = "todo")]
-                Notify::Update(update) => todo!("update or infer root device from update"),
-            },
-            Message::Response(response) if matches!(response.usn.ntst, ST::RootDevice) => {
-                let Response {
-                    max_age,
-                    date,
-                    location,
-                    server,
-                    usn,
-                    boot_id,
-                    config_id,
-                    port,
-                    secure_location,
-                    ..
-                } = response;
-                let last_seen = date.unwrap_or_else(Utc::now);
-                let valid_until = last_seen + *max_age.as_duration();
-                Ok(Self {
-                    id: usn.uuid,
-                    last_seen,
-                    valid_until,
-                    location: location.into_url(),
-                    product: Some(server),
-                    boot_id: boot_id.map(|id| *id.as_u32()),
-                    config_id: config_id.map(|id| *id.as_u32()),
-                    port,
-                    secure_location: secure_location.map(|loc| loc.into_url()),
-                    services: Default::default(),
-                })
-            }
-            _ => todo!("error for parsing somthing that's not a root_device"),
-        }
-    }
 }
 
 impl RootDevice {
