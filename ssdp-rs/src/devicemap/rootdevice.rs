@@ -1,6 +1,6 @@
 //! A heirarchical map of rootdevice[/device]/service
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use chrono::{DateTime, Utc};
 use url::Url;
@@ -53,6 +53,7 @@ pub struct RootDevice {
     pub secure_location: Option<Url>,
     /// The core device type of the root device, if known
     pub device_type: Option<DeviceDetails>,
+    pub embedded_devices: HashMap<Uuid, DeviceDetails>,
     /// Services directly offered by this root device
     pub services: HashSet<ServiceDetails>,
 }
@@ -103,6 +104,7 @@ impl RootDevice {
             port,
             secure_location: secure_location.map(|loc| loc.into_url()),
             device_type: None,
+            embedded_devices: Default::default(),
             services: Default::default(),
         }
     }

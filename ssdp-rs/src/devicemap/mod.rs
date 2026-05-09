@@ -280,6 +280,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             port,
             secure_location,
             device_type,
+            embedded_devices,
             services,
         } = root_device;
         assert_eq!(id, &Some(uuid!("c4248768-d6b6-4232-a273-5b1701524493")));
@@ -366,6 +367,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             port,
             secure_location,
             device_type,
+            embedded_devices,
             services,
         } = root_device;
         assert_eq!(id, &Some(uuid!("c4248768-d6b6-4232-a273-5b1701524493")));
@@ -460,6 +462,11 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         let mut devices = DeviceMap::new();
         let url =
             Url::parse("http://192.168.0.84:1400/xml/device_description.xml").expect("valid url");
+        let id = uuid!("c4248768-d6b6-4232-a273-5b1701524493");
+        let devicedetails = DeviceDetails {
+            vendor: Vendor::Standard,
+            device: Device::ZonePlayer { ver: 1 },
+        };
 
         let device = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1800
@@ -486,6 +493,12 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             // need &devices
             let root_device = devices.inner.get(&url).expect("root device registered");
             assert!(root_device.device_type.is_none());
+            let embedded_device = root_device
+                .embedded_devices
+                .get(&id)
+                .expect("device embedded");
+            assert_eq!(embedded_device, &devicedetails);
+            assert!(root_device.id.is_none());
         } // drop &devices
 
         let response = r#"HTTP/1.1 200 OK
@@ -510,13 +523,9 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         let message = response.parse::<Message>().expect("valid message");
         devices.process(message).expect("process message");
         let root_device = devices.inner.get(&url).expect("root device registered");
-        assert_matches!(
-            root_device.device_type,
-            Some(DeviceDetails {
-                vendor: Vendor::Standard,
-                device: Device::ZonePlayer { ver: 1 }
-            })
-        );
+        assert_eq!(root_device.device_type, Some(devicedetails));
+        assert!(root_device.embedded_devices.is_empty());
+        assert_eq!(root_device.id, Some(id));
     }
 
     #[test]
