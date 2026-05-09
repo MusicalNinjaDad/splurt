@@ -20,6 +20,7 @@ impl Display for DeviceDetails {
 pub enum Device {
     BinaryLight { ver: String },
     MediaServer { ver: String },
+    ZonePlayer { ver: u8 },
     Other { device_type: String, ver: String },
 }
 
@@ -36,6 +37,12 @@ impl Device {
         let device = match device_type.as_str() {
             "BinaryLight" => Device::BinaryLight { ver },
             "MediaServer" => Device::MediaServer { ver },
+            "ZonePlayer" => Device::ZonePlayer {
+                ver: ver
+                    .as_str()
+                    .parse()
+                    .map_err(|_| ErrorKind::InvalidDevice(format!("{}:{}", device_type, ver)))?,
+            },
             _ => Device::Other { device_type, ver },
         };
         Ok(device)
@@ -47,6 +54,7 @@ impl Display for Device {
         match self {
             Device::BinaryLight { ver } => write!(f, "BinaryLight:{}", ver),
             Device::MediaServer { ver } => write!(f, "MediaServer:{}", ver),
+            Device::ZonePlayer { ver } => write!(f, "ZonePlayer:{}", ver),
             Device::Other { device_type, ver } => write!(f, "{}:{}", device_type, ver),
         }
     }

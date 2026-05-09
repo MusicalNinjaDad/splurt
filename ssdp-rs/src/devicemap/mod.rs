@@ -116,6 +116,7 @@ impl From<Message> for Information {
                     port,
                     secure_location,
                 )),
+                ST::Device(device) => todo!("parse device response"),
                 _ => todo!("other response"),
             },
             _ => todo!("other stuff"),
@@ -179,7 +180,7 @@ impl Default for DeviceMap {
 mod tests {
     use crate::{
         devicemap::rootdevice::RootDevice,
-        message::{Message, Server, UPNP_VERSION1, UpnpPort},
+        message::{Device, DeviceDetails, Message, Server, UPNP_VERSION1, UpnpPort, Vendor},
     };
 
     #[cfg(assert_matches_in_root)]
@@ -336,6 +337,77 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         );
         assert!(device_type.is_none());
         assert!(services.is_empty());
+    }
+
+    #[test]
+    #[should_panic(expected = "parse device response")]
+    fn identify_root_device_type() {
+        let mut devices = DeviceMap::new();
+        let url =
+            Url::parse("http://192.168.0.84:1400/xml/device_description.xml").expect("valid url");
+
+        let response = r#"HTTP/1.1 200 OK
+CACHE-CONTROL: max-age = 1800
+DATE: Wed, 29 Apr 2026 08:22:03 GMT
+EXT:
+LOCATION: http://192.168.0.84:1400/xml/device_description.xml
+SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
+ST: upnp:rootdevice
+USN: uuid:c4248768-d6b6-4232-a273-5b1701524493::upnp:rootdevice
+X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
+X-RINCON-BOOTSEQ: 6
+BOOTID.UPNP.ORG: 6
+X-RINCON-WIFIMODE: 1
+X-RINCON-VARIANT: 2
+HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
+LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
+SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
+X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
+
+"#;
+        let message = response.parse::<Message>().expect("valid message");
+        devices.process(message).expect("process message");
+        assert!(
+            devices
+                .inner
+                .get(&url)
+                .expect("root device registered")
+                .device_type
+                .is_none()
+        );
+
+        let device = r#"HTTP/1.1 200 OK
+CACHE-CONTROL: max-age = 1800
+DATE: Wed, 29 Apr 2026 08:22:03 GMT
+EXT:
+LOCATION: http://192.168.0.84:1400/xml/device_description.xml
+SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
+ST: urn:schemas-upnp-org:device:ZonePlayer:1
+USN: uuid:c4248768-d6b6-4232-a273-5b1701524493::urn:schemas-upnp-org:device:ZonePlayer:1
+X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
+X-RINCON-BOOTSEQ: 6
+BOOTID.UPNP.ORG: 6
+X-RINCON-WIFIMODE: 1
+X-RINCON-VARIANT: 2
+HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
+LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
+SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
+X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
+
+"#;
+        let message = device.parse::<Message>().expect("valid message");
+        devices.process(message).expect("process message");
+        assert_matches!(
+            devices
+                .inner
+                .get(&url)
+                .expect("root device registered")
+                .device_type,
+            Some(DeviceDetails {
+                vendor: Vendor::Standard,
+                device: Device::ZonePlayer { ver: 1 }
+            })
+        );
     }
 
     #[test]
