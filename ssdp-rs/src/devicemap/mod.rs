@@ -24,26 +24,42 @@ pub enum Information {
     ControlPoint(Message),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ServiceInfo {
     service: ServiceDetails,
     id: Uuid,
-    last_seen: DateTime<Utc>,
-    valid_until: DateTime<Utc>,
+    inferred_root_device: RootDevice,
 }
 
 impl From<Message> for Information {
     fn from(msg: Message) -> Self {
         match msg {
-            Message::Notify(Notify::Alive(Alive { usn, max_age, .. })) => match usn.ntst {
+            Message::Notify(Notify::Alive(Alive {
+                max_age,
+                location,
+                server,
+                usn,
+                boot_id,
+                config_id,
+                port,
+                secure_location,
+            })) => match usn.ntst {
                 NT::Service(service) => {
-                    let last_seen = Utc::now();
-                    let valid_until = last_seen + *max_age.as_duration();
+                    let inferred_root_device = RootDevice::new(
+                        usn.uuid,
+                        max_age,
+                        None,
+                        location,
+                        server,
+                        boot_id,
+                        config_id,
+                        port,
+                        secure_location,
+                    );
                     Self::Service(ServiceInfo {
                         service,
                         id: usn.uuid,
-                        last_seen,
-                        valid_until,
+                        inferred_root_device,
                     })
                 }
                 _ => todo!("other alive"),
@@ -62,13 +78,21 @@ impl From<Message> for Information {
                 ..
             }) => match usn.ntst {
                 ST::Service(service) => {
-                    let last_seen = date.unwrap_or_else(Utc::now);
-                    let valid_until = last_seen + *max_age.as_duration();
+                    let inferred_root_device = RootDevice::new(
+                        usn.uuid,
+                        max_age,
+                        date,
+                        location,
+                        server,
+                        boot_id,
+                        config_id,
+                        port,
+                        secure_location,
+                    );
                     Self::Service(ServiceInfo {
                         service,
                         id: usn.uuid,
-                        last_seen,
-                        valid_until,
+                        inferred_root_device,
                     })
                 }
                 ST::RootDevice => Self::RootDevice(RootDevice::new(
@@ -124,8 +148,8 @@ impl DeviceMap {
                 // as long as a control point has received at least one advertisement that is still
                 // valid from a root device, any of its embedded devices or any of its services,
                 // then the control point can assume that all are available.
-                root_device.last_seen = serviceinfo.last_seen;
-                root_device.valid_until = serviceinfo.valid_until;
+                root_device.last_seen = serviceinfo.inferred_root_device.last_seen;
+                root_device.valid_until = serviceinfo.inferred_root_device.valid_until;
                 Ok(())
             }
             #[expect(unused_variables, reason = "todo")]
