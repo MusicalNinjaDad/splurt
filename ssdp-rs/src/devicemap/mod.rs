@@ -29,17 +29,23 @@ pub struct ServiceInfo {
     service: ServiceDetails,
     id: Uuid,
     last_seen: DateTime<Utc>,
+    valid_until: DateTime<Utc>,
 }
 
 impl From<Message> for Information {
     fn from(msg: Message) -> Self {
         match msg {
-            Message::Notify(Notify::Alive(Alive { usn, .. })) => match usn.ntst {
-                NT::Service(service) => Self::Service(ServiceInfo {
-                    service,
-                    id: usn.uuid,
-                    last_seen: Utc::now(),
-                }),
+            Message::Notify(Notify::Alive(Alive { usn, max_age, .. })) => match usn.ntst {
+                NT::Service(service) => {
+                    let last_seen = Utc::now();
+                    let valid_until = last_seen + *max_age.as_duration();
+                    Self::Service(ServiceInfo {
+                        service,
+                        id: usn.uuid,
+                        last_seen,
+                        valid_until,
+                    })
+                }
                 _ => todo!("other alive"),
             },
             Message::Search(_) => Self::ControlPoint(msg),
@@ -57,10 +63,12 @@ impl From<Message> for Information {
             }) => match usn.ntst {
                 ST::Service(service) => {
                     let last_seen = date.unwrap_or_else(Utc::now);
+                    let valid_until = last_seen + *max_age.as_duration();
                     Self::Service(ServiceInfo {
                         service,
                         id: usn.uuid,
                         last_seen,
+                        valid_until,
                     })
                 }
                 ST::RootDevice => {
@@ -122,6 +130,7 @@ impl DeviceMap {
                 // valid from a root device, any of its embedded devices or any of its services,
                 // then the control point can assume that all are available.
                 root_device.last_seen = serviceinfo.last_seen;
+                root_device.valid_until = serviceinfo.valid_until;
                 Ok(())
             }
             #[expect(unused_variables, reason = "todo")]
@@ -270,10 +279,17 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
                 DateTime::parse_from_rfc3339("2026-04-29T08:22:03+00:00")
                     .expect("when this test was written")
                     .to_utc()
+            );
+            assert_eq!(
+                root_device.valid_until,
+                (DateTime::parse_from_rfc3339("2026-04-29T08:22:03+00:00")
+                    .expect("when this test was written")
+                    .to_utc()
+                    + Duration::from_secs(1800))
             )
         } // drop &devices
         let service = r#"HTTP/1.1 200 OK
-CACHE-CONTROL: max-age = 1800
+CACHE-CONTROL: max-age = 2400
 EXT:
 LOCATION: http://192.168.0.84:1400/xml/device_description.xml
 SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
@@ -300,6 +316,10 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
                 root_device.last_seen > (Utc::now() - Duration::from_secs(60)),
                 "root device last seen at {}",
                 root_device.last_seen
+            );
+            assert_eq!(
+                root_device.valid_until,
+                root_device.last_seen + Duration::from_secs(2400)
             )
         }
     }
