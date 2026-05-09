@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use url::Url;
+use uuid::Uuid;
 
 use crate::{
     devicemap::rootdevice::RootDevice,
@@ -33,6 +34,7 @@ pub struct ServiceInfo {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeviceInfo {
     device: DeviceDetails,
+    id: Uuid,
     location: Url,
     inferred_root_device: RootDevice,
 }
@@ -137,6 +139,7 @@ impl From<Message> for Information {
                     );
                     Self::Device(DeviceInfo {
                         device,
+                        id: usn.uuid,
                         location: location.into_url(),
                         inferred_root_device,
                     })
@@ -171,8 +174,24 @@ impl DeviceMap {
                 self.insert(root_device);
                 Ok(())
             }
-            #[expect(unused_variables, reason = "todo")]
-            Information::Device(message) => todo!("process devices"),
+            Information::Device(deviceinfo) => {
+                let root_device = self
+                    .inner
+                    .entry(deviceinfo.location)
+                    // as long as a control point has received at least one advertisement that is still
+                    // valid from a root device, any of its embedded devices or any of its services,
+                    // then the control point can assume that all are available.
+                    .and_modify(|rd| {
+                        rd.last_seen = deviceinfo.inferred_root_device.last_seen;
+                        rd.valid_until = deviceinfo.inferred_root_device.valid_until;
+                    })
+                    .or_insert(deviceinfo.inferred_root_device);
+                match root_device.id {
+                    id if id == deviceinfo.id => root_device.device_type = Some(deviceinfo.device),
+                    _ => todo!("store embedded device"),
+                }
+                Ok(())
+            }
             Information::Service(serviceinfo) => {
                 let root_device = self
                     .inner
@@ -364,7 +383,6 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented: process devices")]
     fn identify_root_device_type() {
         let mut devices = DeviceMap::new();
         let url =
