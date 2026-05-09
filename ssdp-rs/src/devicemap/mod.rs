@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::{
@@ -28,6 +28,7 @@ pub enum Information {
 pub struct ServiceInfo {
     service: ServiceDetails,
     id: Uuid,
+    last_seen: DateTime<Utc>,
 }
 
 impl From<Message> for Information {
@@ -37,6 +38,7 @@ impl From<Message> for Information {
                 NT::Service(service) => Self::Service(ServiceInfo {
                     service,
                     id: usn.uuid,
+                    last_seen: Utc::now(),
                 }),
                 _ => todo!("other alive"),
             },
@@ -53,10 +55,14 @@ impl From<Message> for Information {
                 secure_location,
                 ..
             }) => match usn.ntst {
-                ST::Service(service) => Self::Service(ServiceInfo {
-                    service,
-                    id: usn.uuid,
-                }),
+                ST::Service(service) => {
+                    let last_seen = date.unwrap_or_else(Utc::now);
+                    Self::Service(ServiceInfo {
+                        service,
+                        id: usn.uuid,
+                        last_seen,
+                    })
+                }
                 ST::RootDevice => {
                     let last_seen = date.unwrap_or_else(Utc::now);
                     let valid_until = last_seen + *max_age.as_duration();
@@ -112,6 +118,10 @@ impl DeviceMap {
                     .ok_or_else(|| todo!("handle missing root"))
                     .unwrap();
                 root_device.services.insert(serviceinfo.service);
+                // as long as a control point has received at least one advertisement that is still
+                // valid from a root device, any of its embedded devices or any of its services,
+                // then the control point can assume that all are available.
+                root_device.last_seen = serviceinfo.last_seen;
                 Ok(())
             }
             #[expect(unused_variables, reason = "todo")]
@@ -135,9 +145,11 @@ mod tests {
 
     #[cfg(assert_matches_in_module)]
     use std::assert_matches::assert_matches;
+    use std::time::Duration;
 
     use super::*;
 
+    use chrono::DateTime;
     use uuid::uuid;
 
     #[test]
@@ -226,6 +238,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
         let root_device = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1800
+DATE: Wed, 29 Apr 2026 08:22:03 GMT
 EXT:
 LOCATION: http://192.168.0.84:1400/xml/device_description.xml
 SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
@@ -249,9 +262,16 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             .expect("process root device message");
         assert!(devices.inner.contains_key(&id));
         {
+            // acquire &devices
             let root_device = devices.inner.get(&id).expect("root device is there");
             assert_eq!(root_device.services.len(), 0);
-        }
+            assert_eq!(
+                root_device.last_seen,
+                DateTime::parse_from_rfc3339("2026-04-29T08:22:03+00:00")
+                    .expect("when this test was written")
+                    .to_utc()
+            )
+        } // drop &devices
         let service = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1800
 EXT:
@@ -271,10 +291,16 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
 "#;
         let service = service.parse::<Message>().expect("valid service");
+        // needs &mut devices
         devices.process(service).expect("process service message");
         {
             let root_device = devices.inner.get(&id).expect("root device still there");
             assert_eq!(root_device.services.len(), 1);
+            assert!(
+                root_device.last_seen > (Utc::now() - Duration::from_secs(60)),
+                "root device last seen at {}",
+                root_device.last_seen
+            )
         }
     }
 }
