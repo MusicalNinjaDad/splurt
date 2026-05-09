@@ -539,6 +539,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     }
 
     #[test]
+    //TODO: Work out new semantics - store in an inferred device in an inferred root device??
     fn infer_root_from_service() {
         let mut devices = DeviceMap::new();
         let url =
