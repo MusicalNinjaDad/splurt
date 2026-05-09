@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use uuid::Uuid;
+use url::Url;
 
 use crate::{
     devicemap::rootdevice::RootDevice,
@@ -26,7 +26,7 @@ pub enum Information {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ServiceInfo {
     service: ServiceDetails,
-    id: Uuid,
+    location: Url,
     inferred_root_device: RootDevice,
 }
 
@@ -48,7 +48,7 @@ impl From<Message> for Information {
                         usn.uuid,
                         max_age,
                         None,
-                        location,
+                        location.clone(),
                         server,
                         boot_id,
                         config_id,
@@ -57,7 +57,7 @@ impl From<Message> for Information {
                     );
                     Self::Service(ServiceInfo {
                         service,
-                        id: usn.uuid,
+                        location: location.into_url(),
                         inferred_root_device,
                     })
                 }
@@ -92,7 +92,7 @@ impl From<Message> for Information {
                         usn.uuid,
                         max_age,
                         date,
-                        location,
+                        location.clone(),
                         server,
                         boot_id,
                         config_id,
@@ -101,7 +101,7 @@ impl From<Message> for Information {
                     );
                     Self::Service(ServiceInfo {
                         service,
-                        id: usn.uuid,
+                        location: location.into_url(),
                         inferred_root_device,
                     })
                 }
@@ -125,7 +125,7 @@ impl From<Message> for Information {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeviceMap {
-    inner: HashMap<Uuid, RootDevice>,
+    inner: HashMap<Url, RootDevice>,
 }
 
 impl DeviceMap {
@@ -136,7 +136,7 @@ impl DeviceMap {
     }
 
     pub fn insert(&mut self, root_device: RootDevice) -> Option<RootDevice> {
-        self.inner.insert(root_device.id, root_device)
+        self.inner.insert(root_device.location.clone(), root_device)
     }
 
     pub fn process(&mut self, message: Message) -> Result<(), Error> {
@@ -151,7 +151,7 @@ impl DeviceMap {
             Information::Service(serviceinfo) => {
                 let root_device = self
                     .inner
-                    .entry(serviceinfo.id)
+                    .entry(serviceinfo.location)
                     // as long as a control point has received at least one advertisement that is still
                     // valid from a root device, any of its embedded devices or any of its services,
                     // then the control point can assume that all are available.
@@ -198,7 +198,8 @@ mod tests {
     #[test]
     fn root_from_response() {
         let mut devices = DeviceMap::new();
-        let id = uuid!("c4248768-d6b6-4232-a273-5b1701524493");
+        let url =
+            Url::parse("http://192.168.0.84:1400/xml/device_description.xml").expect("valid url");
 
         let response = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1800
@@ -221,7 +222,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 "#;
         let message = response.parse::<Message>().expect("valid message");
         devices.process(message).expect("process message");
-        let root_device = devices.inner.get(&id).expect("device created");
+        let root_device = devices.inner.get(&url).expect("device created");
         let RootDevice {
             id,
             last_seen,
@@ -243,10 +244,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             valid_until,
             &DateTime::parse_from_rfc3339("2026-04-29T08:52:03+00:00").unwrap()
         );
-        assert_eq!(
-            location,
-            &Url::parse("http://192.168.0.84:1400/xml/device_description.xml").expect("valid url")
-        );
+        assert_eq!(location, &url);
         assert_matches!(product, Some(product) if product == &Server { os: "Linux".to_string(), os_version: "".to_string(),
          upnp_version: UPNP_VERSION1, product_name: "Sonos".to_string(), product_version: "85.0-64200 (ZPS29)".to_string() });
         assert_matches!(boot_id, Some(id) if id == &6);
@@ -261,7 +259,8 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     #[test]
     fn update_from_notify() {
         let mut devices = DeviceMap::new();
-        let id = uuid!("c4248768-d6b6-4232-a273-5b1701524493");
+        let url =
+            Url::parse("http://192.168.0.84:1400/xml/device_description.xml").expect("valid url");
 
         let response = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1800
@@ -284,7 +283,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 "#;
         let message = response.parse::<Message>().expect("valid message");
         devices.process(message).expect("process message");
-        assert!(devices.inner.contains_key(&id));
+        assert!(devices.inner.contains_key(&url));
 
         let notify = r#"NOTIFY * HTTP/1.1
 HOST: 239.255.255.250:1900
@@ -307,7 +306,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 "#;
         let message = notify.parse::<Message>().expect("valid notify");
         devices.process(message).expect("process notify");
-        let root_device = devices.inner.get(&id).expect("device created");
+        let root_device = devices.inner.get(&url).expect("device created");
         let RootDevice {
             id,
             last_seen,
@@ -323,10 +322,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         assert_eq!(id, &uuid!("c4248768-d6b6-4232-a273-5b1701524493"));
         assert!(last_seen > &DateTime::parse_from_rfc3339("2026-04-29T08:22:03+00:00").unwrap());
         assert_eq!(valid_until, &(*last_seen + Duration::from_secs(1800)));
-        assert_eq!(
-            location,
-            &Url::parse("http://192.168.0.84:1400/xml/device_description.xml").expect("valid url")
-        );
+        assert_eq!(location, &url);
         assert_matches!(product, Some(product) if product == &Server { os: "Linux".to_string(), os_version: "".to_string(),
          upnp_version: UPNP_VERSION1, product_name: "Sonos".to_string(), product_version: "85.0-64200 (ZPS29)".to_string() });
         assert_matches!(boot_id, Some(id) if id == &6);
@@ -341,6 +337,8 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     #[test]
     fn add_service() {
         let mut devices = DeviceMap::new();
+        let url =
+            Url::parse("http://192.168.0.84:1400/xml/device_description.xml").expect("valid url");
 
         let root_device = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1800
@@ -361,15 +359,14 @@ SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
 X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
 "#;
-        let id = uuid!("c4248768-d6b6-4232-a273-5b1701524493");
         let root_device = root_device.parse::<Message>().expect("valid message");
         devices
             .process(root_device)
             .expect("process root device message");
-        assert!(devices.inner.contains_key(&id));
+        assert!(devices.inner.contains_key(&url));
         {
             // acquire &devices
-            let root_device = devices.inner.get(&id).expect("root device is there");
+            let root_device = devices.inner.get(&url).expect("root device is there");
             assert_eq!(root_device.services.len(), 0);
             assert_eq!(
                 root_device.last_seen,
@@ -407,7 +404,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         // needs &mut devices
         devices.process(service).expect("process service message");
         {
-            let root_device = devices.inner.get(&id).expect("root device still there");
+            let root_device = devices.inner.get(&url).expect("root device still there");
             assert_eq!(root_device.services.len(), 1);
             assert!(
                 root_device.last_seen > (Utc::now() - Duration::from_secs(60)),
@@ -424,7 +421,8 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     #[test]
     fn infer_root_from_service() {
         let mut devices = DeviceMap::new();
-        let id = uuid!("c4248768-d6b6-4232-a273-5b1701524493");
+        let url =
+            Url::parse("http://192.168.0.84:1400/xml/device_description.xml").expect("valid url");
 
         let service = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 2400
@@ -446,7 +444,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 "#;
         let service = service.parse::<Message>().expect("valid service");
         devices.process(service).expect("process service message");
-        let root_device = devices.inner.get(&id).expect("root device still there");
+        let root_device = devices.inner.get(&url).expect("root device still there");
         assert_eq!(root_device.services.len(), 1);
         assert!(
             root_device.last_seen > (Utc::now() - Duration::from_secs(60)),
