@@ -190,7 +190,11 @@ impl DeviceMap {
                     Some(id) if id == deviceinfo.id => {
                         root_device.device_type = Some(deviceinfo.device)
                     }
-                    _ => todo!("store embedded device"),
+                    _ => {
+                        root_device
+                            .embedded_devices
+                            .insert(deviceinfo.id, deviceinfo.device);
+                    }
                 }
                 Ok(())
             }
@@ -457,7 +461,6 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     }
 
     #[test]
-    #[should_panic(expected = "not yet implemented: store embedded device")]
     fn promote_device_to_root() {
         let mut devices = DeviceMap::new();
         let url =
