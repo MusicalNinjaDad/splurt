@@ -233,6 +233,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             config_id,
             port,
             secure_location,
+            device_type,
             services,
         } = root_device;
         assert_eq!(id, &uuid!("c4248768-d6b6-4232-a273-5b1701524493"));
@@ -253,6 +254,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         assert_matches!(secure_location, Some(secure_location)
             if secure_location == &Url::parse("https://192.168.0.84:1443/xml/device_description.xml").expect("valid https url")
         );
+        assert!(device_type.is_none());
         assert!(services.is_empty());
     }
 
@@ -317,6 +319,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             config_id,
             port,
             secure_location,
+            device_type,
             services,
         } = root_device;
         assert_eq!(id, &uuid!("c4248768-d6b6-4232-a273-5b1701524493"));
@@ -331,6 +334,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         assert_matches!(secure_location, Some(secure_location)
             if secure_location == &Url::parse("https://192.168.0.84:1443/xml/device_description.xml").expect("valid https url")
         );
+        assert!(device_type.is_none());
         assert!(services.is_empty());
     }
 

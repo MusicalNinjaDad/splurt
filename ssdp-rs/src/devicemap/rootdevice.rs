@@ -7,8 +7,8 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::message::{
-    BootId, ConfigId, Location, MaxAge, Message, ST, SecureLocation, Server, ServiceDetails,
-    UpnpPort, notify::NT,
+    BootId, ConfigId, DeviceDetails, Location, MaxAge, Message, ST, SecureLocation, Server,
+    ServiceDetails, UpnpPort, notify::NT,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -50,7 +50,9 @@ pub struct RootDevice {
     /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
     /// Required when device protection is implemented.
     pub secure_location: Option<Url>,
-    /// Services offered by this device
+    /// The core device type of the root device, if known
+    pub device_type: Option<DeviceDetails>,
+    /// Services directly offered by this root device
     pub services: HashSet<ServiceDetails>,
 }
 
@@ -99,6 +101,7 @@ impl RootDevice {
             config_id: config_id.map(|id| *id.as_u32()),
             port,
             secure_location: secure_location.map(|loc| loc.into_url()),
+            device_type: None,
             services: Default::default(),
         }
     }
