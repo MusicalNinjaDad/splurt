@@ -249,6 +249,9 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
     #[test]
     fn update_from_notify() {
+        let mut devices = DeviceMap::new();
+        let id = uuid!("c4248768-d6b6-4232-a273-5b1701524493");
+
         let response = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1800
 DATE: Wed, 29 Apr 2026 08:22:03 GMT
@@ -268,12 +271,10 @@ SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
 X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
 "#;
-        let mut devices = DeviceMap::new();
-        let response = response.parse::<Message>().expect("valid message");
-        let root_device: RootDevice = response.try_into().expect("a root device");
-        let root_device1 = root_device.clone();
-        let old_entry = devices.insert(root_device);
-        assert!(old_entry.is_none());
+        let message = response.parse::<Message>().expect("valid message");
+        devices.process(message).expect("process message");
+        assert!(devices.inner.contains_key(&id));
+
         let notify = r#"NOTIFY * HTTP/1.1
 HOST: 239.255.255.250:1900
 CACHE-CONTROL: max-age = 1800
@@ -293,10 +294,37 @@ SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
 X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
 "#;
-        let notify = notify.parse::<Message>().expect("valid message");
-        let root_device: RootDevice = notify.try_into().expect("a root device");
-        let old_entry = devices.insert(root_device);
-        assert_matches!(old_entry, Some(old_entry) if old_entry == root_device1);
+        let message = notify.parse::<Message>().expect("valid notify");
+        devices.process(message).expect("process notify");
+        let root_device = devices.inner.get(&id).expect("device created");
+        let RootDevice {
+            id,
+            last_seen,
+            valid_until,
+            location,
+            product,
+            boot_id,
+            config_id,
+            port,
+            secure_location,
+            services,
+        } = root_device;
+        assert_eq!(id, &uuid!("c4248768-d6b6-4232-a273-5b1701524493"));
+        assert!(last_seen > &DateTime::parse_from_rfc3339("2026-04-29T08:22:03+00:00").unwrap());
+        assert_eq!(valid_until, &(*last_seen + Duration::from_secs(1800)));
+        assert_eq!(
+            location,
+            &Url::parse("http://192.168.0.84:1400/xml/device_description.xml").expect("valid url")
+        );
+        assert_matches!(product, Some(product) if product == &Server { os: "Linux".to_string(), os_version: "".to_string(),
+         upnp_version: UPNP_VERSION1, product_name: "Sonos".to_string(), product_version: "85.0-64200 (ZPS29)".to_string() });
+        assert_matches!(boot_id, Some(id) if id == &6);
+        assert!(config_id.is_none());
+        assert_matches!(port, UpnpPort::Default);
+        assert_matches!(secure_location, Some(secure_location)
+            if secure_location == &Url::parse("https://192.168.0.84:1443/xml/device_description.xml").expect("valid https url")
+        );
+        assert!(services.is_empty());
     }
 
     #[test]
