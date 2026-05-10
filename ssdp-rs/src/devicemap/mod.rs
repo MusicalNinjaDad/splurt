@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, hash_map::Entry};
 
 use url::Url;
 
@@ -221,18 +221,24 @@ impl DeviceMap {
                 Ok(())
             }
             Information::Service(serviceinfo) => {
-                let root_device = self
+                match self
                     .inner
                     .entry(serviceinfo.inferred_root_device.location.clone())
-                    // as long as a control point has received at least one advertisement that is still
-                    // valid from a root device, any of its embedded devices or any of its services,
-                    // then the control point can assume that all are available.
-                    .and_modify(|rd| {
+                {
+                    Entry::Occupied(mut rd) => {
+                        let rd = rd.get_mut();
+                        // as long as a control point has received at least one advertisement that is still
+                        // valid from a root device, any of its embedded devices or any of its services,
+                        // then the control point can assume that all are available.
                         rd.last_seen = serviceinfo.inferred_root_device.last_seen;
                         rd.valid_until = serviceinfo.inferred_root_device.valid_until;
-                    })
-                    .or_insert(serviceinfo.inferred_root_device);
-                root_device.services.insert(serviceinfo.service);
+                        rd.services.insert(serviceinfo.service);
+                    }
+                    Entry::Vacant(rd) => {
+                        let rd = rd.insert(serviceinfo.inferred_root_device);
+                        rd.services.insert(serviceinfo.service);
+                    }
+                }
                 Ok(())
             }
             #[expect(unused_variables, reason = "todo")]
