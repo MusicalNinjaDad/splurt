@@ -180,13 +180,15 @@ impl DeviceMap {
                         match rd.id {
                             Some(_id) => (), // Previously confirmed root device details
                             None => {
-                                // Inferred root device
+                                // We had an inferred root device with inferred embedded device which
+                                // actually describes the root's core capability.
                                 match root_device.id {
-                                    None => (), // We are again looking at an inferred root device
-                                    Some(id) => {
-                                        let this_device = rd.embedded_devices.get(&id);
+                                    Some(id)
+                                        if let Some(this_device) = rd.embedded_devices.get(&id) =>
+                                    {
                                         todo!("inferred root device")
                                     }
+                                    _ => (),
                                 }
                             }
                         }
@@ -481,6 +483,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     }
 
     #[test]
+    #[should_panic(expected = "inferred root device")]
     fn promote_device_to_root() {
         let mut devices = DeviceMap::new();
         let url =
