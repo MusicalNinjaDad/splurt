@@ -251,7 +251,9 @@ impl Default for DeviceMap {
 mod tests {
     use crate::{
         devicemap::rootdevice::RootDevice,
-        message::{Device, DeviceDetails, Message, Server, UPNP_VERSION1, UpnpPort, Vendor},
+        message::{
+            Device, DeviceDetails, Message, Server, Service, UPNP_VERSION1, UpnpPort, Vendor,
+        },
     };
 
     #[cfg(assert_matches_in_root)]
@@ -694,5 +696,14 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             .expect("inferred embedded device");
         assert_eq!(embedded_device.id, id);
         assert!(embedded_device.device_type.is_none());
+        assert_eq!(embedded_device.services.len(), 1);
+        let service = embedded_device.services.iter().next().unwrap();
+        assert_eq!(
+            service,
+            &ServiceDetails {
+                vendor: Vendor::Standard,
+                service: Service::AVTransport { ver: 1 }
+            }
+        );
     }
 }
