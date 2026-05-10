@@ -182,7 +182,7 @@ impl DeviceMap {
                                 if let Some(this_device) =
                                     known_rd.embedded_devices.remove(&this_id) =>
                             {
-                                known_rd.device_type = Some(this_device);
+                                known_rd.device_type = Some(this_device.device_type);
                                 // Relies on invariant from previous arm: this_id != known_id
                                 // Is a no-op if root_device was already known.
                                 // Current code should mean we never get here in that case but best
@@ -212,10 +212,9 @@ impl DeviceMap {
                         root_device.device_type = Some(deviceinfo.embedded_device.device_type)
                     }
                     _ => {
-                        root_device.embedded_devices.insert(
-                            deviceinfo.embedded_device.id,
-                            deviceinfo.embedded_device.device_type,
-                        );
+                        root_device
+                            .embedded_devices
+                            .insert(deviceinfo.embedded_device.id, deviceinfo.embedded_device);
                     }
                 }
                 Ok(())
@@ -524,7 +523,14 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
                 .embedded_devices
                 .get(&id)
                 .expect("device embedded");
-            assert_eq!(embedded_device, &devicedetails);
+            assert_eq!(
+                embedded_device,
+                &EmbeddedDevice {
+                    id,
+                    device_type: devicedetails.clone(),
+                    services: Default::default()
+                }
+            );
             assert!(root_device.id.is_none());
         } // drop &devices
 

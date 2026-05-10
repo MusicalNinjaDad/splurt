@@ -53,7 +53,7 @@ pub struct RootDevice {
     pub secure_location: Option<Url>,
     /// The core device type of the root device, if known
     pub device_type: Option<DeviceDetails>,
-    pub embedded_devices: HashMap<Uuid, DeviceDetails>,
+    pub embedded_devices: HashMap<Uuid, EmbeddedDevice>,
     /// Services directly offered by this root device
     pub services: HashSet<ServiceDetails>,
 }
