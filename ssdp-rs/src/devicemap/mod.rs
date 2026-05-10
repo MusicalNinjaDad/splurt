@@ -181,7 +181,13 @@ impl DeviceMap {
                             Some(_id) => (), // Previously confirmed root device details
                             None => {
                                 // Inferred root device
-                                todo!("inferred root device")
+                                match root_device.id {
+                                    None => (), // We are again looking at an inferred root device
+                                    Some(id) => {
+                                        let this_device = rd.embedded_devices.get(&id);
+                                        todo!("inferred root device")
+                                    }
+                                }
                             }
                         }
                     })
