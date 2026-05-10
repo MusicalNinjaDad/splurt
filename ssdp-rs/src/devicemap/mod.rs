@@ -174,6 +174,10 @@ impl DeviceMap {
                 //TODO promote, don't clobber, via .entry()
                 self.inner
                     .entry(root_device.location.clone())
+                    .and_modify(|rd| {
+                        rd.last_seen = root_device.last_seen;
+                        rd.valid_until = root_device.valid_until;
+                    })
                     .or_insert(root_device);
                 Ok(())
             }
