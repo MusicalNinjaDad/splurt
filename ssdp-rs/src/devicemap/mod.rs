@@ -177,22 +177,22 @@ impl DeviceMap {
                     .and_modify(|known_rd| {
                         known_rd.last_seen = this_rd.last_seen;
                         known_rd.valid_until = this_rd.valid_until;
-                        match known_rd.id {
-                            Some(_id) => (), // Previously confirmed root device details
-                            None => {
-                                // We had an inferred root device with inferred embedded device which
-                                // actually describes the root's core capability.
-                                match this_rd.id {
-                                    Some(id)
-                                        if let Some(this_device) =
-                                            known_rd.embedded_devices.remove(&id) =>
-                                    {
-                                        known_rd.id = Some(id);
-                                        known_rd.device_type = Some(this_device);
-                                    }
-                                    _ => (),
-                                }
+                        match (this_rd.id, known_rd.id) {
+                            (Some(this_id), Some(known_id)) if this_id != known_id => {
+                                todo!("previously known with a different id")
                             }
+                            (Some(this_id), _)
+                                if let Some(this_device) =
+                                    known_rd.embedded_devices.remove(&this_id) =>
+                            {
+                                known_rd.device_type = Some(this_device);
+                                // Relies on invariant from previous arm: this_id != known_id
+                                // Is a no-op if root_device was already known.
+                                // Current code should mean we never get here in that case but best
+                                // to leave this here for future saftey.
+                                known_rd.id = Some(this_id);
+                            }
+                            _ => (),
                         }
                     })
                     .or_insert(this_rd);
