@@ -171,7 +171,10 @@ impl DeviceMap {
         let info = message.into();
         match info {
             Information::RootDevice(root_device) => {
-                self.insert(root_device);
+                //TODO promote, don't clobber, via .entry()
+                self.inner
+                    .entry(root_device.location.clone())
+                    .or_insert(root_device);
                 Ok(())
             }
             Information::Device(deviceinfo) => {
