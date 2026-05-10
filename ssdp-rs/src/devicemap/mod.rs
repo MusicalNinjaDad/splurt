@@ -170,32 +170,32 @@ impl DeviceMap {
     pub fn process(&mut self, message: Message) -> Result<(), Error> {
         let info = message.into();
         match info {
-            Information::RootDevice(root_device) => {
+            Information::RootDevice(this_rd) => {
                 //TODO promote, don't clobber, via .entry()
                 self.inner
-                    .entry(root_device.location.clone())
-                    .and_modify(|rd| {
-                        rd.last_seen = root_device.last_seen;
-                        rd.valid_until = root_device.valid_until;
-                        match rd.id {
+                    .entry(this_rd.location.clone())
+                    .and_modify(|known_rd| {
+                        known_rd.last_seen = this_rd.last_seen;
+                        known_rd.valid_until = this_rd.valid_until;
+                        match known_rd.id {
                             Some(_id) => (), // Previously confirmed root device details
                             None => {
                                 // We had an inferred root device with inferred embedded device which
                                 // actually describes the root's core capability.
-                                match root_device.id {
+                                match this_rd.id {
                                     Some(id)
                                         if let Some(this_device) =
-                                            rd.embedded_devices.remove(&id) =>
+                                            known_rd.embedded_devices.remove(&id) =>
                                     {
-                                        rd.id = Some(id);
-                                        rd.device_type = Some(this_device);
+                                        known_rd.id = Some(id);
+                                        known_rd.device_type = Some(this_device);
                                     }
                                     _ => (),
                                 }
                             }
                         }
                     })
-                    .or_insert(root_device);
+                    .or_insert(this_rd);
                 Ok(())
             }
             Information::Device(deviceinfo) => {
