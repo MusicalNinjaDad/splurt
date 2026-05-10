@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use url::Url;
-use uuid::Uuid;
 
 use crate::{
     devicemap::rootdevice::{EmbeddedDevice, RootDevice},
@@ -34,7 +33,6 @@ pub struct ServiceInfo {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeviceInfo {
     embedded_device: EmbeddedDevice,
-    id: Uuid,
     location: Url,
     inferred_root_device: RootDevice,
 }
@@ -144,7 +142,6 @@ impl From<Message> for Information {
                     };
                     Self::Device(DeviceInfo {
                         embedded_device,
-                        id: usn.uuid,
                         location: location.into_url(),
                         inferred_root_device,
                     })
@@ -216,13 +213,14 @@ impl DeviceMap {
                     })
                     .or_insert(deviceinfo.inferred_root_device);
                 match root_device.id {
-                    Some(id) if id == deviceinfo.id => {
+                    Some(id) if id == deviceinfo.embedded_device.id => {
                         root_device.device_type = Some(deviceinfo.embedded_device.device_type)
                     }
                     _ => {
-                        root_device
-                            .embedded_devices
-                            .insert(deviceinfo.id, deviceinfo.embedded_device.device_type);
+                        root_device.embedded_devices.insert(
+                            deviceinfo.embedded_device.id,
+                            deviceinfo.embedded_device.device_type,
+                        );
                     }
                 }
                 Ok(())
