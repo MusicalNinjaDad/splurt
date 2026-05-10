@@ -69,6 +69,7 @@ fn root_from_response() {
     let message = ROOT.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
     let root_device = devices.inner.get(&url).expect("device created");
+
     validate_root_device(root_device);
     assert_eq!(root_device.id, Some(ID));
     assert_eq!(root_device.last_seen, DATE);
@@ -84,7 +85,7 @@ fn root_from_response() {
 #[test]
 fn update_from_notify() {
     let mut devices = DeviceMap::new();
-    let url = Url::parse("http://192.168.0.84:1400/xml/device_description.xml").expect("valid url");
+    let url = url();
 
     let message = ROOT.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
@@ -112,35 +113,18 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     let message = notify.parse::<Message>().expect("valid notify");
     devices.process(message).expect("process notify");
     let root_device = devices.inner.get(&url).expect("device created");
-    let RootDevice {
-        id,
-        last_seen,
-        valid_until,
-        location,
-        product,
-        boot_id,
-        config_id,
-        port,
-        secure_location,
-        device_type,
-        embedded_devices,
-        services,
-    } = root_device;
-    assert_eq!(id, &Some(ID));
-    assert!(last_seen > &DateTime::parse_from_rfc3339("2026-04-29T08:22:03+00:00").unwrap());
-    assert_eq!(valid_until, &(*last_seen + Duration::from_secs(1800)));
-    assert_eq!(location, &url);
-    assert_matches!(product, Some(product) if product == &Server { os: "Linux".to_string(), os_version: "".to_string(),
-         upnp_version: UPNP_VERSION1, product_name: "Sonos".to_string(), product_version: "85.0-64200 (ZPS29)".to_string() });
-    assert_matches!(boot_id, Some(id) if id == &6);
-    assert!(config_id.is_none());
-    assert_matches!(port, UpnpPort::Default);
-    assert_matches!(secure_location, Some(secure_location)
-        if secure_location == &Url::parse("https://192.168.0.84:1443/xml/device_description.xml").expect("valid https url")
+    validate_root_device(root_device);
+    assert_eq!(root_device.id, Some(ID));
+    assert!(
+        root_device.last_seen > DateTime::parse_from_rfc3339("2026-04-29T08:22:03+00:00").unwrap()
     );
-    assert!(device_type.is_none());
-    assert!(embedded_devices.is_empty());
-    assert!(services.is_empty());
+    assert_eq!(
+        root_device.valid_until,
+        (root_device.last_seen + Duration::from_secs(1800))
+    );
+    assert!(root_device.device_type.is_none());
+    assert!(root_device.embedded_devices.is_empty());
+    assert!(root_device.services.is_empty());
 }
 
 #[test]
