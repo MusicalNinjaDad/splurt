@@ -109,3 +109,11 @@ impl RootDevice {
         }
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+/// An embedded device, only containing the data which is not common across the entire RootDevice
+pub struct EmbeddedDevice {
+    pub id: Uuid,
+    pub device_type: DeviceDetails,
+    pub services: HashSet<ServiceDetails>,
+}
