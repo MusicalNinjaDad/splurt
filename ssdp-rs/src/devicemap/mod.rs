@@ -4,9 +4,9 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    devicemap::rootdevice::RootDevice,
+    devicemap::rootdevice::{EmbeddedDevice, RootDevice},
     message::{
-        DeviceDetails, Message, Notify, Response, ST, ServiceDetails,
+        Message, Notify, Response, ST, ServiceDetails,
         notify::{Alive, NT},
     },
 };
@@ -33,7 +33,7 @@ pub struct ServiceInfo {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeviceInfo {
-    device: DeviceDetails,
+    embedded_device: EmbeddedDevice,
     id: Uuid,
     location: Url,
     inferred_root_device: RootDevice,
@@ -137,8 +137,13 @@ impl From<Message> for Information {
                         port,
                         secure_location,
                     );
+                    let embedded_device = EmbeddedDevice {
+                        id: usn.uuid,
+                        device_type: device,
+                        services: Default::default(),
+                    };
                     Self::Device(DeviceInfo {
-                        device,
+                        embedded_device,
                         id: usn.uuid,
                         location: location.into_url(),
                         inferred_root_device,
@@ -212,12 +217,12 @@ impl DeviceMap {
                     .or_insert(deviceinfo.inferred_root_device);
                 match root_device.id {
                     Some(id) if id == deviceinfo.id => {
-                        root_device.device_type = Some(deviceinfo.device)
+                        root_device.device_type = Some(deviceinfo.embedded_device.device_type)
                     }
                     _ => {
                         root_device
                             .embedded_devices
-                            .insert(deviceinfo.id, deviceinfo.device);
+                            .insert(deviceinfo.id, deviceinfo.embedded_device.device_type);
                     }
                 }
                 Ok(())
