@@ -65,6 +65,13 @@ const DATE: DateTime<Utc> = DateTime::from_naive_utc_and_offset(
     Utc,
 );
 
+const VALID_UNTIL: DateTime<Utc> = DateTime::from_naive_utc_and_offset(
+    NaiveDate::from_ymd_opt(2026, 4, 29)
+        .unwrap()
+        .and_time(NaiveTime::from_hms_opt(8, 52, 3).unwrap()),
+    Utc,
+);
+
 fn url() -> Url {
     Url::parse("http://192.168.0.84:1400/xml/device_description.xml").unwrap()
 }
@@ -93,10 +100,7 @@ fn root_from_response() {
     validate_root_device(root_device);
     assert_eq!(root_device.id, Some(ID));
     assert_eq!(root_device.last_seen, DATE);
-    assert_eq!(
-        root_device.valid_until,
-        DateTime::parse_from_rfc3339("2026-04-29T08:52:03+00:00").unwrap()
-    );
+    assert_eq!(root_device.valid_until, VALID_UNTIL);
     assert!(root_device.device_type.is_none());
     assert!(root_device.embedded_devices.is_empty());
     assert!(root_device.services.is_empty());
@@ -167,6 +171,8 @@ fn identify_root_device_type() {
     let root_device = devices.inner.get(&url).expect("device created");
     validate_root_device(root_device);
     assert_eq!(root_device.id, Some(ID));
+    assert_eq!(root_device.last_seen, DATE);
+    assert_eq!(root_device.valid_until, VALID_UNTIL);
     assert_eq!(
         root_device.device_type,
         Some(DeviceDetails {
