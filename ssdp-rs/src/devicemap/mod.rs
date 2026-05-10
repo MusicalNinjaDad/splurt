@@ -177,6 +177,13 @@ impl DeviceMap {
                     .and_modify(|rd| {
                         rd.last_seen = root_device.last_seen;
                         rd.valid_until = root_device.valid_until;
+                        match rd.id {
+                            Some(_id) => (), // Previously confirmed root device details
+                            None => {
+                                // Inferred root device
+                                todo!("inferred root device")
+                            }
+                        }
                     })
                     .or_insert(root_device);
                 Ok(())
