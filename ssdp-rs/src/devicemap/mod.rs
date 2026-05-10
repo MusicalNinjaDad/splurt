@@ -674,7 +674,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 "#;
         let service = service.parse::<Message>().expect("valid service");
         devices.process(service).expect("process service message");
-        let root_device = devices.inner.get(&url).expect("root device infered");
+        let root_device = devices.inner.get(&url).expect("root device inferred");
         assert!(root_device.id.is_none());
         assert!(
             root_device.last_seen > (Utc::now() - Duration::from_secs(60)),
@@ -687,5 +687,10 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         );
         assert!(root_device.services.is_empty());
         assert_eq!(root_device.embedded_devices.len(), 1);
+        let embedded_device = root_device
+            .embedded_devices
+            .get(&id)
+            .expect("inferred embedded device");
+        assert_eq!(embedded_device.id, id);
     }
 }
