@@ -330,6 +330,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             if secure_location == &Url::parse("https://192.168.0.84:1443/xml/device_description.xml").expect("valid https url")
         );
         assert!(device_type.is_none());
+        assert!(embedded_devices.is_empty());
         assert!(services.is_empty());
     }
 
@@ -411,6 +412,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             if secure_location == &Url::parse("https://192.168.0.84:1443/xml/device_description.xml").expect("valid https url")
         );
         assert!(device_type.is_none());
+        assert!(embedded_devices.is_empty());
         assert!(services.is_empty());
     }
 
