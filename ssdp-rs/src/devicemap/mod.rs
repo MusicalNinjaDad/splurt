@@ -718,7 +718,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             service,
             &ServiceDetails {
                 vendor: Vendor::Standard,
-                service: Service::AVTransport { ver: 1 }
+                service: Service::MusicServices { ver: 1 }
             }
         );
     }
