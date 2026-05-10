@@ -133,7 +133,7 @@ impl From<Message> for Information {
                     );
                     let embedded_device = EmbeddedDevice {
                         id: usn.uuid,
-                        device_type: device,
+                        device_type: Some(device),
                         services: Default::default(),
                     };
                     Self::Device(DeviceInfo {
@@ -182,7 +182,8 @@ impl DeviceMap {
                                 if let Some(this_device) =
                                     known_rd.embedded_devices.remove(&this_id) =>
                             {
-                                known_rd.device_type = Some(this_device.device_type);
+                                known_rd.device_type = this_device.device_type;
+                                known_rd.services.extend(this_device.services);
                                 // Relies on invariant from previous arm: this_id != known_id
                                 // Is a no-op if root_device was already known.
                                 // Current code should mean we never get here in that case but best
@@ -209,7 +210,7 @@ impl DeviceMap {
                     .or_insert(deviceinfo.inferred_root_device);
                 match root_device.id {
                     Some(id) if id == deviceinfo.embedded_device.id => {
-                        root_device.device_type = Some(deviceinfo.embedded_device.device_type)
+                        root_device.device_type = deviceinfo.embedded_device.device_type
                     }
                     _ => {
                         root_device
@@ -527,7 +528,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
                 embedded_device,
                 &EmbeddedDevice {
                     id,
-                    device_type: devicedetails.clone(),
+                    device_type: Some(devicedetails.clone()),
                     services: Default::default()
                 }
             );
@@ -692,5 +693,6 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             .get(&id)
             .expect("inferred embedded device");
         assert_eq!(embedded_device.id, id);
+        assert!(embedded_device.device_type.is_none());
     }
 }
