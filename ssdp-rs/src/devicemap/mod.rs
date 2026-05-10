@@ -164,10 +164,6 @@ impl DeviceMap {
         }
     }
 
-    pub fn insert(&mut self, root_device: RootDevice) -> Option<RootDevice> {
-        self.inner.insert(root_device.location.clone(), root_device)
-    }
-
     pub fn process(&mut self, message: Message) -> Result<(), Error> {
         let info = message.into();
         match info {
