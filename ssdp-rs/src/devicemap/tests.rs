@@ -166,6 +166,7 @@ fn identify_root_device_type() {
     devices.process(message).expect("process message");
     let root_device = devices.inner.get(&url).expect("device created");
     validate_root_device(root_device);
+    assert_eq!(root_device.id, Some(ID));
     assert_eq!(
         root_device.device_type,
         Some(DeviceDetails {
@@ -173,6 +174,8 @@ fn identify_root_device_type() {
             device: Device::ZonePlayer { ver: 1 }
         })
     );
+    assert!(root_device.embedded_devices.is_empty());
+    assert!(root_device.services.is_empty());
 }
 
 #[test]
