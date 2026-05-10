@@ -33,7 +33,6 @@ pub struct ServiceInfo {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeviceInfo {
     embedded_device: EmbeddedDevice,
-    location: Url,
     inferred_root_device: RootDevice,
 }
 
@@ -142,7 +141,6 @@ impl From<Message> for Information {
                     };
                     Self::Device(DeviceInfo {
                         embedded_device,
-                        location: location.into_url(),
                         inferred_root_device,
                     })
                 }
@@ -203,7 +201,7 @@ impl DeviceMap {
             Information::Device(deviceinfo) => {
                 let root_device = self
                     .inner
-                    .entry(deviceinfo.location)
+                    .entry(deviceinfo.inferred_root_device.location.clone())
                     // as long as a control point has received at least one advertisement that is still
                     // valid from a root device, any of its embedded devices or any of its services,
                     // then the control point can assume that all are available.
