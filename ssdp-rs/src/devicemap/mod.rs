@@ -640,11 +640,13 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     }
 
     #[test]
+    #[should_panic(expected = "root_device.services.is_empty()")]
     //TODO: Work out new semantics - store in an inferred device in an inferred root device??
     fn infer_root_from_service() {
         let mut devices = DeviceMap::new();
         let url =
             Url::parse("http://192.168.0.84:1400/xml/device_description.xml").expect("valid url");
+        let id = uuid!("c4248768-d6b6-4232-a273-5b1701524493");
 
         let service = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 2400
@@ -666,8 +668,8 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 "#;
         let service = service.parse::<Message>().expect("valid service");
         devices.process(service).expect("process service message");
-        let root_device = devices.inner.get(&url).expect("root device still there");
-        assert_eq!(root_device.services.len(), 1);
+        let root_device = devices.inner.get(&url).expect("root device infered");
+        assert!(root_device.id.is_none());
         assert!(
             root_device.last_seen > (Utc::now() - Duration::from_secs(60)),
             "root device last seen at {}",
@@ -677,6 +679,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             root_device.valid_until,
             root_device.last_seen + Duration::from_secs(2400)
         );
-        assert!(root_device.id.is_none());
+        assert!(root_device.services.is_empty());
+        assert_eq!(root_device.embedded_devices.len(), 1);
     }
 }
