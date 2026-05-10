@@ -172,7 +172,6 @@ impl DeviceMap {
         let info = message.into();
         match info {
             Information::RootDevice(this_rd) => {
-                //TODO promote, don't clobber, via .entry()
                 self.inner
                     .entry(this_rd.location.clone())
                     .and_modify(|known_rd| {
