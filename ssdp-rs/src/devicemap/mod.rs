@@ -1,6 +1,7 @@
 use std::collections::{HashMap, hash_map::Entry};
 
 use url::Url;
+use uuid::Uuid;
 
 use crate::{
     devicemap::rootdevice::{EmbeddedDevice, RootDevice},
@@ -26,6 +27,7 @@ pub enum Information {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ServiceInfo {
     service: ServiceDetails,
+    id: Uuid,
     inferred_root_device: RootDevice,
 }
 
@@ -62,6 +64,7 @@ impl From<Message> for Information {
                     );
                     Self::Service(ServiceInfo {
                         service,
+                        id: usn.uuid,
                         inferred_root_device,
                     })
                 }
@@ -105,6 +108,7 @@ impl From<Message> for Information {
                     );
                     Self::Service(ServiceInfo {
                         service,
+                        id: usn.uuid,
                         inferred_root_device,
                     })
                 }
@@ -225,18 +229,26 @@ impl DeviceMap {
                     .inner
                     .entry(serviceinfo.inferred_root_device.location.clone())
                 {
-                    Entry::Occupied(mut rd) => {
-                        let rd = rd.get_mut();
+                    Entry::Occupied(mut known_rd) => {
+                        let known_rd = known_rd.get_mut();
                         // as long as a control point has received at least one advertisement that is still
                         // valid from a root device, any of its embedded devices or any of its services,
                         // then the control point can assume that all are available.
-                        rd.last_seen = serviceinfo.inferred_root_device.last_seen;
-                        rd.valid_until = serviceinfo.inferred_root_device.valid_until;
-                        rd.services.insert(serviceinfo.service);
+                        known_rd.last_seen = serviceinfo.inferred_root_device.last_seen;
+                        known_rd.valid_until = serviceinfo.inferred_root_device.valid_until;
+                        known_rd.services.insert(serviceinfo.service);
                     }
-                    Entry::Vacant(rd) => {
-                        let rd = rd.insert(serviceinfo.inferred_root_device);
-                        rd.services.insert(serviceinfo.service);
+                    Entry::Vacant(entry) => {
+                        let mut rd = serviceinfo.inferred_root_device;
+                        let mut inferred_device = EmbeddedDevice {
+                            id: serviceinfo.id,
+                            device_type: rd.device_type.take(),
+                            services: Default::default(),
+                        };
+                        inferred_device.services.insert(serviceinfo.service);
+                        rd.id = None;
+                        rd.embedded_devices.insert(serviceinfo.id, inferred_device);
+                        entry.insert(rd);
                     }
                 }
                 Ok(())
@@ -655,8 +667,6 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     }
 
     #[test]
-    #[should_panic(expected = "root_device.services.is_empty()")]
-    //TODO: Work out new semantics - store in an inferred device in an inferred root device??
     fn infer_root_from_service() {
         let mut devices = DeviceMap::new();
         let url =
