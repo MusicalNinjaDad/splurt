@@ -101,12 +101,13 @@ enum IsKnown {
 use IsKnown::{Inferred, Known};
 
 fn validate_root_device(
-    root_device: &RootDevice,
+    devices: &DeviceMap,
     is_known: IsKnown,
     last_seen: Option<DateTime<Utc>>,
     valid_until: Option<DateTime<Utc>>,
     device: Option<DeviceDetails>,
-) {
+) -> &RootDevice {
+    let root_device = devices.inner.get(&url()).expect("device created");
     match is_known {
         Inferred => assert!(root_device.id.is_none()),
         Known => assert_eq!(root_device.id, Some(ID)),
@@ -147,30 +148,27 @@ fn validate_root_device(
             assert!(root_device.device_type.is_none());
             assert!(root_device.embedded_devices.is_empty())
         }
-    }
+    };
+    root_device
 }
 
 #[test]
 fn root_from_response() {
     let mut devices = DeviceMap::new();
-    let url = url();
 
     let message = ROOT.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
-    let root_device = devices.inner.get(&url).expect("device created");
-    validate_root_device(root_device, Known, Some(DATE), Some(VALID_UNTIL), None);
+    let root_device = validate_root_device(&devices, Known, Some(DATE), Some(VALID_UNTIL), None);
     assert!(root_device.services.is_empty());
 }
 
 #[test]
 fn update_from_notify() {
     let mut devices = DeviceMap::new();
-    let url = url();
 
     let message = ROOT.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
-    let root_device = devices.inner.get(&url).expect("device created");
-    validate_root_device(root_device, Known, Some(DATE), Some(VALID_UNTIL), None);
+    validate_root_device(&devices, Known, Some(DATE), Some(VALID_UNTIL), None);
 
     let notify = r#"NOTIFY * HTTP/1.1
 HOST: 239.255.255.250:1900
@@ -193,13 +191,11 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 "#;
     let message = notify.parse::<Message>().expect("valid notify");
     devices.process(message).expect("process notify");
-    let root_device = devices.inner.get(&url).expect("device created");
-    validate_root_device(
-        root_device,
-        Known,
-        None,
-        Some(root_device.last_seen + Duration::from_secs(1800)),
-        None,
+    let root_device = validate_root_device(&devices, Known, None, None, None);
+    assert!(root_device.last_seen > (Utc::now() - Duration::from_secs(60)));
+    assert_eq!(
+        root_device.valid_until,
+        root_device.last_seen + Duration::from_secs(1800)
     );
     assert!(root_device.services.is_empty());
 }
@@ -216,9 +212,8 @@ fn identify_root_device_type() {
 
     let message = DEVICE.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
-    let root_device = devices.inner.get(&url).expect("device created");
-    validate_root_device(
-        root_device,
+    let root_device = validate_root_device(
+        &devices,
         Known,
         Some(DATE),
         Some(VALID_UNTIL),
@@ -230,15 +225,13 @@ fn identify_root_device_type() {
 #[test]
 fn promote_device_to_root() {
     let mut devices = DeviceMap::new();
-    let url = url();
 
     let message = DEVICE.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
     {
         // need &devices
-        let root_device = devices.inner.get(&url).expect("root device registered");
-        validate_root_device(
-            root_device,
+        let root_device = validate_root_device(
+            &devices,
             Inferred,
             Some(DATE),
             Some(VALID_UNTIL),
@@ -249,9 +242,8 @@ fn promote_device_to_root() {
 
     let message = ROOT.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
-    let root_device = devices.inner.get(&url).expect("root device registered");
     validate_root_device(
-        root_device,
+        &devices,
         Known,
         Some(DATE),
         Some(VALID_UNTIL),
