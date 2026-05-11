@@ -159,7 +159,7 @@ fn embedded_devices() -> HashMap<Uuid, EmbeddedDevice> {
         id: EMBEDDED_DEVICE_ID,
         device_type: Some(DeviceDetails {
             vendor: Vendor::Standard,
-            device: Device::MediaServer { ver: 1.to_string() },
+            device: Device::MediaServer { ver: 1 },
         }),
         services: Default::default(),
     };

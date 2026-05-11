@@ -230,7 +230,7 @@ name: my_bulb
         );
         assert_matches!(parsed.usn.ntst, notify::NT::Device(device)
             if matches!(device.vendor, Vendor::Standard)
-            && matches!(&device.device, Device::BinaryLight { ver } if ver == "1")
+            && matches!(&device.device, Device::BinaryLight { ver } if ver == &1)
         );
         assert_eq!(parsed.server.os, "POSIX");
         assert_eq!(parsed.server.os_version, "1-2017");

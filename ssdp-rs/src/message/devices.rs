@@ -18,8 +18,8 @@ impl Display for DeviceDetails {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Device {
-    BinaryLight { ver: String },
-    MediaServer { ver: String },
+    BinaryLight { ver: u8 },
+    MediaServer { ver: u8 },
     ZonePlayer { ver: u8 },
     Other { device_type: String, ver: String },
 }
@@ -33,17 +33,20 @@ impl Device {
             .next()
             .ok_or(ErrorKind::InvalidDevice("''".to_string()))?
             .to_string();
-        let ver = parts.collect();
+        let ver = |v: String| {
+            v.as_str()
+                .parse()
+                .map_err(|_| ErrorKind::InvalidDevice(format!("{}:{}", device_type, v)))
+        };
+        let v = parts.collect();
         let device = match device_type.as_str() {
-            "BinaryLight" => Device::BinaryLight { ver },
-            "MediaServer" => Device::MediaServer { ver },
-            "ZonePlayer" => Device::ZonePlayer {
-                ver: ver
-                    .as_str()
-                    .parse()
-                    .map_err(|_| ErrorKind::InvalidDevice(format!("{}:{}", device_type, ver)))?,
+            "BinaryLight" => Device::BinaryLight { ver: ver(v)? },
+            "MediaServer" => Device::MediaServer { ver: ver(v)? },
+            "ZonePlayer" => Device::ZonePlayer { ver: ver(v)? },
+            _ => Device::Other {
+                device_type,
+                ver: v,
             },
-            _ => Device::Other { device_type, ver },
         };
         Ok(device)
     }
