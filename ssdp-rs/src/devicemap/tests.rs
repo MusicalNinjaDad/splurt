@@ -3,11 +3,6 @@ use crate::{
     message::{Device, DeviceDetails, Message, Server, Service, UPNP_VERSION1, UpnpPort, Vendor},
 };
 
-#[cfg(assert_matches_in_root)]
-use std::assert_matches;
-
-#[cfg(assert_matches_in_module)]
-use std::assert_matches::assert_matches;
 use std::time::Duration;
 
 use super::*;
@@ -88,6 +83,10 @@ fn server() -> Server {
 
 const BOOT_ID: Option<u32> = Some(6);
 
+fn secure_url() -> Url {
+    Url::parse("https://192.168.0.84:1443/xml/device_description.xml").expect("valid https url")
+}
+
 const DEVICE_DETAILS: DeviceDetails = DeviceDetails {
     vendor: Vendor::Standard,
     device: Device::ZonePlayer { ver: 1 },
@@ -120,9 +119,7 @@ fn validate_root_device(
     assert_eq!(root_device.boot_id, BOOT_ID);
     assert!(root_device.config_id.is_none());
     assert_eq!(root_device.port, UpnpPort::Default);
-    assert_matches!(&root_device.secure_location, Some(secure_location)
-        if secure_location == &Url::parse("https://192.168.0.84:1443/xml/device_description.xml").expect("valid https url")
-    );
+    assert_eq!(root_device.secure_location, Some(secure_url()));
 }
 
 #[test]
