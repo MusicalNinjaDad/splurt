@@ -203,12 +203,10 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 #[test]
 fn identify_root_device_type() {
     let mut devices = DeviceMap::new();
-    let url = url();
 
     let message = ROOT.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
-    let root_device = devices.inner.get(&url).expect("device created");
-    assert!(root_device.device_type.is_none());
+    validate_root_device(&devices, Known, Some(DATE), Some(VALID_UNTIL), None);
 
     let message = DEVICE.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
