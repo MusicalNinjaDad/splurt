@@ -77,11 +77,23 @@ const DEVICE_DETAILS: DeviceDetails = DeviceDetails {
     device: Device::ZonePlayer { ver: 1 },
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum IsKnown {
+    Inferred,
+    Known,
+}
+
+use IsKnown::{Inferred, Known};
+
 fn url() -> Url {
     Url::parse("http://192.168.0.84:1400/xml/device_description.xml").unwrap()
 }
 
-fn validate_root_device(root_device: &RootDevice) {
+fn validate_root_device(root_device: &RootDevice, is_known: IsKnown) {
+    match is_known {
+        Inferred => assert!(root_device.id.is_none()),
+        Known => assert_eq!(root_device.id, Some(ID)),
+    };
     assert_eq!(root_device.location, url());
     assert_matches!(&root_device.product, Some(product) if product == &Server { os: "Linux".to_string(), os_version: "".to_string(),
          upnp_version: UPNP_VERSION1, product_name: "Sonos".to_string(), product_version: "85.0-64200 (ZPS29)".to_string() });
@@ -102,8 +114,7 @@ fn root_from_response() {
     devices.process(message).expect("process message");
     let root_device = devices.inner.get(&url).expect("device created");
 
-    validate_root_device(root_device);
-    assert_eq!(root_device.id, Some(ID));
+    validate_root_device(root_device, Known);
     assert_eq!(root_device.last_seen, DATE);
     assert_eq!(root_device.valid_until, VALID_UNTIL);
     assert!(root_device.device_type.is_none());
@@ -147,8 +158,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     let message = notify.parse::<Message>().expect("valid notify");
     devices.process(message).expect("process notify");
     let root_device = devices.inner.get(&url).expect("device created");
-    validate_root_device(root_device);
-    assert_eq!(root_device.id, Some(ID));
+    validate_root_device(root_device, Known);
     assert!(
         root_device.last_seen > DateTime::parse_from_rfc3339("2026-04-29T08:22:03+00:00").unwrap()
     );
@@ -174,8 +184,7 @@ fn identify_root_device_type() {
     let message = DEVICE.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
     let root_device = devices.inner.get(&url).expect("device created");
-    validate_root_device(root_device);
-    assert_eq!(root_device.id, Some(ID));
+    validate_root_device(root_device, Known);
     assert_eq!(root_device.last_seen, DATE);
     assert_eq!(root_device.valid_until, VALID_UNTIL);
     assert_eq!(
@@ -218,8 +227,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     {
         // need &devices
         let root_device = devices.inner.get(&url).expect("root device registered");
-        validate_root_device(root_device);
-        assert!(root_device.id.is_none());
+        validate_root_device(root_device, Inferred);
         assert_eq!(root_device.last_seen, DATE);
         assert_eq!(root_device.valid_until, VALID_UNTIL);
         assert!(root_device.device_type.is_none());
@@ -241,8 +249,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     let message = ROOT.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
     let root_device = devices.inner.get(&url).expect("root device registered");
-    validate_root_device(root_device);
-    assert_eq!(root_device.id, Some(ID));
+    validate_root_device(root_device, Known);
     assert_eq!(root_device.device_type, Some(DEVICE_DETAILS));
     assert!(root_device.embedded_devices.is_empty());
 }
