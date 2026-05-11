@@ -171,7 +171,7 @@ impl DeviceMap {
                 self.inner
                     .entry(this_rd.location.clone())
                     .and_modify(|known_rd| {
-                        known_rd.update_validity(this_rd.last_seen, this_rd.valid_until);
+                        known_rd.update_validity(this_rd.last_seen(), this_rd.valid_until());
                         match (this_rd.id, known_rd.id) {
                             (Some(this_id), Some(known_id)) if this_id != known_id => {
                                 todo!("previously known with a different id")
@@ -203,8 +203,8 @@ impl DeviceMap {
                     // then the control point can assume that all are available.
                     .and_modify(|rd| {
                         rd.update_validity(
-                            deviceinfo.inferred_root_device.last_seen,
-                            deviceinfo.inferred_root_device.valid_until,
+                            deviceinfo.inferred_root_device.last_seen(),
+                            deviceinfo.inferred_root_device.valid_until(),
                         );
                     })
                     .or_insert(deviceinfo.inferred_root_device);
@@ -231,8 +231,8 @@ impl DeviceMap {
                         // valid from a root device, any of its embedded devices or any of its services,
                         // then the control point can assume that all are available.
                         known_rd.update_validity(
-                            serviceinfo.inferred_root_device.last_seen,
-                            serviceinfo.inferred_root_device.valid_until,
+                            serviceinfo.inferred_root_device.last_seen(),
+                            serviceinfo.inferred_root_device.valid_until(),
                         );
                         known_rd.services.insert(serviceinfo.service);
                     }

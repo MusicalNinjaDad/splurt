@@ -25,8 +25,8 @@ enum Lenient<T> {
 pub struct RootDevice {
     /// None if this is an inferred root device
     pub id: Option<Uuid>,
-    pub last_seen: DateTime<Utc>,
-    pub valid_until: DateTime<Utc>,
+    last_seen: DateTime<Utc>,
+    valid_until: DateTime<Utc>,
     /// URL for UPnP description for root device
     pub location: Url,
     /// OS/version UPnP/2.0 product/version
@@ -115,6 +115,14 @@ impl RootDevice {
     pub fn update_validity(&mut self, last_seen: DateTime<Utc>, valid_until: DateTime<Utc>) {
         self.last_seen = max(self.last_seen, last_seen);
         self.valid_until = max(self.valid_until, valid_until);
+    }
+
+    pub const fn valid_until(&self) -> DateTime<Utc> {
+        self.valid_until
+    }
+
+    pub const fn last_seen(&self) -> DateTime<Utc> {
+        self.last_seen
     }
 }
 
