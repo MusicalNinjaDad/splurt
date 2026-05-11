@@ -207,7 +207,7 @@ impl DeviceMap {
                                 // Relies on invariant from previous arm: this_id != known_id
                                 // Is a no-op if root_device was already known.
                                 // Current code should mean we never get here in that case but best
-                                // to leave this here for future saftey.
+                                // to leave this here for future safety.
                                 known_rd.id = Some(this_id);
                             }
                             _ => (),
