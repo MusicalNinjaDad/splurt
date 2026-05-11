@@ -234,11 +234,18 @@ impl DeviceMap {
                     Some(id) if id == deviceinfo.embedded_device.id => {
                         root_device.device_type = deviceinfo.embedded_device.device_type
                     }
-                    _ => {
-                        root_device
-                            .embedded_devices
-                            .insert(deviceinfo.embedded_device.id, deviceinfo.embedded_device);
-                    }
+                    _ => match root_device
+                        .embedded_devices
+                        .entry(deviceinfo.embedded_device.id)
+                    {
+                        Entry::Occupied(mut known_device) => {
+                            let known_device = known_device.get_mut();
+                            known_device.device_type = deviceinfo.embedded_device.device_type;
+                        }
+                        Entry::Vacant(entry) => {
+                            entry.insert(deviceinfo.embedded_device);
+                        }
+                    },
                 }
                 Ok(())
             }
