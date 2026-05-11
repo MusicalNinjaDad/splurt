@@ -445,3 +445,67 @@ fn add_embedded_device() {
         Some(embedded_devices()),
     );
 }
+
+#[test]
+fn service_device_embedded_root() {
+    let mut devices = DeviceMap::new();
+    devices.process(service_msg());
+    validate_root_device(
+        &devices,
+        Inferred,
+        Some(ROOT_TIMESTAMP),
+        Some(ROOT_VALIDITY),
+        None,
+        Some(SERVICE_DETAILS),
+        None,
+    );
+
+    devices.process(device_msg());
+    validate_root_device(
+        &devices,
+        Inferred,
+        Some(DEVICE_TIMESTAMP),
+        Some(DEVICE_VALIDITY),
+        Some(DEVICE_DETAILS),
+        Some(SERVICE_DETAILS),
+        None,
+    );
+
+    devices.process(emb_dev_msg());
+    validate_root_device(
+        &devices,
+        Inferred,
+        Some(DEVICE_TIMESTAMP),
+        Some(DEVICE_VALIDITY),
+        Some(DEVICE_DETAILS),
+        Some(SERVICE_DETAILS),
+        Some(embedded_devices()),
+    );
+
+    devices.process(root_msg());
+    validate_root_device(
+        &devices,
+        Known,
+        Some(DEVICE_TIMESTAMP),
+        Some(DEVICE_VALIDITY),
+        Some(DEVICE_DETAILS),
+        Some(SERVICE_DETAILS),
+        Some(embedded_devices()),
+    );
+}
+
+fn root_msg() -> Message {
+    ROOT.parse::<Message>().expect("root device message")
+}
+
+fn service_msg() -> Message {
+    SERVICE.parse().expect("service message")
+}
+
+fn device_msg() -> Message {
+    DEVICE.parse().expect("device message")
+}
+
+fn emb_dev_msg() -> Message {
+    EMBEDDED_DEVICE.parse().expect("embedded device message")
+}
