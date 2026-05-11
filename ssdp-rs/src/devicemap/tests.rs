@@ -315,6 +315,7 @@ fn promote_device_to_root() {
 
     let root_msg = ROOT.parse::<Message>().expect("valid message");
     devices.process(root_msg).expect("process message");
+    // TODO: Handle out-of-order messages with conflicting validity
     validate_root_device(
         &devices,
         Known,
