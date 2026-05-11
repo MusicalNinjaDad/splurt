@@ -32,8 +32,8 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 "#;
 
 const DEVICE: &str = r#"HTTP/1.1 200 OK
-CACHE-CONTROL: max-age = 1800
-DATE: Wed, 29 Apr 2026 08:22:03 GMT
+CACHE-CONTROL: max-age = 1860
+DATE: Wed, 29 Apr 2026 08:22:05 GMT
 EXT:
 LOCATION: http://192.168.0.84:1400/xml/device_description.xml
 SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
@@ -73,17 +73,31 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
 const ID: Uuid = uuid!("c4248768-d6b6-4232-a273-5b1701524493");
 
-const DATE: DateTime<Utc> = DateTime::from_naive_utc_and_offset(
+const ROOT_TIMESTAMP: DateTime<Utc> = DateTime::from_naive_utc_and_offset(
     NaiveDate::from_ymd_opt(2026, 4, 29)
         .unwrap()
         .and_time(NaiveTime::from_hms_opt(8, 22, 3).unwrap()),
     Utc,
 );
 
-const VALID_UNTIL: DateTime<Utc> = DateTime::from_naive_utc_and_offset(
+const ROOT_VALIDITY: DateTime<Utc> = DateTime::from_naive_utc_and_offset(
     NaiveDate::from_ymd_opt(2026, 4, 29)
         .unwrap()
         .and_time(NaiveTime::from_hms_opt(8, 52, 3).unwrap()),
+    Utc,
+);
+
+const DEVICE_TIMESTAMP: DateTime<Utc> = DateTime::from_naive_utc_and_offset(
+    NaiveDate::from_ymd_opt(2026, 4, 29)
+        .unwrap()
+        .and_time(NaiveTime::from_hms_opt(8, 22, 5).unwrap()),
+    Utc,
+);
+
+const DEVICE_VALIDITY: DateTime<Utc> = DateTime::from_naive_utc_and_offset(
+    NaiveDate::from_ymd_opt(2026, 4, 29)
+        .unwrap()
+        .and_time(NaiveTime::from_hms_opt(8, 53, 5).unwrap()),
     Utc,
 );
 
@@ -203,7 +217,14 @@ fn root_from_response() {
 
     let root_msg = ROOT.parse::<Message>().expect("valid message");
     devices.process(root_msg).expect("process message");
-    validate_root_device(&devices, Known, Some(DATE), Some(VALID_UNTIL), None, None);
+    validate_root_device(
+        &devices,
+        Known,
+        Some(ROOT_TIMESTAMP),
+        Some(ROOT_VALIDITY),
+        None,
+        None,
+    );
 }
 
 #[test]
@@ -212,7 +233,14 @@ fn update_from_notify() {
 
     let root_message = ROOT.parse::<Message>().expect("valid message");
     devices.process(root_message).expect("process message");
-    validate_root_device(&devices, Known, Some(DATE), Some(VALID_UNTIL), None, None);
+    validate_root_device(
+        &devices,
+        Known,
+        Some(ROOT_TIMESTAMP),
+        Some(ROOT_VALIDITY),
+        None,
+        None,
+    );
 
     let notify = r#"NOTIFY * HTTP/1.1
 HOST: 239.255.255.250:1900
@@ -249,15 +277,22 @@ fn identify_root_device_type() {
 
     let root_msg = ROOT.parse::<Message>().expect("valid message");
     devices.process(root_msg).expect("process message");
-    validate_root_device(&devices, Known, Some(DATE), Some(VALID_UNTIL), None, None);
+    validate_root_device(
+        &devices,
+        Known,
+        Some(ROOT_TIMESTAMP),
+        Some(ROOT_VALIDITY),
+        None,
+        None,
+    );
 
     let device_msg = DEVICE.parse::<Message>().expect("valid message");
     devices.process(device_msg).expect("process message");
     validate_root_device(
         &devices,
         Known,
-        Some(DATE),
-        Some(VALID_UNTIL),
+        Some(DEVICE_TIMESTAMP),
+        Some(DEVICE_VALIDITY),
         Some(DEVICE_DETAILS),
         None,
     );
@@ -272,8 +307,8 @@ fn promote_device_to_root() {
     validate_root_device(
         &devices,
         Inferred,
-        Some(DATE),
-        Some(VALID_UNTIL),
+        Some(DEVICE_TIMESTAMP),
+        Some(DEVICE_VALIDITY),
         Some(DEVICE_DETAILS),
         None,
     );
@@ -283,8 +318,8 @@ fn promote_device_to_root() {
     validate_root_device(
         &devices,
         Known,
-        Some(DATE),
-        Some(VALID_UNTIL),
+        Some(ROOT_TIMESTAMP),
+        Some(ROOT_VALIDITY),
         Some(DEVICE_DETAILS),
         None,
     );
@@ -296,7 +331,14 @@ fn add_service() {
 
     let root_msg = ROOT.parse::<Message>().expect("valid message");
     devices.process(root_msg).expect("process message");
-    validate_root_device(&devices, Known, Some(DATE), Some(VALID_UNTIL), None, None);
+    validate_root_device(
+        &devices,
+        Known,
+        Some(ROOT_TIMESTAMP),
+        Some(ROOT_VALIDITY),
+        None,
+        None,
+    );
 
     let service_msg = SERVICE.parse::<Message>().expect("valid service");
     devices
@@ -305,8 +347,8 @@ fn add_service() {
     validate_root_device(
         &devices,
         Known,
-        Some(DATE),
-        Some(VALID_UNTIL),
+        Some(ROOT_TIMESTAMP),
+        Some(ROOT_VALIDITY),
         None,
         Some(SERVICE_DETAILS),
     );
@@ -322,8 +364,8 @@ fn infer_root_from_service() {
     validate_root_device(
         &devices,
         Inferred,
-        Some(DATE),
-        Some(VALID_UNTIL),
+        Some(ROOT_TIMESTAMP),
+        Some(ROOT_VALIDITY),
         None,
         Some(SERVICE_DETAILS),
     );
