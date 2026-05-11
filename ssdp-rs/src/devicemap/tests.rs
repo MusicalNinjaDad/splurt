@@ -176,6 +176,18 @@ fn validate_root_device(
             assert_eq!(root_device.embedded_devices, embedded_devices);
             assert!(root_device.services.is_empty());
         }
+        (None, Inferred) if !services.is_empty() => {
+            assert!(root_device.device_type.is_none());
+            let device = EmbeddedDevice {
+                id: ID,
+                device_type: None,
+                services,
+            };
+            let mut embedded_devices = HashMap::new();
+            embedded_devices.insert(ID, device);
+            assert_eq!(root_device.embedded_devices, embedded_devices);
+            assert!(root_device.services.is_empty());
+        }
         (None, _) => {
             assert!(root_device.device_type.is_none());
             assert!(root_device.embedded_devices.is_empty());
@@ -301,55 +313,14 @@ fn add_service() {
 #[test]
 fn infer_root_from_service() {
     let mut devices = DeviceMap::new();
-    let url = Url::parse("http://192.168.0.84:1400/xml/device_description.xml").expect("valid url");
-    let id = uuid!("c4248768-d6b6-4232-a273-5b1701524493");
-
-    let service = r#"HTTP/1.1 200 OK
-CACHE-CONTROL: max-age = 2400
-EXT:
-LOCATION: http://192.168.0.84:1400/xml/device_description.xml
-SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
-ST: urn:schemas-upnp-org:service:MusicServices:1
-USN: uuid:c4248768-d6b6-4232-a273-5b1701524493::urn:schemas-upnp-org:service:MusicServices:1
-X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
-X-RINCON-BOOTSEQ: 6
-BOOTID.UPNP.ORG: 6
-X-RINCON-WIFIMODE: 1
-X-RINCON-VARIANT: 2
-HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
-LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
-SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
-X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
-
-"#;
-    let service = service.parse::<Message>().expect("valid service");
+    let service = SERVICE.parse::<Message>().expect("valid service");
     devices.process(service).expect("process service message");
-    let root_device = devices.inner.get(&url).expect("root device inferred");
-    assert!(root_device.id.is_none());
-    assert!(
-        root_device.last_seen > (Utc::now() - Duration::from_secs(60)),
-        "root device last seen at {}",
-        root_device.last_seen
-    );
-    assert_eq!(
-        root_device.valid_until,
-        root_device.last_seen + Duration::from_secs(2400)
-    );
-    assert!(root_device.services.is_empty());
-    assert_eq!(root_device.embedded_devices.len(), 1);
-    let embedded_device = root_device
-        .embedded_devices
-        .get(&id)
-        .expect("inferred embedded device");
-    assert_eq!(embedded_device.id, id);
-    assert!(embedded_device.device_type.is_none());
-    assert_eq!(embedded_device.services.len(), 1);
-    let service = embedded_device.services.iter().next().unwrap();
-    assert_eq!(
-        service,
-        &ServiceDetails {
-            vendor: Vendor::Standard,
-            service: Service::MusicServices { ver: 1 }
-        }
+    validate_root_device(
+        &devices,
+        Inferred,
+        Some(DATE),
+        Some(VALID_UNTIL),
+        None,
+        Some(SERVICE_DETAILS),
     );
 }
