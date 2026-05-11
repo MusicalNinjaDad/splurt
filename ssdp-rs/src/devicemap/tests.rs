@@ -51,6 +51,26 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
 "#;
 
+const EMBEDDED_DEVICE: &str = r#"HTTP/1.1 200 OK
+CACHE-CONTROL: max-age = 1800
+DATE: Wed, 29 Apr 2026 08:22:03 GMT
+EXT:
+LOCATION: http://192.168.0.84:1400/xml/device_description.xml
+SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
+ST: urn:schemas-upnp-org:device:MediaServer:1
+USN: uuid:a4a60994-e188-4dd7-b3f5-3b5c6f47e036::urn:schemas-upnp-org:device:MediaServer:1
+X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
+X-RINCON-BOOTSEQ: 6
+BOOTID.UPNP.ORG: 6
+X-RINCON-WIFIMODE: 1
+X-RINCON-VARIANT: 2
+HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
+LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
+SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
+X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
+
+"#;
+
 const SERVICE: &str = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1800
 DATE: Wed, 29 Apr 2026 08:22:03 GMT
@@ -72,6 +92,8 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 "#;
 
 const ID: Uuid = uuid!("c4248768-d6b6-4232-a273-5b1701524493");
+
+const EMBEDDED_DEVICE_ID: Uuid = uuid!("a4a60994-e188-4dd7-b3f5-3b5c6f47e036");
 
 const ROOT_TIMESTAMP: DateTime<Utc> = DateTime::from_naive_utc_and_offset(
     NaiveDate::from_ymd_opt(2026, 4, 29)
@@ -131,6 +153,20 @@ const SERVICE_DETAILS: ServiceDetails = ServiceDetails {
     service: Service::MusicServices { ver: 1 },
 };
 
+fn embedded_devices() -> HashMap<Uuid, EmbeddedDevice> {
+    let mut embedded_devices = HashMap::new();
+    let embedded_device = EmbeddedDevice {
+        id: EMBEDDED_DEVICE_ID,
+        device_type: Some(DeviceDetails {
+            vendor: Vendor::Standard,
+            device: Device::MediaServer { ver: 1.to_string() },
+        }),
+        services: Default::default(),
+    };
+    embedded_devices.insert(EMBEDDED_DEVICE_ID, embedded_device);
+    embedded_devices
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum IsKnown {
     Inferred,
@@ -145,10 +181,11 @@ fn validate_root_device(
     is_known: IsKnown,
     last_seen: Option<DateTime<Utc>>,
     valid_until: Option<DateTime<Utc>>,
-    device: Option<DeviceDetails>,
-    service: Option<ServiceDetails>,
+    device_type: Option<DeviceDetails>,
+    root_service: Option<ServiceDetails>,
+    embedded_devices: Option<HashMap<Uuid, EmbeddedDevice>>,
 ) -> &RootDevice {
-    let root_device = devices.inner.get(&url()).expect("device created");
+    let root_device = devices.inner.get(&url()).expect("device exists");
     match is_known {
         Inferred => assert!(root_device.id.is_none()),
         Known => assert_eq!(root_device.id, Some(ID)),
@@ -165,7 +202,7 @@ fn validate_root_device(
     assert!(root_device.config_id.is_none());
     assert_eq!(root_device.port, UpnpPort::Default);
     assert_eq!(root_device.secure_location, Some(secure_url()));
-    let services = match service {
+    let root_services = match root_service {
         Some(service) => {
             let mut services = HashSet::new();
             services.insert(service);
@@ -173,40 +210,39 @@ fn validate_root_device(
         }
         None => HashSet::new(),
     };
-    match (device, is_known) {
+    let mut embedded_devices = embedded_devices.unwrap_or_default();
+    match (device_type, is_known) {
         (Some(device), Known) => {
             assert_eq!(root_device.device_type, Some(device));
-            assert!(root_device.embedded_devices.is_empty());
-            assert_eq!(root_device.services, services);
+            assert_eq!(root_device.embedded_devices, embedded_devices);
+            assert_eq!(root_device.services, root_services);
         }
         (Some(device), Inferred) => {
             assert!(root_device.device_type.is_none());
             let device = EmbeddedDevice {
                 id: ID,
                 device_type: Some(device),
-                services,
+                services: root_services,
             };
-            let mut embedded_devices = HashMap::new();
             embedded_devices.insert(ID, device);
             assert_eq!(root_device.embedded_devices, embedded_devices);
             assert!(root_device.services.is_empty());
         }
-        (None, Inferred) if !services.is_empty() => {
+        (None, Inferred) if !root_services.is_empty() => {
             assert!(root_device.device_type.is_none());
             let device = EmbeddedDevice {
                 id: ID,
                 device_type: None,
-                services,
+                services: root_services,
             };
-            let mut embedded_devices = HashMap::new();
             embedded_devices.insert(ID, device);
             assert_eq!(root_device.embedded_devices, embedded_devices);
             assert!(root_device.services.is_empty());
         }
         (None, _) => {
             assert!(root_device.device_type.is_none());
-            assert!(root_device.embedded_devices.is_empty());
-            assert_eq!(root_device.services, services);
+            assert_eq!(root_device.embedded_devices, embedded_devices);
+            assert_eq!(root_device.services, root_services);
         }
     };
     root_device
@@ -225,6 +261,7 @@ fn root_from_response() {
         Some(ROOT_VALIDITY),
         None,
         None,
+        None,
     );
 }
 
@@ -239,6 +276,7 @@ fn update_from_notify() {
         Known,
         Some(ROOT_TIMESTAMP),
         Some(ROOT_VALIDITY),
+        None,
         None,
         None,
     );
@@ -264,7 +302,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 "#;
     let message = notify.parse::<Message>().expect("valid notify");
     devices.process(message).expect("process notify");
-    let root_device = validate_root_device(&devices, Known, None, None, None, None);
+    let root_device = validate_root_device(&devices, Known, None, None, None, None, None);
     assert!(root_device.last_seen() > (Utc::now() - Duration::from_secs(60)));
     assert_eq!(
         root_device.valid_until(),
@@ -285,6 +323,7 @@ fn identify_root_device_type() {
         Some(ROOT_VALIDITY),
         None,
         None,
+        None,
     );
 
     let device_msg = DEVICE.parse::<Message>().expect("valid message");
@@ -295,6 +334,7 @@ fn identify_root_device_type() {
         Some(DEVICE_TIMESTAMP),
         Some(DEVICE_VALIDITY),
         Some(DEVICE_DETAILS),
+        None,
         None,
     );
 }
@@ -312,6 +352,7 @@ fn promote_device_to_root() {
         Some(DEVICE_VALIDITY),
         Some(DEVICE_DETAILS),
         None,
+        None,
     );
 
     let root_msg = ROOT.parse::<Message>().expect("valid message");
@@ -322,6 +363,7 @@ fn promote_device_to_root() {
         Some(DEVICE_TIMESTAMP),
         Some(DEVICE_VALIDITY),
         Some(DEVICE_DETAILS),
+        None,
         None,
     );
 }
@@ -339,6 +381,7 @@ fn add_service() {
         Some(ROOT_VALIDITY),
         None,
         None,
+        None,
     );
 
     let service_msg = SERVICE.parse::<Message>().expect("valid service");
@@ -352,6 +395,7 @@ fn add_service() {
         Some(ROOT_VALIDITY),
         None,
         Some(SERVICE_DETAILS),
+        None,
     );
 }
 
@@ -369,5 +413,35 @@ fn infer_root_from_service() {
         Some(ROOT_VALIDITY),
         None,
         Some(SERVICE_DETAILS),
+        None,
+    );
+}
+
+#[test]
+fn add_embedded_device() {
+    let mut devices = DeviceMap::new();
+
+    let root_msg = ROOT.parse::<Message>().expect("valid message");
+    devices.process(root_msg).expect("process message");
+    validate_root_device(
+        &devices,
+        Known,
+        Some(ROOT_TIMESTAMP),
+        Some(ROOT_VALIDITY),
+        None,
+        None,
+        None,
+    );
+
+    let ed_msg = EMBEDDED_DEVICE.parse::<Message>().expect("valid message");
+    devices.process(ed_msg);
+    validate_root_device(
+        &devices,
+        Known,
+        Some(ROOT_TIMESTAMP),
+        Some(ROOT_VALIDITY),
+        None,
+        None,
+        Some(embedded_devices()),
     );
 }
