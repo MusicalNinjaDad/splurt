@@ -166,18 +166,14 @@ fn validate_root_device(
         }
         (Some(device), Inferred) => {
             assert!(root_device.device_type.is_none());
-            let embedded_device = root_device
-                .embedded_devices
-                .get(&ID)
-                .expect("device embedded");
-            assert_eq!(
-                embedded_device,
-                &EmbeddedDevice {
-                    id: ID,
-                    device_type: Some(device),
-                    services
-                }
-            );
+            let device = EmbeddedDevice {
+                id: ID,
+                device_type: Some(device),
+                services,
+            };
+            let mut embedded_devices = HashMap::new();
+            embedded_devices.insert(ID, device);
+            assert_eq!(root_device.embedded_devices, embedded_devices);
             assert!(root_device.services.is_empty());
         }
         (None, _) => {
