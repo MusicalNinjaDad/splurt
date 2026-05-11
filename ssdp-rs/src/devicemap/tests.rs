@@ -201,8 +201,8 @@ fn validate_root_device(
 fn root_from_response() {
     let mut devices = DeviceMap::new();
 
-    let message = ROOT.parse::<Message>().expect("valid message");
-    devices.process(message).expect("process message");
+    let root_msg = ROOT.parse::<Message>().expect("valid message");
+    devices.process(root_msg).expect("process message");
     validate_root_device(&devices, Known, Some(DATE), Some(VALID_UNTIL), None, None);
 }
 
@@ -210,8 +210,8 @@ fn root_from_response() {
 fn update_from_notify() {
     let mut devices = DeviceMap::new();
 
-    let message = ROOT.parse::<Message>().expect("valid message");
-    devices.process(message).expect("process message");
+    let root_message = ROOT.parse::<Message>().expect("valid message");
+    devices.process(root_message).expect("process message");
     validate_root_device(&devices, Known, Some(DATE), Some(VALID_UNTIL), None, None);
 
     let notify = r#"NOTIFY * HTTP/1.1
@@ -247,12 +247,12 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 fn identify_root_device_type() {
     let mut devices = DeviceMap::new();
 
-    let message = ROOT.parse::<Message>().expect("valid message");
-    devices.process(message).expect("process message");
+    let root_msg = ROOT.parse::<Message>().expect("valid message");
+    devices.process(root_msg).expect("process message");
     validate_root_device(&devices, Known, Some(DATE), Some(VALID_UNTIL), None, None);
 
-    let message = DEVICE.parse::<Message>().expect("valid message");
-    devices.process(message).expect("process message");
+    let device_msg = DEVICE.parse::<Message>().expect("valid message");
+    devices.process(device_msg).expect("process message");
     validate_root_device(
         &devices,
         Known,
@@ -267,8 +267,8 @@ fn identify_root_device_type() {
 fn promote_device_to_root() {
     let mut devices = DeviceMap::new();
 
-    let message = DEVICE.parse::<Message>().expect("valid message");
-    devices.process(message).expect("process message");
+    let device_msg = DEVICE.parse::<Message>().expect("valid message");
+    devices.process(device_msg).expect("process message");
     validate_root_device(
         &devices,
         Inferred,
@@ -278,8 +278,8 @@ fn promote_device_to_root() {
         None,
     );
 
-    let message = ROOT.parse::<Message>().expect("valid message");
-    devices.process(message).expect("process message");
+    let root_msg = ROOT.parse::<Message>().expect("valid message");
+    devices.process(root_msg).expect("process message");
     validate_root_device(
         &devices,
         Known,
@@ -294,12 +294,14 @@ fn promote_device_to_root() {
 fn add_service() {
     let mut devices = DeviceMap::new();
 
-    let message = ROOT.parse::<Message>().expect("valid message");
-    devices.process(message).expect("process message");
+    let root_msg = ROOT.parse::<Message>().expect("valid message");
+    devices.process(root_msg).expect("process message");
     validate_root_device(&devices, Known, Some(DATE), Some(VALID_UNTIL), None, None);
 
-    let service = SERVICE.parse::<Message>().expect("valid service");
-    devices.process(service).expect("process service message");
+    let service_msg = SERVICE.parse::<Message>().expect("valid service");
+    devices
+        .process(service_msg)
+        .expect("process service message");
     validate_root_device(
         &devices,
         Known,
@@ -313,8 +315,10 @@ fn add_service() {
 #[test]
 fn infer_root_from_service() {
     let mut devices = DeviceMap::new();
-    let service = SERVICE.parse::<Message>().expect("valid service");
-    devices.process(service).expect("process service message");
+    let service_msg = SERVICE.parse::<Message>().expect("valid service");
+    devices
+        .process(service_msg)
+        .expect("process service message");
     validate_root_device(
         &devices,
         Inferred,
