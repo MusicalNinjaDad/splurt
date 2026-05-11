@@ -72,6 +72,10 @@ const VALID_UNTIL: DateTime<Utc> = DateTime::from_naive_utc_and_offset(
     Utc,
 );
 
+fn url() -> Url {
+    Url::parse("http://192.168.0.84:1400/xml/device_description.xml").unwrap()
+}
+
 fn server() -> Server {
     Server {
         os: "Linux".to_string(),
@@ -81,6 +85,8 @@ fn server() -> Server {
         product_version: "85.0-64200 (ZPS29)".to_string(),
     }
 }
+
+const BOOT_ID: Option<u32> = Some(6);
 
 const DEVICE_DETAILS: DeviceDetails = DeviceDetails {
     vendor: Vendor::Standard,
@@ -94,10 +100,6 @@ enum IsKnown {
 }
 
 use IsKnown::{Inferred, Known};
-
-fn url() -> Url {
-    Url::parse("http://192.168.0.84:1400/xml/device_description.xml").unwrap()
-}
 
 fn validate_root_device(
     root_device: &RootDevice,
@@ -115,7 +117,7 @@ fn validate_root_device(
     assert_eq!(root_device.valid_until, valid_until);
     assert_eq!(root_device.location, url());
     assert_matches!(&root_device.product, Some(product) if product == &server());
-    assert_matches!(root_device.boot_id, Some(id) if id == 6);
+    assert_eq!(root_device.boot_id, BOOT_ID);
     assert!(root_device.config_id.is_none());
     assert_matches!(root_device.port, UpnpPort::Default);
     assert_matches!(&root_device.secure_location, Some(secure_location)
