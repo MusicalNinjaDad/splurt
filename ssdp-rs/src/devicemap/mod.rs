@@ -79,6 +79,28 @@ impl From<Message> for Information {
                     port,
                     secure_location,
                 )),
+                NT::Device(device) => {
+                    let inferred_root_device = RootDevice::new(
+                        None,
+                        max_age,
+                        None,
+                        location,
+                        server,
+                        boot_id,
+                        config_id,
+                        port,
+                        secure_location,
+                    );
+                    let embedded_device = EmbeddedDevice {
+                        id: usn.uuid,
+                        device_type: Some(device),
+                        services: Default::default(),
+                    };
+                    Self::Device(DeviceInfo {
+                        embedded_device,
+                        inferred_root_device,
+                    })
+                }
                 _ => todo!("other alive"),
             },
             Message::Search(_) => Self::ControlPoint(msg),
