@@ -72,6 +72,16 @@ const VALID_UNTIL: DateTime<Utc> = DateTime::from_naive_utc_and_offset(
     Utc,
 );
 
+fn server() -> Server {
+    Server {
+        os: "Linux".to_string(),
+        os_version: "".to_string(),
+        upnp_version: UPNP_VERSION1,
+        product_name: "Sonos".to_string(),
+        product_version: "85.0-64200 (ZPS29)".to_string(),
+    }
+}
+
 const DEVICE_DETAILS: DeviceDetails = DeviceDetails {
     vendor: Vendor::Standard,
     device: Device::ZonePlayer { ver: 1 },
@@ -104,8 +114,7 @@ fn validate_root_device(
     };
     assert_eq!(root_device.valid_until, valid_until);
     assert_eq!(root_device.location, url());
-    assert_matches!(&root_device.product, Some(product) if product == &Server { os: "Linux".to_string(), os_version: "".to_string(),
-         upnp_version: UPNP_VERSION1, product_name: "Sonos".to_string(), product_version: "85.0-64200 (ZPS29)".to_string() });
+    assert_matches!(&root_device.product, Some(product) if product == &server());
     assert_matches!(root_device.boot_id, Some(id) if id == 6);
     assert!(root_device.config_id.is_none());
     assert_matches!(root_device.port, UpnpPort::Default);
