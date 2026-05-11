@@ -238,6 +238,7 @@ impl DeviceMap {
                         .embedded_devices
                         .entry(deviceinfo.embedded_device.id)
                     {
+                        // Could be inferred, so update the device type without clobbering any services.
                         Entry::Occupied(mut known_device) => {
                             let known_device = known_device.get_mut();
                             known_device.device_type = deviceinfo.embedded_device.device_type;
