@@ -3,7 +3,7 @@ use crate::{
     message::{Device, DeviceDetails, Message, Server, Service, UPNP_VERSION1, UpnpPort, Vendor},
 };
 
-use std::time::Duration;
+use std::{collections::HashSet, time::Duration};
 
 use super::*;
 
@@ -112,6 +112,11 @@ const DEVICE_DETAILS: DeviceDetails = DeviceDetails {
     device: Device::ZonePlayer { ver: 1 },
 };
 
+const SERVICE_DETAILS: ServiceDetails = ServiceDetails {
+    vendor: Vendor::Standard,
+    service: Service::MusicServices { ver: 1 },
+};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum IsKnown {
     Inferred,
@@ -126,6 +131,7 @@ fn validate_root_device(
     last_seen: Option<DateTime<Utc>>,
     valid_until: Option<DateTime<Utc>>,
     device: Option<DeviceDetails>,
+    service: Option<ServiceDetails>,
 ) -> &RootDevice {
     let root_device = devices.inner.get(&url()).expect("device created");
     match is_known {
@@ -144,10 +150,19 @@ fn validate_root_device(
     assert!(root_device.config_id.is_none());
     assert_eq!(root_device.port, UpnpPort::Default);
     assert_eq!(root_device.secure_location, Some(secure_url()));
+    let services = match service {
+        Some(service) => {
+            let mut services = HashSet::new();
+            services.insert(service);
+            services
+        }
+        None => HashSet::new(),
+    };
     match (device, is_known) {
         (Some(device), Known) => {
             assert_eq!(root_device.device_type, Some(device));
-            assert!(root_device.embedded_devices.is_empty())
+            assert!(root_device.embedded_devices.is_empty());
+            assert_eq!(root_device.services, services);
         }
         (Some(device), Inferred) => {
             assert!(root_device.device_type.is_none());
@@ -160,13 +175,15 @@ fn validate_root_device(
                 &EmbeddedDevice {
                     id: ID,
                     device_type: Some(device),
-                    services: Default::default()
+                    services
                 }
             );
+            assert!(root_device.services.is_empty());
         }
         (None, _) => {
             assert!(root_device.device_type.is_none());
-            assert!(root_device.embedded_devices.is_empty())
+            assert!(root_device.embedded_devices.is_empty());
+            assert_eq!(root_device.services, services);
         }
     };
     root_device
@@ -178,8 +195,7 @@ fn root_from_response() {
 
     let message = ROOT.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
-    let root_device = validate_root_device(&devices, Known, Some(DATE), Some(VALID_UNTIL), None);
-    assert!(root_device.services.is_empty());
+    validate_root_device(&devices, Known, Some(DATE), Some(VALID_UNTIL), None, None);
 }
 
 #[test]
@@ -188,7 +204,7 @@ fn update_from_notify() {
 
     let message = ROOT.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
-    validate_root_device(&devices, Known, Some(DATE), Some(VALID_UNTIL), None);
+    validate_root_device(&devices, Known, Some(DATE), Some(VALID_UNTIL), None, None);
 
     let notify = r#"NOTIFY * HTTP/1.1
 HOST: 239.255.255.250:1900
@@ -211,13 +227,12 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 "#;
     let message = notify.parse::<Message>().expect("valid notify");
     devices.process(message).expect("process notify");
-    let root_device = validate_root_device(&devices, Known, None, None, None);
+    let root_device = validate_root_device(&devices, Known, None, None, None, None);
     assert!(root_device.last_seen > (Utc::now() - Duration::from_secs(60)));
     assert_eq!(
         root_device.valid_until,
         root_device.last_seen + Duration::from_secs(1800)
     );
-    assert!(root_device.services.is_empty());
 }
 
 #[test]
@@ -226,18 +241,18 @@ fn identify_root_device_type() {
 
     let message = ROOT.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
-    validate_root_device(&devices, Known, Some(DATE), Some(VALID_UNTIL), None);
+    validate_root_device(&devices, Known, Some(DATE), Some(VALID_UNTIL), None, None);
 
     let message = DEVICE.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
-    let root_device = validate_root_device(
+    validate_root_device(
         &devices,
         Known,
         Some(DATE),
         Some(VALID_UNTIL),
         Some(DEVICE_DETAILS),
+        None,
     );
-    assert!(root_device.services.is_empty());
 }
 
 #[test]
@@ -246,17 +261,14 @@ fn promote_device_to_root() {
 
     let message = DEVICE.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
-    {
-        // need &devices
-        let root_device = validate_root_device(
-            &devices,
-            Inferred,
-            Some(DATE),
-            Some(VALID_UNTIL),
-            Some(DEVICE_DETAILS),
-        );
-        assert!(root_device.services.is_empty());
-    } // drop &devices
+    validate_root_device(
+        &devices,
+        Inferred,
+        Some(DATE),
+        Some(VALID_UNTIL),
+        Some(DEVICE_DETAILS),
+        None,
+    );
 
     let message = ROOT.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
@@ -266,6 +278,7 @@ fn promote_device_to_root() {
         Some(DATE),
         Some(VALID_UNTIL),
         Some(DEVICE_DETAILS),
+        None,
     );
 }
 
@@ -275,12 +288,18 @@ fn add_service() {
 
     let message = ROOT.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
-    validate_root_device(&devices, Known, Some(DATE), Some(VALID_UNTIL), None);
-    
+    validate_root_device(&devices, Known, Some(DATE), Some(VALID_UNTIL), None, None);
+
     let service = SERVICE.parse::<Message>().expect("valid service");
-    // needs &mut devices
     devices.process(service).expect("process service message");
-    validate_root_device(&devices, Known, Some(DATE), Some(VALID_UNTIL), None);
+    validate_root_device(
+        &devices,
+        Known,
+        Some(DATE),
+        Some(VALID_UNTIL),
+        None,
+        Some(SERVICE_DETAILS),
+    );
 }
 
 #[test]
