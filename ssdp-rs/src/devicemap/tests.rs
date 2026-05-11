@@ -139,6 +139,7 @@ enum IsKnown {
 
 use IsKnown::{Inferred, Known};
 
+#[track_caller]
 fn validate_root_device(
     devices: &DeviceMap,
     is_known: IsKnown,
@@ -315,12 +316,11 @@ fn promote_device_to_root() {
 
     let root_msg = ROOT.parse::<Message>().expect("valid message");
     devices.process(root_msg).expect("process message");
-    // TODO: Handle out-of-order messages with conflicting validity
     validate_root_device(
         &devices,
         Known,
-        Some(ROOT_TIMESTAMP),
-        Some(ROOT_VALIDITY),
+        Some(DEVICE_TIMESTAMP),
+        Some(DEVICE_VALIDITY),
         Some(DEVICE_DETAILS),
         None,
     );

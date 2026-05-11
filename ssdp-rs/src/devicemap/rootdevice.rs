@@ -1,6 +1,9 @@
 //! A heirarchical map of rootdevice[/device]/service
 
-use std::collections::{HashMap, HashSet};
+use std::{
+    cmp::max,
+    collections::{HashMap, HashSet},
+};
 
 use chrono::{DateTime, Utc};
 use url::Url;
@@ -107,6 +110,11 @@ impl RootDevice {
             embedded_devices: Default::default(),
             services: Default::default(),
         }
+    }
+
+    pub fn update_validity(&mut self, last_seen: DateTime<Utc>, valid_until: DateTime<Utc>) {
+        self.last_seen = max(self.last_seen, last_seen);
+        self.valid_until = max(self.valid_until, valid_until);
     }
 }
 
