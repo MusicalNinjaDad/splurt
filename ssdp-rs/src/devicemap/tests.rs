@@ -104,7 +104,7 @@ fn validate_root_device(
     root_device: &RootDevice,
     is_known: IsKnown,
     last_seen: Option<DateTime<Utc>>,
-    valid_until: DateTime<Utc>,
+    valid_until: Option<DateTime<Utc>>,
     device: Option<DeviceDetails>,
 ) {
     match is_known {
@@ -114,7 +114,9 @@ fn validate_root_device(
     if let Some(timestamp) = last_seen {
         assert_eq!(root_device.last_seen, timestamp);
     };
-    assert_eq!(root_device.valid_until, valid_until);
+    if let Some(timestamp) = valid_until {
+        assert_eq!(root_device.valid_until, timestamp);
+    }
     assert_eq!(root_device.location, url());
     assert_eq!(root_device.product, Some(server()));
     assert_eq!(root_device.boot_id, BOOT_ID);
@@ -156,7 +158,7 @@ fn root_from_response() {
     let message = ROOT.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
     let root_device = devices.inner.get(&url).expect("device created");
-    validate_root_device(root_device, Known, Some(DATE), VALID_UNTIL, None);
+    validate_root_device(root_device, Known, Some(DATE), Some(VALID_UNTIL), None);
     assert!(root_device.services.is_empty());
 }
 
@@ -168,7 +170,7 @@ fn update_from_notify() {
     let message = ROOT.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
     let root_device = devices.inner.get(&url).expect("device created");
-    validate_root_device(root_device, Known, Some(DATE), VALID_UNTIL, None);
+    validate_root_device(root_device, Known, Some(DATE), Some(VALID_UNTIL), None);
 
     let notify = r#"NOTIFY * HTTP/1.1
 HOST: 239.255.255.250:1900
@@ -196,7 +198,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         root_device,
         Known,
         None,
-        root_device.last_seen + Duration::from_secs(1800),
+        Some(root_device.last_seen + Duration::from_secs(1800)),
         None,
     );
     assert!(root_device.services.is_empty());
@@ -219,7 +221,7 @@ fn identify_root_device_type() {
         root_device,
         Known,
         Some(DATE),
-        VALID_UNTIL,
+        Some(VALID_UNTIL),
         Some(DEVICE_DETAILS),
     );
     assert!(root_device.services.is_empty());
@@ -239,7 +241,7 @@ fn promote_device_to_root() {
             root_device,
             Inferred,
             Some(DATE),
-            VALID_UNTIL,
+            Some(VALID_UNTIL),
             Some(DEVICE_DETAILS),
         );
         assert!(root_device.services.is_empty());
@@ -252,7 +254,7 @@ fn promote_device_to_root() {
         root_device,
         Known,
         Some(DATE),
-        VALID_UNTIL,
+        Some(VALID_UNTIL),
         Some(DEVICE_DETAILS),
     );
 }
