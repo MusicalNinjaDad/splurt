@@ -116,10 +116,10 @@ fn validate_root_device(
     };
     assert_eq!(root_device.valid_until, valid_until);
     assert_eq!(root_device.location, url());
-    assert_matches!(&root_device.product, Some(product) if product == &server());
+    assert_eq!(root_device.product, Some(server()));
     assert_eq!(root_device.boot_id, BOOT_ID);
     assert!(root_device.config_id.is_none());
-    assert_matches!(root_device.port, UpnpPort::Default);
+    assert_eq!(root_device.port, UpnpPort::Default);
     assert_matches!(&root_device.secure_location, Some(secure_location)
         if secure_location == &Url::parse("https://192.168.0.84:1443/xml/device_description.xml").expect("valid https url")
     );
