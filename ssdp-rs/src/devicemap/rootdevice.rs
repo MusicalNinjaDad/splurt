@@ -82,7 +82,7 @@ impl RootDevice {
         reason = "Need to construct RootDevice from deconstructed Message fields.
         Cannot use `From` implementations as nested matches on Messages need to own fields."
     )]
-    pub fn new(
+    pub(crate) fn new(
         id: Option<Uuid>,
         max_age: MaxAge,
         date: Option<DateTime<Utc>>,
