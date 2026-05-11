@@ -72,6 +72,11 @@ const VALID_UNTIL: DateTime<Utc> = DateTime::from_naive_utc_and_offset(
     Utc,
 );
 
+const DEVICE_DETAILS: DeviceDetails = DeviceDetails {
+    vendor: Vendor::Standard,
+    device: Device::ZonePlayer { ver: 1 },
+};
+
 fn url() -> Url {
     Url::parse("http://192.168.0.84:1400/xml/device_description.xml").unwrap()
 }
@@ -187,12 +192,7 @@ fn identify_root_device_type() {
 #[test]
 fn promote_device_to_root() {
     let mut devices = DeviceMap::new();
-    let url = Url::parse("http://192.168.0.84:1400/xml/device_description.xml").expect("valid url");
-    let id = uuid!("c4248768-d6b6-4232-a273-5b1701524493");
-    let devicedetails = DeviceDetails {
-        vendor: Vendor::Standard,
-        device: Device::ZonePlayer { ver: 1 },
-    };
+    let url = url();
 
     let device = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1800
@@ -218,28 +218,33 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     {
         // need &devices
         let root_device = devices.inner.get(&url).expect("root device registered");
+        validate_root_device(root_device);
+        assert!(root_device.id.is_none());
+        assert_eq!(root_device.last_seen, DATE);
+        assert_eq!(root_device.valid_until, VALID_UNTIL);
         assert!(root_device.device_type.is_none());
         let embedded_device = root_device
             .embedded_devices
-            .get(&id)
+            .get(&ID)
             .expect("device embedded");
         assert_eq!(
             embedded_device,
             &EmbeddedDevice {
-                id,
-                device_type: Some(devicedetails.clone()),
+                id: ID,
+                device_type: Some(DEVICE_DETAILS),
                 services: Default::default()
             }
         );
-        assert!(root_device.id.is_none());
+        assert!(root_device.services.is_empty());
     } // drop &devices
 
     let message = ROOT.parse::<Message>().expect("valid message");
     devices.process(message).expect("process message");
     let root_device = devices.inner.get(&url).expect("root device registered");
-    assert_eq!(root_device.device_type, Some(devicedetails));
+    validate_root_device(root_device);
+    assert_eq!(root_device.id, Some(ID));
+    assert_eq!(root_device.device_type, Some(DEVICE_DETAILS));
     assert!(root_device.embedded_devices.is_empty());
-    assert_eq!(root_device.id, Some(id));
 }
 
 #[test]
