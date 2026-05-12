@@ -354,8 +354,19 @@ impl DeviceMap {
             }
             Information::Uuid(info) => {
                 match self.inner.entry(info.inferred_root_device.location.clone()) {
-                    Entry::Occupied(occupied_entry) => {
-                        todo!("raw uuid NT/ST for known location")
+                    Entry::Occupied(mut known_locn) => {
+                        let mut existing_rd = known_locn.get_mut();
+                        match existing_rd.is_known() {
+                            Known
+                                if let Some(id) = existing_rd.id
+                                    && id == info.id =>
+                            {
+                                todo!("raw uuid NT/ST for known location")
+                            }
+                            _ => {
+                                todo!("have inferred or other root")
+                            }
+                        }
                     }
                     Entry::Vacant(vacant_entry) => {
                         todo!("raw uuid NT/ST for unknown location")
