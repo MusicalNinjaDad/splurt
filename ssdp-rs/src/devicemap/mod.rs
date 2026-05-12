@@ -201,6 +201,11 @@ impl DeviceMap {
                     let known_rd = known_rd.get_mut();
                     known_rd.update_validity(this_rd.last_seen(), this_rd.valid_until());
                     // TODO: when handling eventing: match on changes to BootId
+                    dbg!((
+                        known_rd.is_known(),
+                        this_rd.id.cmp(&known_rd.id),
+                        this_rd.config_id.cmp(&known_rd.config_id),
+                    ));
                     match (
                         known_rd.is_known(),
                         this_rd.id.cmp(&known_rd.id),
@@ -215,6 +220,9 @@ impl DeviceMap {
                         // Already known but with other or unknown Config
                         ((Known, Ordering::Equal, Ordering::Equal) if this_rd.config_id.is_none())
                         | (Known, Ordering::Equal, Ordering::Greater) => {
+                            todo!(
+                                "here? - BUG IN guard patterns? https://github.com/rust-lang/rfcs/blob/master/text/3637-guard-patterns.md"
+                            );
                             known_rd.received_new_config(
                                 this_rd.config_id,
                                 this_rd.product,
@@ -231,12 +239,36 @@ impl DeviceMap {
                         (Inferred, Ordering::Equal, Ordering::Equal)
                             if this_rd.config_id.is_some() =>
                         {
-                            // TODO! - Impossible branch: known_rd.id.is_none() && known_rd.id == this_rd.id
+                            todo!(
+                                "Impossible branch 1: known_rd.id.is_none() && known_rd.id == this_rd.id"
+                            )
                         }
                         // Currently inferred but with other or unknown Config
                         ((Inferred, Ordering::Equal, Ordering::Equal) if this_rd.config_id.is_none())
                         | (Inferred, Ordering::Equal, Ordering::Greater) => {
-                            // TODO! - Impossible branch: known_rd.id.is_none() && known_rd.id == this_rd.id
+                            todo!(
+                                "Impossible branch 2: known_rd.id.is_none() && known_rd.id == this_rd.id"
+                            )
+                        }
+                        // Currently inferred but with other ID (must be none)
+                        (Inferred, Ordering::Greater, _) | (Inferred, Ordering::Less, _) => {
+                            todo!("// Promote to known");
+                            known_rd.id = this_rd.id;
+                            // Update any config info that may have changed
+                            known_rd.received_new_config(
+                                this_rd.config_id,
+                                this_rd.product,
+                                this_rd.boot_id,
+                                this_rd.port,
+                                this_rd.secure_location,
+                            );
+                            // find the inferred embedded device & promote it
+                            if let Some(id) = this_rd.id
+                                && let Some(this_device) = known_rd.embedded_devices.remove(&id)
+                            {
+                                known_rd.device_type = this_device.device_type;
+                                known_rd.services.extend(this_device.services);
+                            }
                         }
                         // Currently known or inferred but with a NEWER Config
                         (Known, Ordering::Equal, Ordering::Less)
