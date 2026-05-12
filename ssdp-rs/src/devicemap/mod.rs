@@ -238,9 +238,7 @@ impl DeviceMap {
                         | (Inferred, Ordering::Equal, Ordering::Greater) => {
                             // TODO! - Impossible branch: known_rd.id.is_none() && known_rd.id == this_rd.id
                         }
-                        // Currently inferred but with other ID
-                        (Inferred, Ordering::Greater, _) | (Inferred, Ordering::Less, _) => (), // TODO!
-                        // Currently known or inferred but with a previous Config
+                        // Currently known or inferred but with a NEWER Config
                         (Known, Ordering::Equal, Ordering::Less)
                         | (Inferred, Ordering::Equal, Ordering::Less) => todo!(),
                     }
