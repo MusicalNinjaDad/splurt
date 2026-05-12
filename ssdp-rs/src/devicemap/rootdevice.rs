@@ -148,13 +148,18 @@ impl RootDevice {
             embedded_devices,
             services,
         } = inferred_root_device;
-        if matches!(self.is_known(), IsKnown::Known) && Some(id) != self.id {
-            dbg!(self);
-            dbg!(id);
-            todo!("handle id has changed")
-        }
-        self.last_seen = max(self.last_seen, last_seen);
-        self.valid_until = max(self.valid_until, valid_until);
+        match self.is_known() {
+            IsKnown::Known if Some(id) != self.id => todo!("handle id has changed"),
+            IsKnown::Inferred => {
+                self.id = Some(id);
+                if let Some(this_device) = self.embedded_devices.remove(&id) {
+                    self.device_type = this_device.device_type;
+                    self.services.extend(this_device.services);
+                };
+            }
+            _ => (),
+        };
+        self.update_validity(last_seen, valid_until);
         if self.config_id.is_none() || config_id > self.config_id {
             self.config_id = config_id;
             self.product = product;
