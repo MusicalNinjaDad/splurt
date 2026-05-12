@@ -355,7 +355,7 @@ impl DeviceMap {
             Information::Uuid(info) => {
                 match self.inner.entry(info.inferred_root_device.location.clone()) {
                     Entry::Occupied(mut known_locn) => {
-                        let mut existing_rd = known_locn.get_mut();
+                        let existing_rd = known_locn.get_mut();
                         existing_rd.update_validity(
                             info.inferred_root_device.last_seen(),
                             info.inferred_root_device.valid_until(),
@@ -368,7 +368,13 @@ impl DeviceMap {
                                         || info.inferred_root_device.config_id
                                             > existing_rd.config_id) =>
                             {
-                                todo!("raw uuid NT/ST for known location")
+                                existing_rd.received_new_config(
+                                    info.inferred_root_device.config_id,
+                                    info.inferred_root_device.product,
+                                    info.inferred_root_device.boot_id,
+                                    info.inferred_root_device.port,
+                                    info.inferred_root_device.secure_location,
+                                );
                             }
                             _ => {
                                 todo!("have inferred or other root")
@@ -379,6 +385,7 @@ impl DeviceMap {
                         todo!("raw uuid NT/ST for unknown location")
                     }
                 };
+                Ok(())
             }
             #[expect(unused_variables, reason = "todo")]
             Information::ControlPoint(message) => todo!("process control points"),
