@@ -161,7 +161,6 @@ impl RootDevice {
                 self.device_type = device.device_type;
                 self.services.extend(device.services);
             }
-
             _ => (),
         };
         self.update_validity(last_seen, valid_until);
@@ -172,6 +171,7 @@ impl RootDevice {
             self.port = port;
             self.secure_location = secure_location;
         }
+        self.embedded_devices.extend(embedded_devices);
     }
 
     pub const fn valid_until(&self) -> DateTime<Utc> {
