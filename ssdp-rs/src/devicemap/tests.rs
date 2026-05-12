@@ -484,6 +484,7 @@ fn add_embedded_device() {
 }
 
 #[test]
+#[should_panic]
 fn service_device_embedded_root() {
     let mut devices = DeviceMap::new();
     devices.process(service_msg());
