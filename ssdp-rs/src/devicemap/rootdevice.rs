@@ -161,6 +161,11 @@ impl RootDevice {
                 self.device_type = device.device_type;
                 self.services.extend(device.services);
             }
+            IsKnown::Known if let Some(device) = self.embedded_devices.remove(&update_id) => {
+                self.id = id;
+                self.device_type = device.device_type;
+                self.services.extend(device.services);
+            }
             _ => (),
         };
         self.update_validity(last_seen, valid_until);
