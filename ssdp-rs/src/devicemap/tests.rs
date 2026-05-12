@@ -532,7 +532,7 @@ fn service_device_embedded_root() {
 }
 
 #[test]
-#[should_panic(expected = "other response")]
+#[should_panic(expected = "process raw uuid NT/ST")]
 fn root_then_uuid() {
     let mut devices = DeviceMap::new();
     devices.process(root_msg());

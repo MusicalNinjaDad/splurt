@@ -29,6 +29,7 @@ pub enum Information {
     Device(DeviceInfo),
     Service(ServiceInfo),
     ControlPoint(Message),
+    Uuid(Uuid),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -174,6 +175,7 @@ impl From<Message> for Information {
                         inferred_root_device,
                     })
                 }
+                ST::Uuid(id) => Self::Uuid(id),
                 _ => todo!("other response"),
             },
             _ => todo!("other stuff"),
@@ -328,6 +330,7 @@ impl DeviceMap {
                 }
                 Ok(())
             }
+            Information::Uuid(id) => todo!("process raw uuid NT/ST"),
             #[expect(unused_variables, reason = "todo")]
             Information::ControlPoint(message) => todo!("process control points"),
         }
