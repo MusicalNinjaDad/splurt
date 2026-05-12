@@ -235,7 +235,9 @@ impl DeviceMap {
                         }
                         // Currently inferred but with other or unknown Config
                         ((Inferred, Ordering::Equal, Ordering::Equal) if this_rd.config_id.is_none())
-                        | (Inferred, Ordering::Equal, Ordering::Greater) => (), // TODO!
+                        | (Inferred, Ordering::Equal, Ordering::Greater) => {
+                            // TODO! - Impossible branch: known_rd.id.is_none() && known_rd.id == this_rd.id
+                        }
                         // Currently inferred but with other ID
                         (Inferred, Ordering::Greater, _) | (Inferred, Ordering::Less, _) => (), // TODO!
                         // Currently known or inferred but with a previous Config
