@@ -34,6 +34,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
 "#;
 
+// TODO remove complication: different times, and add specific test
 const DEVICE: &str = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1860
 DATE: Wed, 29 Apr 2026 08:22:05 GMT
