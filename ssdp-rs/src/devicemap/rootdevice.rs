@@ -146,20 +146,22 @@ impl RootDevice {
             port,
             secure_location,
             device_type: _, // todo! reduce confusion, handle update_based_on full details,
-            embedded_devices: _, // todo! reduce confusion, handle update_based_on full details,
-            services: _,    // todo! reduce confusion, handle update_based_on full details,
+            mut embedded_devices,
+            services: _, // todo! reduce confusion, handle update_based_on full details,
         } = root_device;
         match update_is_known {
             IsKnown::Known if matches!(self.is_known(), IsKnown::Known) && id != self.id => {
                 todo!("handle id has changed")
             }
-            IsKnown::Known if matches!(self.is_known(), IsKnown::Inferred) => {
-                self.id = id;
-                if let Some(this_device) = self.embedded_devices.remove(&update_id) {
-                    self.device_type = this_device.device_type;
-                    self.services.extend(this_device.services);
-                }
+            IsKnown::Inferred
+                if let Some(this_id) = self.id
+                    && this_id == update_id
+                    && let Some(device) = embedded_devices.remove(&update_id) =>
+            {
+                self.device_type = device.device_type;
+                self.services.extend(device.services);
             }
+
             _ => (),
         };
         self.update_validity(last_seen, valid_until);
