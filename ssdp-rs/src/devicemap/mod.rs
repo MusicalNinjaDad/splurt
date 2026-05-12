@@ -29,7 +29,7 @@ pub enum Information {
     Device(DeviceInfo),
     Service(ServiceInfo),
     ControlPoint(Message),
-    Uuid(Uuid),
+    Uuid(UuidInfo),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,6 +42,12 @@ pub struct ServiceInfo {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeviceInfo {
     embedded_device: EmbeddedDevice,
+    inferred_root_device: RootDevice,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UuidInfo {
+    id: Uuid,
     inferred_root_device: RootDevice,
 }
 
@@ -175,7 +181,23 @@ impl From<Message> for Information {
                         inferred_root_device,
                     })
                 }
-                ST::Uuid(id) => Self::Uuid(id),
+                ST::Uuid(id) => {
+                    let inferred_root_device = RootDevice::new(
+                        None,
+                        max_age,
+                        date,
+                        location,
+                        server,
+                        boot_id,
+                        config_id,
+                        port,
+                        secure_location,
+                    );
+                    Self::Uuid(UuidInfo {
+                        id,
+                        inferred_root_device,
+                    })
+                }
                 _ => todo!("other response"),
             },
             _ => todo!("other stuff"),
@@ -330,7 +352,16 @@ impl DeviceMap {
                 }
                 Ok(())
             }
-            Information::Uuid(id) => todo!("process raw uuid NT/ST"),
+            Information::Uuid(info) => {
+                match self.inner.entry(info.inferred_root_device.location.clone()) {
+                    Entry::Occupied(occupied_entry) => {
+                        todo!("raw uuid NT/ST for known location")
+                    }
+                    Entry::Vacant(vacant_entry) => {
+                        todo!("raw uuid NT/ST for unknown location")
+                    }
+                };
+            }
             #[expect(unused_variables, reason = "todo")]
             Information::ControlPoint(message) => todo!("process control points"),
         }
