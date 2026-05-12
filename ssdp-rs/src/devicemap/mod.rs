@@ -356,10 +356,17 @@ impl DeviceMap {
                 match self.inner.entry(info.inferred_root_device.location.clone()) {
                     Entry::Occupied(mut known_locn) => {
                         let mut existing_rd = known_locn.get_mut();
+                        existing_rd.update_validity(
+                            info.inferred_root_device.last_seen(),
+                            info.inferred_root_device.valid_until(),
+                        );
                         match existing_rd.is_known() {
                             Known
                                 if let Some(id) = existing_rd.id
-                                    && id == info.id =>
+                                    && id == info.id
+                                    && (info.inferred_root_device.config_id.is_none()
+                                        || info.inferred_root_device.config_id
+                                            > existing_rd.config_id) =>
                             {
                                 todo!("raw uuid NT/ST for known location")
                             }
