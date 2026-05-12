@@ -1,17 +1,10 @@
-use std::{
-    cmp::Ordering,
-    collections::{HashMap, hash_map::Entry},
-};
+use std::collections::{HashMap, hash_map::Entry};
 
 use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    devicemap::rootdevice::{
-        EmbeddedDevice,
-        IsKnown::{Inferred, Known},
-        RootDevice,
-    },
+    devicemap::rootdevice::{EmbeddedDevice, RootDevice},
     message::{
         Message, Notify, Response, ST, ServiceDetails,
         notify::{Alive, NT},
@@ -25,7 +18,10 @@ pub enum Error {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Information {
-    RootDevice(RootDevice),
+    RootDevice {
+        confirmed_root_device: RootDevice,
+        id: Uuid,
+    },
     Device(DeviceInfo),
     Service(ServiceInfo),
     ControlPoint(Message),
@@ -82,17 +78,20 @@ impl From<Message> for Information {
                         inferred_root_device,
                     })
                 }
-                NT::RootDevice => Self::RootDevice(RootDevice::new(
-                    Some(usn.uuid),
-                    max_age,
-                    None,
-                    location,
-                    server,
-                    boot_id,
-                    config_id,
-                    port,
-                    secure_location,
-                )),
+                NT::RootDevice => Self::RootDevice {
+                    confirmed_root_device: RootDevice::new(
+                        Some(usn.uuid),
+                        max_age,
+                        None,
+                        location,
+                        server,
+                        boot_id,
+                        config_id,
+                        port,
+                        secure_location,
+                    ),
+                    id: usn.uuid,
+                },
                 NT::Device(device) => {
                     let inferred_root_device = RootDevice::new(
                         None,
@@ -148,17 +147,20 @@ impl From<Message> for Information {
                         inferred_root_device,
                     })
                 }
-                ST::RootDevice => Self::RootDevice(RootDevice::new(
-                    Some(usn.uuid),
-                    max_age,
-                    date,
-                    location,
-                    server,
-                    boot_id,
-                    config_id,
-                    port,
-                    secure_location,
-                )),
+                ST::RootDevice => Self::RootDevice {
+                    confirmed_root_device: RootDevice::new(
+                        Some(usn.uuid),
+                        max_age,
+                        date,
+                        location,
+                        server,
+                        boot_id,
+                        config_id,
+                        port,
+                        secure_location,
+                    ),
+                    id: usn.uuid,
+                },
                 ST::Device(device) => {
                     let inferred_root_device = RootDevice::new(
                         None,
@@ -220,70 +222,17 @@ impl DeviceMap {
     pub fn process(&mut self, message: Message) -> Result<(), Error> {
         let info = message.into();
         match info {
-            Information::RootDevice(this_rd) => match self.inner.entry(this_rd.location.clone()) {
+            Information::RootDevice {
+                confirmed_root_device,
+                id,
+            } => match self.inner.entry(confirmed_root_device.location.clone()) {
                 Entry::Occupied(mut known_rd) => {
                     let known_rd = known_rd.get_mut();
-                    known_rd.update_validity(this_rd.last_seen(), this_rd.valid_until());
-                    // TODO: when handling eventing: match on changes to BootId
-                    dbg!((
-                        known_rd.is_known(),
-                        this_rd.id.cmp(&known_rd.id),
-                        this_rd.config_id.cmp(&known_rd.config_id),
-                    ));
-                    match (
-                        known_rd.is_known(),
-                        this_rd.id.cmp(&known_rd.id),
-                        this_rd.config_id.cmp(&known_rd.config_id),
-                    ) {
-                        // Currently known or inferred but with a NEWER Config
-                        (_, Ordering::Equal, Ordering::Less) => {
-                            // TODO: "outdated message from old config"
-                        }
-                        // Already known with this ID & Config
-                        (Known, Ordering::Equal, Ordering::Equal)
-                            if this_rd.config_id.is_some() =>
-                        {
-                            // We've already updated validity above, so nothing else to be done.
-                        }
-                        // Already known but with other or unknown Config
-                        (Known, Ordering::Equal, _) => {
-                            known_rd.received_new_config(
-                                this_rd.config_id,
-                                this_rd.product,
-                                this_rd.boot_id,
-                                this_rd.port,
-                                this_rd.secure_location,
-                            );
-                        }
-                        // Already known but with other ID
-                        (Known, Ordering::Greater, _) | (Known, Ordering::Less, _) => {
-                            // TODO: "Root device ID mismatch"
-                        }
-                        // Currently inferred
-                        (Inferred, _, _) => {
-                            // Promote to known
-                            known_rd.id = this_rd.id;
-                            // Update any config info that may have changed
-                            known_rd.received_new_config(
-                                this_rd.config_id,
-                                this_rd.product,
-                                this_rd.boot_id,
-                                this_rd.port,
-                                this_rd.secure_location,
-                            );
-                            // find the inferred embedded device & promote it
-                            if let Some(id) = this_rd.id
-                                && let Some(this_device) = known_rd.embedded_devices.remove(&id)
-                            {
-                                known_rd.device_type = this_device.device_type;
-                                known_rd.services.extend(this_device.services);
-                            }
-                        }
-                    }
+                    known_rd.update_based_on(confirmed_root_device, id);
                     Ok(())
                 }
                 Entry::Vacant(entry) => {
-                    entry.insert(this_rd);
+                    entry.insert(confirmed_root_device);
                     Ok(())
                 }
             },
