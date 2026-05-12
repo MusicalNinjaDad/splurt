@@ -211,6 +211,10 @@ impl DeviceMap {
                         this_rd.id.cmp(&known_rd.id),
                         this_rd.config_id.cmp(&known_rd.config_id),
                     ) {
+                        // Currently known or inferred but with a NEWER Config
+                        (_, Ordering::Equal, Ordering::Less) => {
+                            todo!("outdated message from old config")
+                        }
                         // Already known with this ID & Config
                         (Known, Ordering::Equal, Ordering::Equal)
                             if this_rd.config_id.is_some() =>
@@ -218,11 +222,7 @@ impl DeviceMap {
                             // We've already updated validity above, so nothing else to be done.
                         }
                         // Already known but with other or unknown Config
-                        ((Known, Ordering::Equal, Ordering::Equal) if this_rd.config_id.is_none())
-                        | (Known, Ordering::Equal, Ordering::Greater) => {
-                            todo!(
-                                "here? - BUG IN guard patterns? https://github.com/rust-lang/rfcs/blob/master/text/3637-guard-patterns.md"
-                            );
+                        (Known, Ordering::Equal, _) => {
                             known_rd.received_new_config(
                                 this_rd.config_id,
                                 this_rd.product,
@@ -235,24 +235,9 @@ impl DeviceMap {
                         (Known, Ordering::Greater, _) | (Known, Ordering::Less, _) => {
                             todo!("Root device ID mismatch")
                         }
-                        // Currently inferred with this ID & Config
-                        (Inferred, Ordering::Equal, Ordering::Equal)
-                            if this_rd.config_id.is_some() =>
-                        {
-                            todo!(
-                                "Impossible branch 1: known_rd.id.is_none() && known_rd.id == this_rd.id"
-                            )
-                        }
-                        // Currently inferred but with other or unknown Config
-                        ((Inferred, Ordering::Equal, Ordering::Equal) if this_rd.config_id.is_none())
-                        | (Inferred, Ordering::Equal, Ordering::Greater) => {
-                            todo!(
-                                "Impossible branch 2: known_rd.id.is_none() && known_rd.id == this_rd.id"
-                            )
-                        }
-                        // Currently inferred but with other ID (must be none)
-                        (Inferred, Ordering::Greater, _) | (Inferred, Ordering::Less, _) => {
-                            todo!("// Promote to known");
+                        // Currently inferred
+                        (Inferred, _, _) => {
+                            // Promote to known
                             known_rd.id = this_rd.id;
                             // Update any config info that may have changed
                             known_rd.received_new_config(
@@ -270,9 +255,6 @@ impl DeviceMap {
                                 known_rd.services.extend(this_device.services);
                             }
                         }
-                        // Currently known or inferred but with a NEWER Config
-                        (Known, Ordering::Equal, Ordering::Less)
-                        | (Inferred, Ordering::Equal, Ordering::Less) => todo!(),
                     }
                     Ok(())
                 }
