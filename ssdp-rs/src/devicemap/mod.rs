@@ -207,7 +207,9 @@ impl DeviceMap {
                             this_rd.config_id.cmp(&known_rd.config_id),
                         ) {
                             // Already known with this ID & Config
-                            (Known, Ordering::Equal, Ordering::Equal) if this_rd.config_id.is_some() => (), // TODO!
+                            (Known, Ordering::Equal, Ordering::Equal) if this_rd.config_id.is_some() => {
+                                // We've already updated validity above, so nothing else to be done.
+                            }
                             // Already known but with other or unknown Config
                             ((Known, Ordering::Equal, Ordering::Equal) if this_rd.config_id.is_none())
                             | (Known, Ordering::Equal, Ordering::Greater) => (), // TODO!
