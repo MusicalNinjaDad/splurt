@@ -213,7 +213,7 @@ impl DeviceMap {
                     ) {
                         // Currently known or inferred but with a NEWER Config
                         (_, Ordering::Equal, Ordering::Less) => {
-                            todo!("outdated message from old config")
+                            // TODO: "outdated message from old config"
                         }
                         // Already known with this ID & Config
                         (Known, Ordering::Equal, Ordering::Equal)
@@ -233,7 +233,7 @@ impl DeviceMap {
                         }
                         // Already known but with other ID
                         (Known, Ordering::Greater, _) | (Known, Ordering::Less, _) => {
-                            todo!("Root device ID mismatch")
+                            // TODO: "Root device ID mismatch"
                         }
                         // Currently inferred
                         (Inferred, _, _) => {
