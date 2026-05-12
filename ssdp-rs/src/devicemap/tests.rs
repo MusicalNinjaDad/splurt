@@ -34,6 +34,34 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
 "#;
 
+fn root_msg() -> Message {
+    ROOT.parse().expect("root device message")
+}
+
+const ROOT_UUID: &str = r#"HTTP/1.1 200 OK
+CACHE-CONTROL: max-age = 1800
+DATE: Wed, 29 Apr 2026 08:22:03 GMT
+EXT:
+LOCATION: http://192.168.0.84:1400/xml/device_description.xml
+SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
+ST: uuid:c4248768-d6b6-4232-a273-5b1701524493
+USN: uuid:c4248768-d6b6-4232-a273-5b1701524493
+X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
+X-RINCON-BOOTSEQ: 6
+BOOTID.UPNP.ORG: 6
+X-RINCON-WIFIMODE: 1
+X-RINCON-VARIANT: 2
+HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
+LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
+SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
+X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
+
+"#;
+
+fn root_uuid_msg() -> Message {
+    ROOT_UUID.parse().expect("root uuid message")
+}
+
 // TODO remove complication: different times, and add specific test
 const DEVICE: &str = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1860
@@ -55,6 +83,10 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
 "#;
 
+fn device_msg() -> Message {
+    DEVICE.parse().expect("device message")
+}
+
 const EMBEDDED_DEVICE: &str = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1800
 DATE: Wed, 29 Apr 2026 08:22:03 GMT
@@ -75,6 +107,10 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
 "#;
 
+fn emb_dev_msg() -> Message {
+    EMBEDDED_DEVICE.parse().expect("embedded device message")
+}
+
 const SERVICE: &str = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1800
 DATE: Wed, 29 Apr 2026 08:22:03 GMT
@@ -94,6 +130,10 @@ SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
 X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
 "#;
+
+fn service_msg() -> Message {
+    SERVICE.parse().expect("service message")
+}
 
 const ID: Uuid = uuid!("c4248768-d6b6-4232-a273-5b1701524493");
 
@@ -491,18 +531,29 @@ fn service_device_embedded_root() {
     );
 }
 
-fn root_msg() -> Message {
-    ROOT.parse::<Message>().expect("root device message")
-}
+#[test]
+#[should_panic(expected = "other response")]
+fn root_then_uuid() {
+    let mut devices = DeviceMap::new();
+    devices.process(root_msg());
+    validate_root_device(
+        &devices,
+        Known,
+        Some(ROOT_TIMESTAMP),
+        Some(ROOT_VALIDITY),
+        None,
+        None,
+        None,
+    );
 
-fn service_msg() -> Message {
-    SERVICE.parse().expect("service message")
-}
-
-fn device_msg() -> Message {
-    DEVICE.parse().expect("device message")
-}
-
-fn emb_dev_msg() -> Message {
-    EMBEDDED_DEVICE.parse().expect("embedded device message")
+    devices.process(root_uuid_msg());
+    validate_root_device(
+        &devices,
+        Known,
+        Some(ROOT_TIMESTAMP),
+        Some(ROOT_VALIDITY),
+        None,
+        None,
+        None,
+    );
 }
