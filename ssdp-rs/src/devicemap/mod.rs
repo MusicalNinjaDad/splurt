@@ -307,8 +307,8 @@ impl DeviceMap {
                         let existing_rd = known_locn.get_mut();
                         existing_rd.update_based_on(info.inferred_root_device, info.id);
                     }
-                    Entry::Vacant(vacant_entry) => {
-                        todo!("raw uuid NT/ST for unknown location")
+                    Entry::Vacant(entry) => {
+                        entry.insert(info.inferred_root_device);
                     }
                 };
                 Ok(())
