@@ -224,13 +224,15 @@ impl DeviceMap {
                             );
                         }
                         // Already known but with other ID
-                        (Known, Ordering::Greater, _) | (Known, Ordering::Less, _) => (), // TODO!
+                        (Known, Ordering::Greater, _) | (Known, Ordering::Less, _) => {
+                            todo!("Root device ID mismatch")
+                        }
                         // Currently inferred with this ID & Config
                         (Inferred, Ordering::Equal, Ordering::Equal)
                             if this_rd.config_id.is_some() =>
                         {
-                            ()
-                        } // TODO!
+                            // TODO!
+                        }
                         // Currently inferred but with other or unknown Config
                         ((Inferred, Ordering::Equal, Ordering::Equal) if this_rd.config_id.is_none())
                         | (Inferred, Ordering::Equal, Ordering::Greater) => (), // TODO!
