@@ -196,58 +196,57 @@ impl DeviceMap {
     pub fn process(&mut self, message: Message) -> Result<(), Error> {
         let info = message.into();
         match info {
-            Information::RootDevice(this_rd) => {
-                self.inner
-                    .entry(this_rd.location.clone())
-                    .and_modify(|known_rd| {
-                        known_rd.update_validity(this_rd.last_seen(), this_rd.valid_until());
-                        match (
-                            known_rd.is_known(),
-                            this_rd.id.cmp(&known_rd.id),
-                            this_rd.config_id.cmp(&known_rd.config_id),
-                        ) {
-                            // Already known with this ID & Config
-                            (Known, Ordering::Equal, Ordering::Equal) if this_rd.config_id.is_some() => {
-                                // We've already updated validity above, so nothing else to be done.
-                            }
-                            // Already known but with other or unknown Config
-                            ((Known, Ordering::Equal, Ordering::Equal) if this_rd.config_id.is_none())
-                            | (Known, Ordering::Equal, Ordering::Greater) => (), // TODO!
-                            // Already known but with other ID
-                            (Known, Ordering::Greater, _) | (Known, Ordering::Less, _) => (), // TODO!
-                            // Currently inferred with this ID & Config
-                            (Inferred, Ordering::Equal, Ordering::Equal) if this_rd.config_id.is_some() => (), // TODO!
-                            // Currently inferred but with other or unknown Config
-                            ((Inferred, Ordering::Equal, Ordering::Equal) if this_rd.config_id.is_none())
-                            | (Inferred, Ordering::Equal, Ordering::Greater) => (), // TODO!
-                            // Currently inferred but with other ID
-                            (Inferred, Ordering::Greater, _) | (Inferred, Ordering::Less, _) => (), // TODO!
-                            // Currently known or inferred but with a previous Config 
-                            (Known, Ordering::Equal, Ordering::Less) | (Inferred, Ordering::Equal, Ordering::Less) => todo!(),
-                        };
-
-                        match (this_rd.id, known_rd.id) {
-                            (Some(this_id), Some(known_id)) if this_id != known_id => {
-                                todo!("previously known with a different id")
-                            }
-                            (Some(this_id), _)
-                                if let Some(this_device) =
-                                    known_rd.embedded_devices.remove(&this_id) =>
-                            {
-                                known_rd.device_type = this_device.device_type;
-                                known_rd.services.extend(this_device.services);
-                                // Relies on invariant from previous arm: this_id != known_id
-                                // Is a no-op if root_device was already known.
-                                // Current code should mean we never get here in that case but best
-                                // to leave this here for future safety.
-                                known_rd.id = Some(this_id);
-                            }
-                            _ => (),
+            Information::RootDevice(this_rd) => match self.inner.entry(this_rd.location.clone()) {
+                Entry::Occupied(mut known_rd) => {
+                    let known_rd = known_rd.get_mut();
+                    known_rd.update_validity(this_rd.last_seen(), this_rd.valid_until());
+                    // TODO: when handling eventing: match on changes to BootId
+                    match (
+                        known_rd.is_known(),
+                        this_rd.id.cmp(&known_rd.id),
+                        this_rd.config_id.cmp(&known_rd.config_id),
+                    ) {
+                        // Already known with this ID & Config
+                        (Known, Ordering::Equal, Ordering::Equal)
+                            if this_rd.config_id.is_some() =>
+                        {
+                            // We've already updated validity above, so nothing else to be done.
                         }
-                    })
-                    .or_insert(this_rd);
-                Ok(())
-            }
+                        // Already known but with other or unknown Config
+                        ((Known, Ordering::Equal, Ordering::Equal) if this_rd.config_id.is_none())
+                        | (Known, Ordering::Equal, Ordering::Greater) => {
+                            known_rd.received_new_config(
+                                this_rd.config_id,
+                                this_rd.product,
+                                this_rd.boot_id,
+                                this_rd.port,
+                                this_rd.secure_location,
+                            );
+                        }
+                        // Already known but with other ID
+                        (Known, Ordering::Greater, _) | (Known, Ordering::Less, _) => (), // TODO!
+                        // Currently inferred with this ID & Config
+                        (Inferred, Ordering::Equal, Ordering::Equal)
+                            if this_rd.config_id.is_some() =>
+                        {
+                            ()
+                        } // TODO!
+                        // Currently inferred but with other or unknown Config
+                        ((Inferred, Ordering::Equal, Ordering::Equal) if this_rd.config_id.is_none())
+                        | (Inferred, Ordering::Equal, Ordering::Greater) => (), // TODO!
+                        // Currently inferred but with other ID
+                        (Inferred, Ordering::Greater, _) | (Inferred, Ordering::Less, _) => (), // TODO!
+                        // Currently known or inferred but with a previous Config
+                        (Known, Ordering::Equal, Ordering::Less)
+                        | (Inferred, Ordering::Equal, Ordering::Less) => todo!(),
+                    }
+                    Ok(())
+                }
+                Entry::Vacant(entry) => {
+                    entry.insert(this_rd);
+                    Ok(())
+                }
+            },
             Information::Device(deviceinfo) => {
                 let root_device = self
                     .inner

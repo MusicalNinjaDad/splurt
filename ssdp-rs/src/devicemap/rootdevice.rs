@@ -117,6 +117,22 @@ impl RootDevice {
         self.valid_until = max(self.valid_until, valid_until);
     }
 
+    /// Update details which are
+    pub fn received_new_config(
+        &mut self,
+        config_id: Option<u32>,
+        product: Option<Server>,
+        boot_id: Option<u32>,
+        port: UpnpPort,
+        secure_location: Option<Url>,
+    ) {
+        self.config_id = config_id;
+        self.product = product;
+        self.boot_id = boot_id;
+        self.port = port;
+        self.secure_location = secure_location;
+    }
+
     pub const fn valid_until(&self) -> DateTime<Utc> {
         self.valid_until
     }
