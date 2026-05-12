@@ -356,30 +356,7 @@ impl DeviceMap {
                 match self.inner.entry(info.inferred_root_device.location.clone()) {
                     Entry::Occupied(mut known_locn) => {
                         let existing_rd = known_locn.get_mut();
-                        existing_rd.update_validity(
-                            info.inferred_root_device.last_seen(),
-                            info.inferred_root_device.valid_until(),
-                        );
-                        match existing_rd.is_known() {
-                            Known
-                                if let Some(id) = existing_rd.id
-                                    && id == info.id
-                                    && (info.inferred_root_device.config_id.is_none()
-                                        || info.inferred_root_device.config_id
-                                            > existing_rd.config_id) =>
-                            {
-                                existing_rd.received_new_config(
-                                    info.inferred_root_device.config_id,
-                                    info.inferred_root_device.product,
-                                    info.inferred_root_device.boot_id,
-                                    info.inferred_root_device.port,
-                                    info.inferred_root_device.secure_location,
-                                );
-                            }
-                            _ => {
-                                todo!("have inferred or other root")
-                            }
-                        }
+                        existing_rd.update_based_on(info.inferred_root_device, info.id);
                     }
                     Entry::Vacant(vacant_entry) => {
                         todo!("raw uuid NT/ST for unknown location")

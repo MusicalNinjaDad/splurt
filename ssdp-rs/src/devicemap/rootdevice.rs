@@ -133,6 +133,37 @@ impl RootDevice {
         self.secure_location = secure_location;
     }
 
+    pub fn update_based_on(&mut self, inferred_root_device: RootDevice, id: Uuid) {
+        let RootDevice {
+            id: _,
+            last_seen,
+            valid_until,
+            location,
+            product,
+            boot_id,
+            config_id,
+            port,
+            secure_location,
+            device_type,
+            embedded_devices,
+            services,
+        } = inferred_root_device;
+        if matches!(self.is_known(), IsKnown::Known) && Some(id) != self.id {
+            dbg!(self);
+            dbg!(id);
+            todo!("handle id has changed")
+        }
+        self.last_seen = max(self.last_seen, last_seen);
+        self.valid_until = max(self.valid_until, valid_until);
+        if self.config_id.is_none() || config_id > self.config_id {
+            self.config_id = config_id;
+            self.product = product;
+            self.boot_id = boot_id;
+            self.port = port;
+            self.secure_location = secure_location;
+        }
+    }
+
     pub const fn valid_until(&self) -> DateTime<Utc> {
         self.valid_until
     }
