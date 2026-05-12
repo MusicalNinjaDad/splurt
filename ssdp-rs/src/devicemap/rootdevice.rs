@@ -133,21 +133,21 @@ impl RootDevice {
         self.secure_location = secure_location;
     }
 
-    pub fn update_based_on(&mut self, inferred_root_device: RootDevice, id: Uuid) {
+    pub fn update_based_on(&mut self, root_device: RootDevice, id: Uuid) {
         let RootDevice {
-            id: _,
+            id: _, // todo! reduce confusion, handle update_based_on full details
             last_seen,
             valid_until,
-            location,
+            location: _, // todo! reduce confusion, handle update_based_on full details,
             product,
             boot_id,
             config_id,
             port,
             secure_location,
-            device_type,
-            embedded_devices,
-            services,
-        } = inferred_root_device;
+            device_type: _, // todo! reduce confusion, handle update_based_on full details,
+            embedded_devices: _, // todo! reduce confusion, handle update_based_on full details,
+            services: _,    // todo! reduce confusion, handle update_based_on full details,
+        } = root_device;
         match self.is_known() {
             IsKnown::Known if Some(id) != self.id => todo!("handle id has changed"),
             IsKnown::Inferred => {
