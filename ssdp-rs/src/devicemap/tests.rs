@@ -1,5 +1,8 @@
 use crate::{
-    devicemap::rootdevice::RootDevice,
+    devicemap::rootdevice::{
+        IsKnown::{self, Inferred, Known},
+        RootDevice,
+    },
     message::{Device, DeviceDetails, Message, Server, Service, UPNP_VERSION1, UpnpPort, Vendor},
 };
 
@@ -167,14 +170,6 @@ fn embedded_devices() -> HashMap<Uuid, EmbeddedDevice> {
     embedded_devices
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum IsKnown {
-    Inferred,
-    Known,
-}
-
-use IsKnown::{Inferred, Known};
-
 #[track_caller]
 fn validate_root_device(
     devices: &DeviceMap,
@@ -190,6 +185,7 @@ fn validate_root_device(
         Inferred => assert!(root_device.id.is_none()),
         Known => assert_eq!(root_device.id, Some(ID)),
     };
+    assert_eq!(root_device.is_known(), is_known);
     if let Some(timestamp) = last_seen {
         assert_eq!(root_device.last_seen(), timestamp);
     };

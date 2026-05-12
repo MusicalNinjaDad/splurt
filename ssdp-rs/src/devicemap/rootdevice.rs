@@ -124,6 +124,19 @@ impl RootDevice {
     pub const fn last_seen(&self) -> DateTime<Utc> {
         self.last_seen
     }
+
+    pub fn is_known(&self) -> IsKnown {
+        match self.id {
+            Some(_) => IsKnown::Known,
+            None => IsKnown::Inferred,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum IsKnown {
+    Inferred,
+    Known,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
