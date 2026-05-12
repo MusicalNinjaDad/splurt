@@ -1,10 +1,17 @@
-use std::collections::{HashMap, hash_map::Entry};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, hash_map::Entry},
+};
 
 use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    devicemap::rootdevice::{EmbeddedDevice, RootDevice},
+    devicemap::rootdevice::{
+        EmbeddedDevice,
+        IsKnown::{Inferred, Known},
+        RootDevice,
+    },
     message::{
         Message, Notify, Response, ST, ServiceDetails,
         notify::{Alive, NT},
@@ -194,6 +201,29 @@ impl DeviceMap {
                     .entry(this_rd.location.clone())
                     .and_modify(|known_rd| {
                         known_rd.update_validity(this_rd.last_seen(), this_rd.valid_until());
+                        match (
+                            known_rd.is_known(),
+                            this_rd.id.cmp(&known_rd.id),
+                            this_rd.config_id.cmp(&known_rd.config_id),
+                        ) {
+                            // Already known with this ID & Config
+                            (Known, Ordering::Equal, Ordering::Equal) if this_rd.config_id.is_some() => (), // TODO!
+                            // Already known but with other or unknown Config
+                            ((Known, Ordering::Equal, Ordering::Equal) if this_rd.config_id.is_none())
+                            | (Known, Ordering::Equal, Ordering::Greater) => (), // TODO!
+                            // Already known but with other ID
+                            (Known, Ordering::Greater, _) | (Known, Ordering::Less, _) => (), // TODO!
+                            // Currently inferred with this ID & Config
+                            (Inferred, Ordering::Equal, Ordering::Equal) if this_rd.config_id.is_some() => (), // TODO!
+                            // Currently inferred but with other or unknown Config
+                            ((Inferred, Ordering::Equal, Ordering::Equal) if this_rd.config_id.is_none())
+                            | (Inferred, Ordering::Equal, Ordering::Greater) => (), // TODO!
+                            // Currently inferred but with other ID
+                            (Inferred, Ordering::Greater, _) | (Inferred, Ordering::Less, _) => (), // TODO!
+                            // Currently known or inferred but with a previous Config 
+                            (Known, Ordering::Equal, Ordering::Less) | (Inferred, Ordering::Equal, Ordering::Less) => todo!(),
+                        };
+
                         match (this_rd.id, known_rd.id) {
                             (Some(this_id), Some(known_id)) if this_id != known_id => {
                                 todo!("previously known with a different id")
