@@ -26,6 +26,7 @@ pub enum Information {
         inferred_root_device: RootDevice,
         id: Uuid,
     },
+    // NEXT TODO change this ... so we can use update_based_on below
     Service(ServiceInfo),
     ControlPoint(Message),
     Uuid(UuidInfo),
