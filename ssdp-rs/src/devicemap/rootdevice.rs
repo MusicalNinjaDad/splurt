@@ -163,6 +163,7 @@ impl RootDevice {
             (IsKnown::Inferred, About::RootDevice) => {
                 // Confirmation of root device details
                 self.id = id;
+                // If we already have more details about device type & direct services
                 if let Some(device) = self.embedded_devices.remove(&update_id) {
                     self.device_type = device.device_type;
                     self.services.extend(device.services);
@@ -171,13 +172,16 @@ impl RootDevice {
             (IsKnown::Known, About::RootDevice) => {
                 // Do nothing except the general updates below
             }
-            (IsKnown::Known, About::DeviceOrService) => {
-                // Info on device or service for a known root device
-                // If it's about RootDevice, update the device/service info
-                // Else add it to / merge it with the embedded devices
+            (IsKnown::Known, About::DeviceOrService) if self.id == Some(update_id) => {
+                // Info on the device_type or direct services for a known root device
+                if let Some(device) = embedded_devices.remove(&update_id) {
+                    self.device_type = device.device_type.or(self.device_type);
+                    self.services.extend(device.services);
+                }
             }
-            (IsKnown::Inferred, About::DeviceOrService) => {
+            _ => {
                 // Info on device or service for an inferred root device
+                // Or info on an embedded device for a known root device
                 // Add it to / merge it with the embedded devices
             }
         }
