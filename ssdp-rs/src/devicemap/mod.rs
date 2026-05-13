@@ -166,6 +166,8 @@ impl DeviceMap {
         let info = message.into();
         match info {
             Information::Device { root_device, id } => {
+                // TODO: handling non-UUID IDs - check validity of insert (see docs re: update key)
+                self.ids.insert(id, root_device.location.clone());
                 match self.root_devices.entry(root_device.location.clone()) {
                     Entry::Occupied(mut known_rd) => {
                         let known_rd = known_rd.get_mut();
