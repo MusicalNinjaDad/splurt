@@ -150,13 +150,15 @@ impl From<Message> for Information {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeviceMap {
-    inner: HashMap<Url, RootDevice>,
+    root_devices: HashMap<Url, RootDevice>,
+    ids: HashMap<Uuid, Url>,
 }
 
 impl DeviceMap {
     pub fn new() -> Self {
         Self {
-            inner: Default::default(),
+            root_devices: Default::default(),
+            ids: Default::default(),
         }
     }
 
@@ -164,7 +166,7 @@ impl DeviceMap {
         let info = message.into();
         match info {
             Information::Device { root_device, id } => {
-                match self.inner.entry(root_device.location.clone()) {
+                match self.root_devices.entry(root_device.location.clone()) {
                     Entry::Occupied(mut known_rd) => {
                         let known_rd = known_rd.get_mut();
                         enum About {
