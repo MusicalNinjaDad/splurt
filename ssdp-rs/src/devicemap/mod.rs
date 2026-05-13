@@ -214,7 +214,7 @@ impl DeviceMap {
                 {
                     // Something else was previously known at this address!
                     self.ids.remove(&id);
-                    for embedded_device in root_device.embedded_devices.keys() {
+                    for embedded_device in known_root_device.embedded_devices.keys() {
                         self.ids.remove(embedded_device);
                     }
                     self.root_devices.remove(&root_device.location);
