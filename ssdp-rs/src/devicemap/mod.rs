@@ -125,7 +125,7 @@ impl From<Message> for Information {
                         root_device.embedded_devices.insert(id, embedded_device);
                         Self::Device { root_device, id }
                     }
-                    _ => todo!("other response"),
+                    ST::All => todo!("ControlPoints"),
                 }
             }
             _ => todo!("other stuff"),
