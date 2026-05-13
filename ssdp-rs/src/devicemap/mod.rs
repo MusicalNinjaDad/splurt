@@ -24,6 +24,8 @@ pub enum Information {
     Device { root_device: RootDevice, id: Uuid },
     // TODO handle BootID & ConfigID in byebye
     Removal { id: Uuid },
+    // TODO handle updates to BootID
+    Update,
     ControlPoint(Message),
 }
 
@@ -146,7 +148,7 @@ impl From<Message> for Information {
                 next_boot_id,
                 port,
                 secure_location,
-            })) => todo!("Update"),
+            })) => Self::Update,
         }
     }
 }
@@ -260,6 +262,9 @@ impl DeviceMap {
                 if let Some(location) = location {
                     self.root_devices.remove(&location);
                 }
+            }
+            Information::Update => {
+                // TODO: when handling BootId & Config ID properly. Until then irrelevant.
             }
             #[expect(unused_variables, reason = "todo")]
             Information::ControlPoint(message) => todo!("process control points"),
