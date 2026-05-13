@@ -149,9 +149,21 @@ impl RootDevice {
             mut embedded_devices,
             services: _, // todo! reduce confusion, handle update_based_on full details,
         } = root_device;
+        dbg!(update_is_known);
+        dbg!(&embedded_devices);
         match update_is_known {
             IsKnown::Known if matches!(self.is_known(), IsKnown::Known) && id != self.id => {
                 todo!("handle id has changed")
+            }
+            IsKnown::Inferred
+                if self.id != Some(update_id)
+                    && let Some(existing_device) = self.embedded_devices.get_mut(&update_id)
+                    && let Some(update_device) = embedded_devices.remove(&update_id) =>
+            {
+                if update_device.device_type.is_some() {
+                    existing_device.device_type = update_device.device_type;
+                }
+                existing_device.services.extend(update_device.services);
             }
             IsKnown::Inferred
                 if let Some(this_id) = self.id

@@ -222,6 +222,7 @@ fn validate_root_device(
     embedded_devices: Option<HashMap<Uuid, EmbeddedDevice>>,
 ) -> &RootDevice {
     let root_device = devices.inner.get(&url()).expect("device exists");
+    dbg!(root_device);
     match is_known {
         Inferred => assert!(root_device.id.is_none()),
         Known => assert_eq!(root_device.id, Some(ID)),
@@ -484,9 +485,6 @@ fn add_embedded_device() {
 }
 
 #[test]
-#[should_panic(
-    expected = "services: {ServiceDetails { vendor: Standard, service: MusicServices { ver: 1 } }"
-)]
 fn service_device_embedded_root() {
     let mut devices = DeviceMap::new();
     devices.process(service_msg());
