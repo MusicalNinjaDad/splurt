@@ -234,6 +234,7 @@ fn embedded_devices() -> HashMap<Uuid, EmbeddedDevice> {
 }
 
 #[track_caller]
+#[allow(clippy::too_many_arguments)]
 fn validate_root_device(
     devices: &DeviceMap,
     is_known: IsKnown,
@@ -242,7 +243,11 @@ fn validate_root_device(
     device_type: Option<DeviceDetails>,
     root_service: Option<ServiceDetails>,
     embedded_devices: Option<HashMap<Uuid, EmbeddedDevice>>,
+    known_ids: Vec<Uuid>,
 ) -> &RootDevice {
+    for id in known_ids {
+        assert_eq!(devices.ids.get(&id), Some(&url()));
+    }
     let root_device = devices.root_devices.get(&url()).expect("device exists");
     dbg!(root_device);
     match is_known {
@@ -322,6 +327,7 @@ fn root_from_response() {
         None,
         None,
         None,
+        vec![ID],
     );
 }
 
@@ -339,6 +345,7 @@ fn update_from_notify() {
         None,
         None,
         None,
+        vec![ID],
     );
 
     let notify = r#"NOTIFY * HTTP/1.1
@@ -362,7 +369,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 "#;
     let message = notify.parse::<Message>().expect("valid notify");
     devices.process(message).expect("process notify");
-    let root_device = validate_root_device(&devices, Known, None, None, None, None, None);
+    let root_device = validate_root_device(&devices, Known, None, None, None, None, None, vec![ID]);
     assert!(root_device.last_seen > (Utc::now() - Duration::from_secs(60)));
     assert_eq!(
         root_device.valid_until,
@@ -384,6 +391,7 @@ fn identify_root_device_type() {
         None,
         None,
         None,
+        vec![ID],
     );
 
     let device_msg = DEVICE.parse::<Message>().expect("valid message");
@@ -396,6 +404,7 @@ fn identify_root_device_type() {
         Some(DEVICE_DETAILS),
         None,
         None,
+        vec![ID],
     );
 }
 
@@ -413,6 +422,7 @@ fn promote_device_to_root() {
         Some(DEVICE_DETAILS),
         None,
         None,
+        vec![ID],
     );
 
     let root_msg = ROOT.parse::<Message>().expect("valid message");
@@ -425,6 +435,7 @@ fn promote_device_to_root() {
         Some(DEVICE_DETAILS),
         None,
         None,
+        vec![ID],
     );
 }
 
@@ -442,6 +453,7 @@ fn add_service() {
         None,
         None,
         None,
+        vec![ID],
     );
 
     let service_msg = SERVICE.parse::<Message>().expect("valid service");
@@ -456,6 +468,7 @@ fn add_service() {
         None,
         Some(SERVICE_DETAILS),
         None,
+        vec![ID],
     );
 }
 
@@ -474,6 +487,7 @@ fn infer_root_from_service() {
         None,
         Some(SERVICE_DETAILS),
         None,
+        vec![ID],
     );
 }
 
@@ -491,6 +505,7 @@ fn add_embedded_device() {
         None,
         None,
         None,
+        vec![ID],
     );
 
     let ed_msg = EMBEDDED_DEVICE.parse::<Message>().expect("valid message");
@@ -503,6 +518,7 @@ fn add_embedded_device() {
         None,
         None,
         Some(embedded_devices()),
+        vec![ID, EMBEDDED_DEVICE_ID],
     );
 }
 
@@ -518,6 +534,7 @@ fn service_device_embedded_root() {
         None,
         Some(SERVICE_DETAILS),
         None,
+        vec![ID],
     );
 
     devices.process(device_msg());
@@ -529,6 +546,7 @@ fn service_device_embedded_root() {
         Some(DEVICE_DETAILS),
         Some(SERVICE_DETAILS),
         None,
+        vec![ID],
     );
 
     devices.process(emb_dev_msg());
@@ -540,6 +558,7 @@ fn service_device_embedded_root() {
         Some(DEVICE_DETAILS),
         Some(SERVICE_DETAILS),
         Some(embedded_devices()),
+        vec![ID, EMBEDDED_DEVICE_ID],
     );
 
     devices.process(root_msg());
@@ -551,6 +570,7 @@ fn service_device_embedded_root() {
         Some(DEVICE_DETAILS),
         Some(SERVICE_DETAILS),
         Some(embedded_devices()),
+        vec![ID, EMBEDDED_DEVICE_ID],
     );
 }
 
@@ -566,6 +586,7 @@ fn root_then_uuid() {
         None,
         None,
         None,
+        vec![ID],
     );
 
     devices.process(root_uuid_msg());
@@ -577,6 +598,7 @@ fn root_then_uuid() {
         None,
         None,
         None,
+        vec![ID],
     );
 }
 
@@ -593,6 +615,7 @@ fn byebye_service() {
         None,
         None,
         None,
+        vec![ID],
     );
 
     devices
@@ -606,11 +629,14 @@ fn byebye_service() {
         None,
         Some(SERVICE_DETAILS),
         None,
+        vec![ID],
     );
 
     assert!(devices.root_devices.contains_key(&url()));
+    assert!(devices.ids.contains_key(&ID));
     devices
         .process(service_byebye())
         .expect("processed service byebye");
-    assert!(!devices.root_devices.contains_key(&url()));
+    assert!(devices.root_devices.is_empty());
+    assert!(devices.ids.is_empty());
 }
