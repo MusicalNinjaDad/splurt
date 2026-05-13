@@ -3,7 +3,10 @@ use crate::{
         IsKnown::{self, Inferred, Known},
         RootDevice,
     },
-    message::{Device, DeviceDetails, Message, Server, Service, UPNP_VERSION1, UpnpPort, Vendor},
+    message::{
+        Device, DeviceDetails, Message, Server, Service, ServiceDetails, UPNP_VERSION1, UpnpPort,
+        Vendor,
+    },
 };
 
 use std::{collections::HashSet, time::Duration};

@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::{
     devicemap::rootdevice::{EmbeddedDevice, RootDevice},
     message::{
-        Message, Notify, Response, ST, ServiceDetails,
+        Message, Notify, Response, ST,
         notify::{Alive, NT},
     },
 };
@@ -32,19 +32,6 @@ pub enum Information {
     },
     ControlPoint(Message),
     Uuid(UuidInfo),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ServiceInfo {
-    service: ServiceDetails,
-    id: Uuid,
-    inferred_root_device: RootDevice,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DeviceInfo {
-    embedded_device: EmbeddedDevice,
-    inferred_root_device: RootDevice,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
