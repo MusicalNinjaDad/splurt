@@ -171,6 +171,19 @@ impl RootDevice {
                 self.device_type = device.device_type;
                 self.services.extend(device.services);
             }
+            IsKnown::Inferred => {
+                match self.is_known() {
+                    IsKnown::Known if self.id == Some(update_id) => {
+                        // new service or device info for known root device
+                    }
+                    IsKnown::Known => {
+                        // new/updated embedded device
+                    }
+                    IsKnown::Inferred => {
+                        // new/updated embedded device
+                    }
+                }
+            }
             IsKnown::Known => {
                 match self.is_known() {
                     IsKnown::Known if id != self.id => {
@@ -188,7 +201,6 @@ impl RootDevice {
                     }
                 }
             }
-            _ => (),
         };
         self.update_validity(last_seen, valid_until);
         if self.config_id.is_none() || config_id > self.config_id {
