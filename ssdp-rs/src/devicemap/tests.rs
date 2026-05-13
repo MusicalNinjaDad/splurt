@@ -138,6 +138,25 @@ fn service_msg() -> Message {
     SERVICE.parse().expect("service message")
 }
 
+const SERVICE_BYEBYE: &str = r#"NOTIFY * HTTP/1.1
+HOST: 239.255.255.250:1900
+NT: urn:schemas-upnp-org:service:MusicServices:1
+NTS: ssdp:byebye
+USN: uuid:c4248768-d6b6-4232-a273-5b1701524493::urn:schemas-upnp-org:service:MusicServices:1
+X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
+X-RINCON-BOOTSEQ: 6
+BOOTID.UPNP.ORG: 6
+X-RINCON-WIFIMODE: 1
+X-RINCON-VARIANT: 2
+HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
+LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
+
+"#;
+
+fn service_byebye() -> Message {
+    SERVICE_BYEBYE.parse().expect("service byebye")
+}
+
 const ID: Uuid = uuid!("c4248768-d6b6-4232-a273-5b1701524493");
 
 const EMBEDDED_DEVICE_ID: Uuid = uuid!("a4a60994-e188-4dd7-b3f5-3b5c6f47e036");
@@ -224,7 +243,7 @@ fn validate_root_device(
     root_service: Option<ServiceDetails>,
     embedded_devices: Option<HashMap<Uuid, EmbeddedDevice>>,
 ) -> &RootDevice {
-    let root_device = devices.inner.get(&url()).expect("device exists");
+    let root_device = devices.root_devices.get(&url()).expect("device exists");
     dbg!(root_device);
     match is_known {
         Inferred => assert!(root_device.id.is_none()),
@@ -559,4 +578,39 @@ fn root_then_uuid() {
         None,
         None,
     );
+}
+
+#[test]
+#[should_panic(expected = "not yet implemented: ByeBye")]
+fn byebye_service() {
+    let mut devices = DeviceMap::new();
+    devices.process(root_msg());
+    validate_root_device(
+        &devices,
+        Known,
+        Some(ROOT_TIMESTAMP),
+        Some(ROOT_VALIDITY),
+        None,
+        None,
+        None,
+    );
+
+    devices
+        .process(service_msg())
+        .expect("process service message");
+    validate_root_device(
+        &devices,
+        Known,
+        Some(ROOT_TIMESTAMP),
+        Some(ROOT_VALIDITY),
+        None,
+        Some(SERVICE_DETAILS),
+        None,
+    );
+
+    assert!(devices.root_devices.contains_key(&url()));
+    devices
+        .process(service_byebye())
+        .expect("processed service byebye");
+    assert!(!devices.root_devices.contains_key(&url()));
 }
