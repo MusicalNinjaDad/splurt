@@ -125,11 +125,10 @@ impl From<Message> for Information {
                         root_device.embedded_devices.insert(id, embedded_device);
                         Self::Device { root_device, id }
                     }
-                    ST::Uuid(id) => {
+                    ST::Uuid(_) | ST::All => {
                         root_device.embedded_devices.insert(id, embedded_device);
                         Self::Device { root_device, id }
                     }
-                    ST::All => todo!("ControlPoints"),
                 }
             }
             Message::Notify(Notify::ByeBye(ByeBye {
