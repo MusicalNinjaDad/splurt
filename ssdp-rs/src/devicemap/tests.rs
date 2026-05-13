@@ -318,7 +318,7 @@ fn root_from_response() {
     let mut devices = DeviceMap::new();
 
     let root_msg = ROOT.parse::<Message>().expect("valid message");
-    devices.process(root_msg).expect("process message");
+    devices.process(root_msg);
     validate_root_device(
         &devices,
         Known,
@@ -336,7 +336,7 @@ fn update_from_notify() {
     let mut devices = DeviceMap::new();
 
     let root_message = ROOT.parse::<Message>().expect("valid message");
-    devices.process(root_message).expect("process message");
+    devices.process(root_message);
     validate_root_device(
         &devices,
         Known,
@@ -368,7 +368,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
 "#;
     let message = notify.parse::<Message>().expect("valid notify");
-    devices.process(message).expect("process notify");
+    devices.process(message);
     let root_device = validate_root_device(&devices, Known, None, None, None, None, None, vec![ID]);
     assert!(root_device.last_seen > (Utc::now() - Duration::from_secs(60)));
     assert_eq!(
@@ -382,7 +382,7 @@ fn identify_root_device_type() {
     let mut devices = DeviceMap::new();
 
     let root_msg = ROOT.parse::<Message>().expect("valid message");
-    devices.process(root_msg).expect("process message");
+    devices.process(root_msg);
     validate_root_device(
         &devices,
         Known,
@@ -395,7 +395,7 @@ fn identify_root_device_type() {
     );
 
     let device_msg = DEVICE.parse::<Message>().expect("valid message");
-    devices.process(device_msg).expect("process message");
+    devices.process(device_msg);
     validate_root_device(
         &devices,
         Known,
@@ -413,7 +413,7 @@ fn promote_device_to_root() {
     let mut devices = DeviceMap::new();
 
     let device_msg = DEVICE.parse::<Message>().expect("valid message");
-    devices.process(device_msg).expect("process message");
+    devices.process(device_msg);
     validate_root_device(
         &devices,
         Inferred,
@@ -426,7 +426,7 @@ fn promote_device_to_root() {
     );
 
     let root_msg = ROOT.parse::<Message>().expect("valid message");
-    devices.process(root_msg).expect("process message");
+    devices.process(root_msg);
     validate_root_device(
         &devices,
         Known,
@@ -444,7 +444,7 @@ fn add_service() {
     let mut devices = DeviceMap::new();
 
     let root_msg = ROOT.parse::<Message>().expect("valid message");
-    devices.process(root_msg).expect("process message");
+    devices.process(root_msg);
     validate_root_device(
         &devices,
         Known,
@@ -457,9 +457,7 @@ fn add_service() {
     );
 
     let service_msg = SERVICE.parse::<Message>().expect("valid service");
-    devices
-        .process(service_msg)
-        .expect("process service message");
+    devices.process(service_msg);
     validate_root_device(
         &devices,
         Known,
@@ -476,9 +474,7 @@ fn add_service() {
 fn infer_root_from_service() {
     let mut devices = DeviceMap::new();
     let service_msg = SERVICE.parse::<Message>().expect("valid service");
-    devices
-        .process(service_msg)
-        .expect("process service message");
+    devices.process(service_msg);
     validate_root_device(
         &devices,
         Inferred,
@@ -496,7 +492,7 @@ fn add_embedded_device() {
     let mut devices = DeviceMap::new();
 
     let root_msg = ROOT.parse::<Message>().expect("valid message");
-    devices.process(root_msg).expect("process message");
+    devices.process(root_msg);
     validate_root_device(
         &devices,
         Known,
@@ -617,9 +613,7 @@ fn byebye_service() {
         vec![ID],
     );
 
-    devices
-        .process(service_msg())
-        .expect("process service message");
+    devices.process(service_msg());
     validate_root_device(
         &devices,
         Known,
@@ -633,9 +627,7 @@ fn byebye_service() {
 
     assert!(devices.root_devices.contains_key(&url()));
     assert!(devices.ids.contains_key(&ID));
-    devices
-        .process(service_byebye())
-        .expect("processed service byebye");
+    devices.process(service_byebye());
     assert!(devices.root_devices.is_empty());
     assert!(devices.ids.is_empty());
 }

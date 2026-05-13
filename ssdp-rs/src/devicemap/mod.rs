@@ -165,7 +165,7 @@ impl DeviceMap {
         }
     }
 
-    pub fn process(&mut self, message: Message) -> Result<(), Error> {
+    pub fn process(&mut self, message: Message) {
         let info = message.into();
         match info {
             Information::Device { root_device, id } => {
@@ -253,15 +253,13 @@ impl DeviceMap {
                     Entry::Vacant(entry) => {
                         entry.insert(root_device);
                     }
-                };
-                Ok(())
+                }
             }
             Information::Removal { id } => {
                 let location = self.ids.remove(&id);
                 if let Some(location) = location {
                     self.root_devices.remove(&location);
                 }
-                Ok(())
             }
             #[expect(unused_variables, reason = "todo")]
             Information::ControlPoint(message) => todo!("process control points"),
