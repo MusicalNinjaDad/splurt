@@ -171,6 +171,18 @@ impl DeviceMap {
         let info = message.into();
         match info {
             Information::Device { root_device, id } => {
+                if matches!(root_device.is_known(), IsKnown::Known)
+                    && let Some(known_root_device) = self.root_devices.get(&root_device.location)
+                    && let Some(known_id) = known_root_device.id
+                    && known_id != id
+                {
+                    // Something else was previously known at this address!
+                    self.ids.remove(&id);
+                    for embedded_device in root_device.embedded_devices.keys() {
+                        self.ids.remove(embedded_device);
+                    }
+                    self.root_devices.remove(&root_device.location);
+                }
                 // TODO: handling non-UUID IDs - check validity of insert (see docs re: update key)
                 self.ids.insert(id, root_device.location.clone());
                 match self.root_devices.entry(root_device.location.clone()) {
@@ -199,10 +211,6 @@ impl DeviceMap {
                             services: _,
                         } = root_device;
                         match (known_rd.is_known(), update_describes) {
-                            (IsKnown::Known, About::RootDevice) if known_rd.id != update_rd_id => {
-                                todo!("handle id has changed")
-                            }
-
                             // Confirmation of root device details
                             (IsKnown::Inferred, About::RootDevice) => {
                                 known_rd.id = update_rd_id;
