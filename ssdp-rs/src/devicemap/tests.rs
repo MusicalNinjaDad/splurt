@@ -484,7 +484,9 @@ fn add_embedded_device() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(
+    expected = "services: {ServiceDetails { vendor: Standard, service: MusicServices { ver: 1 } }"
+)]
 fn service_device_embedded_root() {
     let mut devices = DeviceMap::new();
     devices.process(service_msg());
