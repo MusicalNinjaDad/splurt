@@ -2,16 +2,18 @@
 
 use std::{fmt::Display, str::FromStr};
 
+use derive_more::Display;
 use uuid::Uuid;
 
 use crate::message::{
-    DeviceDetails, Header, HeaderExt, Host, MaxAge, ServiceDetails, Target, UpnpNss, UpnpPort,
+    DeviceDetails, Header, HeaderExt, Host, MaxAge, Method, ServiceDetails, Target, UpnpNss,
+    UpnpPort,
     header::{BootId, ConfigId, Location, NextBootId, SecureLocation, Server, UpnpV2Ext, Usn},
 };
 
 use super::{ErrorKind, ParseError, SsdpNss, UpnpHeader, Uri};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
 pub enum Notify {
     Alive(Alive),
     ByeBye(ByeBye),
@@ -115,6 +117,37 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
             port,
             secure_location,
         })
+    }
+}
+
+impl Display for Alive {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            max_age,
+            location,
+            server,
+            usn,
+            boot_id,
+            config_id,
+            #[expect(unused_variables, reason = "todo handle port in message output")]
+            port,
+            secure_location,
+        } = self;
+        writeln!(f, "{}", Method::Notify)?;
+        Host::default().write_header(f)?;
+        max_age.write_header(f)?;
+        location.write_header(f)?;
+        usn.ntst.write_header(f)?;
+        NTS::Alive.write_header(f)?;
+        server.write_header(f)?;
+        usn.write_header(f)?;
+        boot_id.write_header(f)?;
+        config_id.write_header(f)?;
+        secure_location.write_header(f)?;
+        // Must end with blank line as per spec:
+        //   "Note: No body is present in requests with method M-SEARCH, but note that the
+        //          message shall have a blank line following the last header field."
+        writeln!(f)
     }
 }
 
@@ -369,6 +402,16 @@ impl FromStr for NTS {
             Uri::Ssdp(SsdpNss::ByeBye) => Ok(Self::ByeBye),
             Uri::Ssdp(SsdpNss::Update) => Ok(Self::Update),
             _ => Err(ErrorKind::InvalidNTS(uri.to_string()))?,
+        }
+    }
+}
+
+impl Display for NTS {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NTS::Alive => write!(f, "{}",  Uri::Ssdp(SsdpNss::Alive)),
+            NTS::ByeBye => write!(f, "{}", Uri::Ssdp(SsdpNss::ByeBye)),
+            NTS::Update => write!(f, "{}", Uri::Ssdp(SsdpNss::Update)),
         }
     }
 }
