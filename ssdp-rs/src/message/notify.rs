@@ -119,6 +119,12 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// When a device is about to be removed from the network, it should explicitly revoke its discovery
+/// messages by sending one multicast message for each ssdp:alive message it sent.
+///
+/// If a control point has received at least one ssdp:byebye message of a root device, any of its
+/// embedded devices or any of its services then the control point can assume that all are no longer
+/// available.
 pub struct ByeBye {
     /// `USN`: Field value contains Unique Service Name. Identifies a unique instance of a device
     /// or service. Obeys strict rules in relation to `NT` and therefore acts as the primary store
