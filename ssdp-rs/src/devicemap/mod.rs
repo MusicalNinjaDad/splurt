@@ -70,7 +70,10 @@ impl From<Message> for Information {
                         root_device.embedded_devices.insert(id, embedded_device);
                         Self::Device { root_device, id }
                     }
-                    _ => todo!("other alive"),
+                    NT::Uuid(_) => {
+                        root_device.embedded_devices.insert(id, embedded_device);
+                        Self::Device { root_device, id }
+                    }
                 }
             }
             Message::Search(_) => Self::ControlPoint(msg),
