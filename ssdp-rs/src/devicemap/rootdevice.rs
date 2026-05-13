@@ -149,8 +149,6 @@ impl RootDevice {
             mut embedded_devices,
             services: _, // todo! reduce confusion, handle update_based_on full details,
         } = root_device;
-        dbg!(update_is_known);
-        dbg!(&embedded_devices);
         match update_is_known {
             IsKnown::Known if matches!(self.is_known(), IsKnown::Known) && id != self.id => {
                 todo!("handle id has changed")
