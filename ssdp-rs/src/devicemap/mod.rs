@@ -18,26 +18,8 @@ pub enum Error {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Information {
-    RootDevice {
-        confirmed_root_device: RootDevice,
-        id: Uuid,
-    },
-    Device {
-        inferred_root_device: RootDevice,
-        id: Uuid,
-    },
-    Service {
-        inferred_root_device: RootDevice,
-        id: Uuid,
-    },
+    Device { root_device: RootDevice, id: Uuid },
     ControlPoint(Message),
-    Uuid(UuidInfo),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct UuidInfo {
-    id: Uuid,
-    inferred_root_device: RootDevice,
 }
 
 impl From<Message> for Information {
@@ -53,8 +35,8 @@ impl From<Message> for Information {
                 port,
                 secure_location,
             })) => match usn.ntst {
-                NT::RootDevice => Self::RootDevice {
-                    confirmed_root_device: RootDevice::new(
+                NT::RootDevice => Self::Device {
+                    root_device: RootDevice::new(
                         Some(usn.uuid),
                         max_age,
                         None,
@@ -74,7 +56,7 @@ impl From<Message> for Information {
                         device_type: Some(device),
                         services: Default::default(),
                     };
-                    let mut inferred_root_device = RootDevice::new(
+                    let mut root_device = RootDevice::new(
                         None,
                         max_age,
                         None,
@@ -85,13 +67,8 @@ impl From<Message> for Information {
                         port,
                         secure_location,
                     );
-                    inferred_root_device
-                        .embedded_devices
-                        .insert(id, embedded_device);
-                    Self::Device {
-                        inferred_root_device,
-                        id,
-                    }
+                    root_device.embedded_devices.insert(id, embedded_device);
+                    Self::Device { root_device, id }
                 }
                 NT::Service(service) => {
                     let id = usn.uuid;
@@ -101,7 +78,7 @@ impl From<Message> for Information {
                         services: Default::default(),
                     };
                     embedded_device.services.insert(service);
-                    let mut inferred_root_device = RootDevice::new(
+                    let mut root_device = RootDevice::new(
                         None,
                         max_age,
                         None,
@@ -112,13 +89,8 @@ impl From<Message> for Information {
                         port,
                         secure_location,
                     );
-                    inferred_root_device
-                        .embedded_devices
-                        .insert(id, embedded_device);
-                    Self::Service {
-                        inferred_root_device,
-                        id,
-                    }
+                    root_device.embedded_devices.insert(id, embedded_device);
+                    Self::Device { root_device, id }
                 }
                 _ => todo!("other alive"),
             },
@@ -135,8 +107,8 @@ impl From<Message> for Information {
                 secure_location,
                 ..
             }) => match usn.ntst {
-                ST::RootDevice => Self::RootDevice {
-                    confirmed_root_device: RootDevice::new(
+                ST::RootDevice => Self::Device {
+                    root_device: RootDevice::new(
                         Some(usn.uuid),
                         max_age,
                         date,
@@ -156,7 +128,7 @@ impl From<Message> for Information {
                         device_type: Some(device),
                         services: Default::default(),
                     };
-                    let mut inferred_root_device = RootDevice::new(
+                    let mut root_device = RootDevice::new(
                         None,
                         max_age,
                         date,
@@ -167,13 +139,8 @@ impl From<Message> for Information {
                         port,
                         secure_location,
                     );
-                    inferred_root_device
-                        .embedded_devices
-                        .insert(id, embedded_device);
-                    Self::Device {
-                        inferred_root_device,
-                        id,
-                    }
+                    root_device.embedded_devices.insert(id, embedded_device);
+                    Self::Device { root_device, id }
                 }
                 ST::Service(service) => {
                     let id = usn.uuid;
@@ -183,7 +150,7 @@ impl From<Message> for Information {
                         services: Default::default(),
                     };
                     embedded_device.services.insert(service);
-                    let mut inferred_root_device = RootDevice::new(
+                    let mut root_device = RootDevice::new(
                         None,
                         max_age,
                         date,
@@ -194,16 +161,11 @@ impl From<Message> for Information {
                         port,
                         secure_location,
                     );
-                    inferred_root_device
-                        .embedded_devices
-                        .insert(id, embedded_device);
-                    Self::Service {
-                        inferred_root_device,
-                        id,
-                    }
+                    root_device.embedded_devices.insert(id, embedded_device);
+                    Self::Device { root_device, id }
                 }
                 ST::Uuid(id) => {
-                    let inferred_root_device = RootDevice::new(
+                    let root_device = RootDevice::new(
                         None,
                         max_age,
                         date,
@@ -214,10 +176,7 @@ impl From<Message> for Information {
                         port,
                         secure_location,
                     );
-                    Self::Uuid(UuidInfo {
-                        id,
-                        inferred_root_device,
-                    })
+                    Self::Device { root_device, id }
                 }
                 _ => todo!("other response"),
             },
@@ -241,61 +200,18 @@ impl DeviceMap {
     pub fn process(&mut self, message: Message) -> Result<(), Error> {
         let info = message.into();
         match info {
-            Information::RootDevice {
-                confirmed_root_device,
-                id,
-            } => match self.inner.entry(confirmed_root_device.location.clone()) {
-                Entry::Occupied(mut known_rd) => {
-                    let known_rd = known_rd.get_mut();
-                    known_rd.update_based_on(confirmed_root_device, id);
-                    Ok(())
-                }
-                Entry::Vacant(entry) => {
-                    entry.insert(confirmed_root_device);
-                    Ok(())
-                }
-            },
-            Information::Device {
-                inferred_root_device,
-                id,
-            } => {
-                match self.inner.entry(inferred_root_device.location.clone()) {
+            Information::Device { root_device, id } => {
+                match self.inner.entry(root_device.location.clone()) {
                     Entry::Occupied(mut known_rd) => {
                         let known_rd = known_rd.get_mut();
-                        known_rd.update_based_on(inferred_root_device, id);
+                        known_rd.update_based_on(root_device, id);
+                        Ok(())
                     }
                     Entry::Vacant(entry) => {
-                        entry.insert(inferred_root_device);
+                        entry.insert(root_device);
+                        Ok(())
                     }
-                };
-                Ok(())
-            }
-            Information::Service {
-                inferred_root_device,
-                id,
-            } => {
-                match self.inner.entry(inferred_root_device.location.clone()) {
-                    Entry::Occupied(mut known_rd) => {
-                        let known_rd = known_rd.get_mut();
-                        known_rd.update_based_on(inferred_root_device, id);
-                    }
-                    Entry::Vacant(entry) => {
-                        entry.insert(inferred_root_device);
-                    }
-                };
-                Ok(())
-            }
-            Information::Uuid(info) => {
-                match self.inner.entry(info.inferred_root_device.location.clone()) {
-                    Entry::Occupied(mut known_locn) => {
-                        let existing_rd = known_locn.get_mut();
-                        existing_rd.update_based_on(info.inferred_root_device, info.id);
-                    }
-                    Entry::Vacant(entry) => {
-                        entry.insert(info.inferred_root_device);
-                    }
-                };
-                Ok(())
+                }
             }
             #[expect(unused_variables, reason = "todo")]
             Information::ControlPoint(message) => todo!("process control points"),
