@@ -13,8 +13,8 @@ use uuid::Uuid;
 
 mod devices;
 mod error;
-mod header;
-mod msearch;
+pub mod header;
+pub mod msearch;
 pub mod notify;
 mod response;
 mod services;

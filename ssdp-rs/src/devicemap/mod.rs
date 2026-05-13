@@ -1,32 +1,38 @@
 use std::{
     cmp::max,
-    collections::{HashMap, hash_map::Entry},
+    collections::{HashMap, HashSet, hash_map::Entry},
 };
 
 use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    devicemap::rootdevice::{EmbeddedDevice, IsKnown, RootDevice},
+    devicemap::{
+        controlpoint::ControlPoint,
+        rootdevice::{EmbeddedDevice, IsKnown, RootDevice},
+    },
     message::{
-        Message, Notify, Response, ST,
+        Message, MulticastSearch, Notify, Response, ST,
+        msearch::{MSearch, UnicastSearch},
         notify::{Alive, ByeBye, NT, Update},
     },
 };
 
+pub mod controlpoint;
 pub mod rootdevice;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Error {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[expect(clippy::large_enum_variant, reason = "most likely case is Device")]
 pub enum Information {
     Device { root_device: RootDevice, id: Uuid },
     // TODO handle BootID & ConfigID in byebye
     Removal { id: Uuid },
     // TODO handle updates to BootID
     Update,
-    ControlPoint(Message),
+    ControlPoint { control_point: ControlPoint },
 }
 
 impl From<Message> for Information {
@@ -80,7 +86,35 @@ impl From<Message> for Information {
                     }
                 }
             }
-            Message::Search(_) => Self::ControlPoint(msg),
+            Message::Search(MSearch::Multicast(MulticastSearch {
+                mx: _,
+                st,
+                user_agent,
+                port,
+                friendly_name,
+                uuid,
+            })) => Self::ControlPoint {
+                control_point: ControlPoint {
+                    interested_in: vec![st],
+                    product: user_agent,
+                    port,
+                    friendly_name,
+                    uuid: uuid.map(Into::into),
+                },
+            },
+            Message::Search(MSearch::Unicast(UnicastSearch {
+                host: _,
+                st,
+                user_agent,
+            })) => Self::ControlPoint {
+                control_point: ControlPoint {
+                    interested_in: vec![st],
+                    product: user_agent,
+                    port: Default::default(),
+                    friendly_name: None,
+                    uuid: None,
+                },
+            },
             Message::Response(Response {
                 max_age,
                 date,
@@ -156,6 +190,8 @@ impl From<Message> for Information {
 pub struct DeviceMap {
     root_devices: HashMap<Url, RootDevice>,
     ids: HashMap<Uuid, Url>,
+    // TODO Properly handle control points
+    control_points: HashSet<ControlPoint>,
 }
 
 impl DeviceMap {
@@ -163,6 +199,7 @@ impl DeviceMap {
         Self {
             root_devices: Default::default(),
             ids: Default::default(),
+            control_points: Default::default(),
         }
     }
 
@@ -273,8 +310,9 @@ impl DeviceMap {
             Information::Update => {
                 // TODO: when handling BootId & Config ID properly. Until then irrelevant.
             }
-            #[expect(unused_variables, reason = "todo")]
-            Information::ControlPoint(message) => todo!("process control points"),
+            Information::ControlPoint { control_point } => {
+                self.control_points.insert(control_point);
+            }
         }
     }
 }
