@@ -165,7 +165,12 @@ impl From<Message> for Information {
                     Self::Device { root_device, id }
                 }
                 ST::Uuid(id) => {
-                    let root_device = RootDevice::new(
+                    let embedded_device = EmbeddedDevice {
+                        id,
+                        device_type: None,
+                        services: Default::default(),
+                    };
+                    let mut root_device = RootDevice::new(
                         None,
                         max_age,
                         date,
@@ -176,6 +181,7 @@ impl From<Message> for Information {
                         port,
                         secure_location,
                     );
+                    root_device.embedded_devices.insert(id, embedded_device);
                     Self::Device { root_device, id }
                 }
                 _ => todo!("other response"),
