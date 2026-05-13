@@ -232,10 +232,10 @@ fn validate_root_device(
     };
     assert_eq!(root_device.is_known(), is_known);
     if let Some(timestamp) = last_seen {
-        assert_eq!(root_device.last_seen(), timestamp);
+        assert_eq!(root_device.last_seen, timestamp);
     };
     if let Some(timestamp) = valid_until {
-        assert_eq!(root_device.valid_until(), timestamp);
+        assert_eq!(root_device.valid_until, timestamp);
     }
     assert_eq!(root_device.location, url());
     assert_eq!(root_device.product, Some(server()));
@@ -344,10 +344,10 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     let message = notify.parse::<Message>().expect("valid notify");
     devices.process(message).expect("process notify");
     let root_device = validate_root_device(&devices, Known, None, None, None, None, None);
-    assert!(root_device.last_seen() > (Utc::now() - Duration::from_secs(60)));
+    assert!(root_device.last_seen > (Utc::now() - Duration::from_secs(60)));
     assert_eq!(
-        root_device.valid_until(),
-        root_device.last_seen() + Duration::from_secs(1800)
+        root_device.valid_until,
+        root_device.last_seen + Duration::from_secs(1800)
     );
 }
 

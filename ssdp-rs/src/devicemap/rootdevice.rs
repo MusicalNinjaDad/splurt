@@ -7,8 +7,8 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::message::{
-    BootId, ConfigId, DeviceDetails, Location, MaxAge, Message, ST, SecureLocation, Server,
-    ServiceDetails, UpnpPort, notify::NT,
+    BootId, ConfigId, DeviceDetails, Location, MaxAge, SecureLocation, Server, ServiceDetails,
+    UpnpPort,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -59,21 +59,6 @@ pub struct RootDevice {
 }
 
 impl RootDevice {
-    pub fn insert(&mut self, service: Message) -> bool {
-        match service {
-            Message::Notify(notify) => match notify.into_nt() {
-                NT::Service(service) => self.services.insert(service),
-                _ => todo!("error message"),
-            },
-            Message::Response(response) => match response.into_st() {
-                ST::Service(service) => self.services.insert(service),
-                _ => todo!("error message"),
-            },
-            #[expect(unused_variables, reason = "todo")]
-            Message::Search(msearch) => todo!("error message"),
-        }
-    }
-
     #[allow(
         clippy::too_many_arguments,
         reason = "Need to construct RootDevice from deconstructed Message fields.
@@ -107,30 +92,6 @@ impl RootDevice {
             embedded_devices: Default::default(),
             services: Default::default(),
         }
-    }
-
-    /// Update details which are
-    pub fn received_new_config(
-        &mut self,
-        config_id: Option<u32>,
-        product: Option<Server>,
-        boot_id: Option<u32>,
-        port: UpnpPort,
-        secure_location: Option<Url>,
-    ) {
-        self.config_id = config_id;
-        self.product = product;
-        self.boot_id = boot_id;
-        self.port = port;
-        self.secure_location = secure_location;
-    }
-
-    pub const fn valid_until(&self) -> DateTime<Utc> {
-        self.valid_until
-    }
-
-    pub const fn last_seen(&self) -> DateTime<Utc> {
-        self.last_seen
     }
 
     pub fn is_known(&self) -> IsKnown {
