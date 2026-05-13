@@ -26,8 +26,10 @@ pub enum Information {
         inferred_root_device: RootDevice,
         id: Uuid,
     },
-    // NEXT TODO change this ... so we can use update_based_on below
-    Service(ServiceInfo),
+    Service {
+        inferred_root_device: RootDevice,
+        id: Uuid,
+    },
     ControlPoint(Message),
     Uuid(UuidInfo),
 }
@@ -64,24 +66,6 @@ impl From<Message> for Information {
                 port,
                 secure_location,
             })) => match usn.ntst {
-                NT::Service(service) => {
-                    let inferred_root_device = RootDevice::new(
-                        None,
-                        max_age,
-                        None,
-                        location,
-                        server,
-                        boot_id,
-                        config_id,
-                        port,
-                        secure_location,
-                    );
-                    Self::Service(ServiceInfo {
-                        service,
-                        id: usn.uuid,
-                        inferred_root_device,
-                    })
-                }
                 NT::RootDevice => Self::RootDevice {
                     confirmed_root_device: RootDevice::new(
                         Some(usn.uuid),
@@ -122,6 +106,33 @@ impl From<Message> for Information {
                         id,
                     }
                 }
+                NT::Service(service) => {
+                    let id = usn.uuid;
+                    let mut embedded_device = EmbeddedDevice {
+                        id,
+                        device_type: None,
+                        services: Default::default(),
+                    };
+                    embedded_device.services.insert(service);
+                    let mut inferred_root_device = RootDevice::new(
+                        None,
+                        max_age,
+                        None,
+                        location,
+                        server,
+                        boot_id,
+                        config_id,
+                        port,
+                        secure_location,
+                    );
+                    inferred_root_device
+                        .embedded_devices
+                        .insert(id, embedded_device);
+                    Self::Service {
+                        inferred_root_device,
+                        id,
+                    }
+                }
                 _ => todo!("other alive"),
             },
             Message::Search(_) => Self::ControlPoint(msg),
@@ -137,24 +148,6 @@ impl From<Message> for Information {
                 secure_location,
                 ..
             }) => match usn.ntst {
-                ST::Service(service) => {
-                    let inferred_root_device = RootDevice::new(
-                        None,
-                        max_age,
-                        date,
-                        location,
-                        server,
-                        boot_id,
-                        config_id,
-                        port,
-                        secure_location,
-                    );
-                    Self::Service(ServiceInfo {
-                        service,
-                        id: usn.uuid,
-                        inferred_root_device,
-                    })
-                }
                 ST::RootDevice => Self::RootDevice {
                     confirmed_root_device: RootDevice::new(
                         Some(usn.uuid),
@@ -191,6 +184,33 @@ impl From<Message> for Information {
                         .embedded_devices
                         .insert(id, embedded_device);
                     Self::Device {
+                        inferred_root_device,
+                        id,
+                    }
+                }
+                ST::Service(service) => {
+                    let id = usn.uuid;
+                    let mut embedded_device = EmbeddedDevice {
+                        id,
+                        device_type: None,
+                        services: Default::default(),
+                    };
+                    embedded_device.services.insert(service);
+                    let mut inferred_root_device = RootDevice::new(
+                        None,
+                        max_age,
+                        date,
+                        location,
+                        server,
+                        boot_id,
+                        config_id,
+                        port,
+                        secure_location,
+                    );
+                    inferred_root_device
+                        .embedded_devices
+                        .insert(id, embedded_device);
+                    Self::Service {
                         inferred_root_device,
                         id,
                     }
@@ -263,35 +283,19 @@ impl DeviceMap {
                 };
                 Ok(())
             }
-            Information::Service(serviceinfo) => {
-                match self
-                    .inner
-                    .entry(serviceinfo.inferred_root_device.location.clone())
-                {
+            Information::Service {
+                inferred_root_device,
+                id,
+            } => {
+                match self.inner.entry(inferred_root_device.location.clone()) {
                     Entry::Occupied(mut known_rd) => {
                         let known_rd = known_rd.get_mut();
-                        // as long as a control point has received at least one advertisement that is still
-                        // valid from a root device, any of its embedded devices or any of its services,
-                        // then the control point can assume that all are available.
-                        known_rd.update_validity(
-                            serviceinfo.inferred_root_device.last_seen(),
-                            serviceinfo.inferred_root_device.valid_until(),
-                        );
-                        known_rd.services.insert(serviceinfo.service);
+                        known_rd.update_based_on(inferred_root_device, id);
                     }
                     Entry::Vacant(entry) => {
-                        let mut rd = serviceinfo.inferred_root_device;
-                        let mut inferred_device = EmbeddedDevice {
-                            id: serviceinfo.id,
-                            device_type: rd.device_type.take(),
-                            services: Default::default(),
-                        };
-                        inferred_device.services.insert(serviceinfo.service);
-                        rd.id = None;
-                        rd.embedded_devices.insert(serviceinfo.id, inferred_device);
-                        entry.insert(rd);
+                        entry.insert(inferred_root_device);
                     }
-                }
+                };
                 Ok(())
             }
             Information::Uuid(info) => {
