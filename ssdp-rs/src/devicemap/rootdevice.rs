@@ -162,6 +162,11 @@ impl RootDevice {
             }
             (IsKnown::Inferred, About::RootDevice) => {
                 // Confirmation of root device details
+                self.id = id;
+                if let Some(device) = self.embedded_devices.remove(&update_id) {
+                    self.device_type = device.device_type;
+                    self.services.extend(device.services);
+                }
             }
             (IsKnown::Known, About::RootDevice) => {
                 // Do nothing except the general updates below
@@ -178,9 +183,6 @@ impl RootDevice {
         }
         #[allow(unreachable_code)]
         match update_is_rootdevice {
-            IsKnown::Known if matches!(self.is_known(), IsKnown::Known) && id != self.id => {
-                todo!("handle id has changed")
-            }
             IsKnown::Inferred
                 if self.id != Some(update_id)
                     && let Some(existing_device) = self.embedded_devices.get_mut(&update_id)
@@ -199,35 +201,6 @@ impl RootDevice {
                 self.device_type = device.device_type;
                 self.services.extend(device.services);
             }
-            IsKnown::Inferred => {
-                match self.is_known() {
-                    IsKnown::Known if self.id == Some(update_id) => {
-                        // new service or device info for known root device
-                    }
-                    IsKnown::Known => {
-                        // new/updated embedded device
-                    }
-                    IsKnown::Inferred => {
-                        // new/updated embedded device
-                    }
-                }
-            }
-            IsKnown::Known => {
-                match self.is_known() {
-                    IsKnown::Known if id != self.id => {
-                        todo!("handle root device ID change")
-                    }
-                    IsKnown::Inferred => {
-                        self.id = id;
-                        if let Some(device) = self.embedded_devices.remove(&update_id) {
-                            self.device_type = device.device_type;
-                            self.services.extend(device.services);
-                        }
-                    }
-                    IsKnown::Known => {
-                        // Do nothing except the general updates below
-                    }
-                }
             }
         };
         self.update_validity(last_seen, valid_until);
