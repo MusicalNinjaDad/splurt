@@ -22,6 +22,8 @@ pub enum Error {}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Information {
     Device { root_device: RootDevice, id: Uuid },
+    // TODO handle BootID & ConfigID in byebye
+    Removal { id: Uuid },
     ControlPoint(Message),
 }
 
@@ -128,12 +130,13 @@ impl From<Message> for Information {
                     ST::All => todo!("ControlPoints"),
                 }
             }
-            #[expect(unused_variables, reason = "todo ByeBye")]
             Message::Notify(Notify::ByeBye(ByeBye {
                 usn,
+                #[expect(unused_variables, reason = "todo handle BootID & ConfigID in byebye")]
                 boot_id,
+                #[expect(unused_variables, reason = "todo handle BootID & ConfigID in byebye")]
                 config_id,
-            })) => todo!("ByeBye"),
+            })) => Self::Removal { id: usn.uuid },
             #[expect(unused_variables, reason = "todo Update")]
             Message::Notify(Notify::Update(Update {
                 location,
@@ -253,6 +256,8 @@ impl DeviceMap {
                 };
                 Ok(())
             }
+            #[expect(unused_variables, reason = "todo")]
+            Information::Removal { id } => todo!("process byebye"),
             #[expect(unused_variables, reason = "todo")]
             Information::ControlPoint(message) => todo!("process control points"),
         }
