@@ -179,7 +179,7 @@ mod tests {
         assert_matches!(urn, Uri::Urn(target)
             if matches!(target, Target::Device(ref d)
                 if matches!(&d.vendor, Vendor::Standard)
-                && matches!(&d.device, Device::MediaServer { ver } if ver == "1")
+                && matches!(&d.device, Device::MediaServer { ver } if ver == &1)
             )
         );
     }
@@ -238,7 +238,7 @@ mod tests {
     fn display_usn_device() {
         let target = DeviceDetails {
             vendor: Vendor::Standard,
-            device: Device::MediaServer { ver: "4".into() },
+            device: Device::MediaServer { ver: 4 },
         };
         let usn = Uri::Uuid {
             uuid: uuid!("fd6e74c3-9c89-4fd0-bf52-994af57b5d40"),

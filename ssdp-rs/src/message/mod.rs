@@ -13,8 +13,8 @@ use uuid::Uuid;
 
 mod devices;
 mod error;
-mod header;
-mod msearch;
+pub mod header;
+pub mod msearch;
 pub mod notify;
 mod response;
 mod services;
@@ -23,7 +23,8 @@ mod uri;
 pub use devices::{Device, DeviceDetails};
 pub use error::{ErrorKind, ParseError};
 pub use header::{
-    FriendlyName, Header, HeaderExt, Host, Man, MaxAge, Mx, ProductTokens, ST, UpnpHeader, UpnpPort,
+    BootId, ConfigId, FriendlyName, Header, HeaderExt, Host, Location, Man, MaxAge, Mx, NextBootId,
+    ProductTokens, ST, SecureLocation, Server, UpnpHeader, UpnpPort,
 };
 pub use msearch::MulticastSearch;
 pub use notify::Notify;
@@ -33,8 +34,8 @@ pub use uri::{SsdpNss, Target, UpnpNss, Uri, UriToken};
 
 use crate::message::{header::Version, msearch::MSearch};
 
-const UPNP_VERSION: Version = Version { major: 2, minor: 0 };
-const UPNP_VERSION1: Version = Version { major: 1, minor: 0 };
+pub const UPNP_VERSION: Version = Version { major: 2, minor: 0 };
+pub const UPNP_VERSION1: Version = Version { major: 1, minor: 0 };
 
 /// RFC1123 date format, e.g.: "Wed, 29 Apr 2026 08:22:03 GMT"
 ///
@@ -76,7 +77,7 @@ impl Display for Method {
 /// A valid & parsed ssdp message
 ///
 /// Create with `Message::parse()`
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 // TODO: #39 Consider boxing `Message::Response`
 //       Contents are `Box`ed as they contain many large pointers to heap-allocated
 //       information e.g. `String`s (each is a 24b pointer to data that is on the heap anyway)
@@ -229,7 +230,7 @@ name: my_bulb
         );
         assert_matches!(parsed.usn.ntst, notify::NT::Device(device)
             if matches!(device.vendor, Vendor::Standard)
-            && matches!(&device.device, Device::BinaryLight { ver } if ver == "1")
+            && matches!(&device.device, Device::BinaryLight { ver } if ver == &1)
         );
         assert_eq!(parsed.server.os, "POSIX");
         assert_eq!(parsed.server.os_version, "1-2017");

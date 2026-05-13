@@ -36,18 +36,37 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
     }
 }
 
+impl Notify {
+    pub fn nt(&self) -> &NT {
+        match self {
+            Notify::Alive(alive) => &alive.usn.ntst,
+            Notify::ByeBye(bye_bye) => &bye_bye.usn.ntst,
+            Notify::Update(update) => &update.usn.ntst,
+        }
+    }
+
+    pub fn into_nt(self) -> NT {
+        match self {
+            Notify::Alive(alive) => alive.usn.ntst,
+            Notify::ByeBye(bye_bye) => bye_bye.usn.ntst,
+            Notify::Update(update) => update.usn.ntst,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+// TODO consider derive-getters = "0.5.0" and removing pub access to fields
 pub struct Alive {
     /// `CACHE-CONTROL`: Duration (in seconds) until advertisement expires
-    pub(crate) max_age: MaxAge,
+    pub max_age: MaxAge,
     /// `URL` for UPnP description for root device
-    pub(crate) location: Location,
+    pub location: Location,
     /// `SERVER`: OS/version UPnP/2.0 product/version
-    pub(crate) server: Server,
+    pub server: Server,
     /// `USN`: Field value contains Unique Service Name. Identifies a unique instance of a device
     /// or service. Obeys strict rules in relation to `NT` and therefore acts as the primary store
     /// of both the NT and the UUID.
-    pub(crate) usn: Usn<NT>,
+    pub usn: Usn<NT>,
     /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
     /// increasing value. Control points can use this header field to detect the case when a device
     /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
@@ -55,7 +74,7 @@ pub struct Alive {
     /// checking for changes to the device state that were not evented since the device was off-line.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    boot_id: Option<BootId>,
+    pub boot_id: Option<BootId>,
     /// `CONFIGID.UPNP.ORG`: number used for caching description information.
     /// If a device sends out two messages with a `CONFIGID.UPNP.ORG` header field with the same field
     /// value, the configuration shall be the same at the moments that these messages were sent.
@@ -63,14 +82,14 @@ pub struct Alive {
     /// control point receives an announcement of an unknown configuration is downloading required.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    config_id: Option<ConfigId>,
+    pub config_id: Option<ConfigId>,
     /// `SEARCHPORT.UPNP.ORG`: number identifies port on which device responds to unicast M-SEARCH
     ///
     /// Optional (handled semantically in [UpnpPort])
-    port: UpnpPort,
+    pub port: UpnpPort,
     /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
     /// Required when device protection is implemented.
-    secure_location: Option<SecureLocation>,
+    pub secure_location: Option<SecureLocation>,
 }
 
 impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
@@ -100,11 +119,17 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// When a device is about to be removed from the network, it should explicitly revoke its discovery
+/// messages by sending one multicast message for each ssdp:alive message it sent.
+///
+/// If a control point has received at least one ssdp:byebye message of a root device, any of its
+/// embedded devices or any of its services then the control point can assume that all are no longer
+/// available.
 pub struct ByeBye {
     /// `USN`: Field value contains Unique Service Name. Identifies a unique instance of a device
     /// or service. Obeys strict rules in relation to `NT` and therefore acts as the primary store
     /// of both the NT and the UUID.
-    pub(crate) usn: Usn<NT>,
+    pub usn: Usn<NT>,
     /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
     /// increasing value. Control points can use this header field to detect the case when a device
     /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
@@ -112,7 +137,7 @@ pub struct ByeBye {
     /// checking for changes to the device state that were not evented since the device was off-line.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    boot_id: Option<BootId>,
+    pub boot_id: Option<BootId>,
     /// `CONFIGID.UPNP.ORG`: number used for caching description information.
     /// If a device sends out two messages with a `CONFIGID.UPNP.ORG` header field with the same field
     /// value, the configuration shall be the same at the moments that these messages were sent.
@@ -120,7 +145,7 @@ pub struct ByeBye {
     /// control point receives an announcement of an unknown configuration is downloading required.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    config_id: Option<ConfigId>,
+    pub config_id: Option<ConfigId>,
 }
 
 impl<'h> TryFrom<UpnpHeader<'h>> for ByeBye {
@@ -144,11 +169,11 @@ impl<'h> TryFrom<UpnpHeader<'h>> for ByeBye {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Update {
     /// `URL` for UPnP description for root device
-    pub(crate) location: Location,
+    pub location: Location,
     /// `USN`: Field value contains Unique Service Name. Identifies a unique instance of a device
     /// or service. Obeys strict rules in relation to `NT` and therefore acts as the primary store
     /// of both the NT and the UUID.
-    pub(crate) usn: Usn<NT>,
+    pub usn: Usn<NT>,
     /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
     /// increasing value. Control points can use this header field to detect the case when a device
     /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
@@ -156,7 +181,7 @@ pub struct Update {
     /// checking for changes to the device state that were not evented since the device was off-line.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    boot_id: Option<BootId>,
+    pub boot_id: Option<BootId>,
     /// `CONFIGID.UPNP.ORG`: number used for caching description information.
     /// If a device sends out two messages with a `CONFIGID.UPNP.ORG` header field with the same field
     /// value, the configuration shall be the same at the moments that these messages were sent.
@@ -164,18 +189,18 @@ pub struct Update {
     /// control point receives an announcement of an unknown configuration is downloading required.
     ///
     /// Required for UPnPv2, not present in UPnPv1
-    config_id: Option<ConfigId>,
+    pub config_id: Option<ConfigId>,
     /// `NEXTBOOTID.UPNP.ORG`: contains the new BOOTID.UPNP.ORG field value that the device intends
     /// to use in the subsequent device and service announcement messages. It shall be greater than
     /// the field value of the BOOTID.UPNP.ORG header field.
-    next_boot_id: Option<NextBootId>,
+    pub next_boot_id: Option<NextBootId>,
     /// `SEARCHPORT.UPNP.ORG`: number identifies port on which device responds to unicast M-SEARCH
     ///
     /// Optional (handled semantically in [UpnpPort])
-    port: UpnpPort,
+    pub port: UpnpPort,
     /// `SECURELOCATION.UPNP.ORG`: provides a base URL, with `https:` scheme and a specific port.
     /// Required when device protection is implemented.
-    secure_location: Option<SecureLocation>,
+    pub secure_location: Option<SecureLocation>,
 }
 
 impl<'h> TryFrom<UpnpHeader<'h>> for Update {

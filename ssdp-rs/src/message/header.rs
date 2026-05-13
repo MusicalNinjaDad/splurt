@@ -214,6 +214,12 @@ impl PartialOrd<NextBootId> for BootId {
     }
 }
 
+impl BootId {
+    pub fn as_u32(&self) -> &u32 {
+        &self.0
+    }
+}
+
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into, FromStr,
 )]
@@ -226,6 +232,12 @@ impl Header for ConfigId {
 
 impl UpnpV2 for ConfigId {
     const ERR: ErrorKind = ErrorKind::MissingConfigId;
+}
+
+impl ConfigId {
+    pub fn as_u32(&self) -> &u32 {
+        &self.0
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display, From, Into)]
@@ -327,6 +339,16 @@ impl Header for Location {
     const HEADER_KEY: &'static str = "LOCATION";
 }
 
+impl Location {
+    pub fn as_url(&self) -> &Url {
+        &self.0
+    }
+
+    pub fn into_url(self) -> Url {
+        self.0
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Man {
     Discover,
@@ -407,6 +429,12 @@ impl PartialEq<Duration> for MaxAge {
 impl PartialEq<MaxAge> for Duration {
     fn eq(&self, other: &MaxAge) -> bool {
         *self == other.0
+    }
+}
+
+impl MaxAge {
+    pub fn as_duration(&self) -> &Duration {
+        &self.0
     }
 }
 
@@ -597,6 +625,15 @@ impl PartialEq<SecureLocation> for Url {
     }
 }
 
+impl SecureLocation {
+    pub fn as_url(&self) -> &Url {
+        &self.0
+    }
+    pub fn into_url(self) -> Url {
+        self.0
+    }
+}
+
 pub type Server = ProductTokens<"SERVER">;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -605,7 +642,7 @@ pub enum ST {
     /// `ssdp:all`: Search for all devices and services.
     All,
     /// `upnp:rootdevice`: Search for root devices only.
-    Root,
+    RootDevice,
     /// uuid:device-UUID: Search for a particular device.
     Uuid(Uuid),
     /// `urn:schemas-upnp-org:device:deviceType:ver`:
@@ -649,7 +686,7 @@ impl TryFrom<Uri> for ST {
     fn try_from(uri: Uri) -> Result<Self, Self::Error> {
         match uri {
             Uri::Ssdp(SsdpNss::All) => Ok(ST::All),
-            Uri::Upnp(UpnpNss::RootDevice) => Ok(ST::Root),
+            Uri::Upnp(UpnpNss::RootDevice) => Ok(ST::RootDevice),
             Uri::Urn(Target::Device(device)) => Ok(ST::Device(device)),
             Uri::Urn(Target::Service(service)) => Ok(ST::Service(service)),
             Uri::Uuid { uuid, suffix: None } => Ok(Self::Uuid(uuid)),
@@ -662,7 +699,7 @@ impl PartialEq<Uri> for ST {
     fn eq(&self, uri: &Uri) -> bool {
         match self {
             Self::All => matches!(uri, Uri::Ssdp(SsdpNss::All)),
-            Self::Root => matches!(uri, Uri::Upnp(UpnpNss::RootDevice)),
+            Self::RootDevice => matches!(uri, Uri::Upnp(UpnpNss::RootDevice)),
             Self::Uuid(this_uuid) => {
                 matches!(uri, Uri::Uuid { uuid, suffix: None } if uuid == this_uuid)
             }
@@ -680,7 +717,7 @@ impl PartialEq<ST> for Uri {
     fn eq(&self, st: &ST) -> bool {
         match self {
             Uri::Ssdp(SsdpNss::All) => matches!(st, ST::All),
-            Uri::Upnp(UpnpNss::RootDevice) => matches!(st, ST::Root),
+            Uri::Upnp(UpnpNss::RootDevice) => matches!(st, ST::RootDevice),
             Uri::Uuid {
                 uuid: this_uuid,
                 suffix: None,
@@ -700,7 +737,7 @@ impl Display for ST {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ST::All => write!(f, "ssdp:all"),
-            ST::Root => write!(f, "upnp:rootdevice"),
+            ST::RootDevice => write!(f, "upnp:rootdevice"),
             ST::Uuid(uuid) => write!(f, "uuid:device-{}", uuid),
             ST::Device(device_details) => write!(f, "urn:{device_details}"),
             ST::Service(service_details) => write!(f, "urn:{service_details}"),
