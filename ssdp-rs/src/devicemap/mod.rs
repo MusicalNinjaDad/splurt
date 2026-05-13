@@ -10,7 +10,7 @@ use crate::{
     devicemap::rootdevice::{EmbeddedDevice, IsKnown, RootDevice},
     message::{
         Message, Notify, Response, ST,
-        notify::{Alive, NT},
+        notify::{Alive, ByeBye, NT, Update},
     },
 };
 
@@ -128,7 +128,22 @@ impl From<Message> for Information {
                     ST::All => todo!("ControlPoints"),
                 }
             }
-            _ => todo!("other stuff"),
+            #[expect(unused_variables, reason = "todo ByeBye")]
+            Message::Notify(Notify::ByeBye(ByeBye {
+                usn,
+                boot_id,
+                config_id,
+            })) => todo!("ByeBye"),
+            #[expect(unused_variables, reason = "todo Update")]
+            Message::Notify(Notify::Update(Update {
+                location,
+                usn,
+                boot_id,
+                config_id,
+                next_boot_id,
+                port,
+                secure_location,
+            })) => todo!("Update"),
         }
     }
 }
