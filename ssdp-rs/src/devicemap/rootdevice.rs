@@ -156,58 +156,53 @@ impl RootDevice {
             mut embedded_devices,
             services: _, // todo! reduce confusion, handle update_based_on full details,
         } = root_device;
+
         match (self.is_known(), update_describes) {
             (IsKnown::Known, About::RootDevice) if self.id != id => {
                 todo!("handle id has changed")
             }
+
+            // Confirmation of root device details
             (IsKnown::Inferred, About::RootDevice) => {
-                // Confirmation of root device details
                 self.id = id;
-                // If we already have more details about device type & direct services
+                // If we already have more details about device type & direct services,
+                // promote that embedded device.
                 if let Some(device) = self.embedded_devices.remove(&update_id) {
                     self.device_type = device.device_type;
                     self.services.extend(device.services);
                 }
             }
-            (IsKnown::Known, About::RootDevice) => {
-                // Do nothing except the general updates below
-            }
-            (IsKnown::Known, About::DeviceOrService) if self.id == Some(update_id) => {
-                // Info on the device_type or direct services for a known root device
-                if let Some(device) = embedded_devices.remove(&update_id) {
-                    self.device_type = device.device_type.or(self.device_type);
-                    self.services.extend(device.services);
-                }
-            }
-            _ => {
-                // Info on device or service for an inferred root device
-                // Or info on an embedded device for a known root device
-                // Add it to / merge it with the embedded devices
-            }
-        }
-        #[allow(unreachable_code)]
-        match update_is_rootdevice {
-            IsKnown::Inferred
-                if self.id != Some(update_id)
-                    && let Some(existing_device) = self.embedded_devices.get_mut(&update_id)
-                    && let Some(update_device) = embedded_devices.remove(&update_id) =>
-            {
-                if update_device.device_type.is_some() {
-                    existing_device.device_type = update_device.device_type;
-                }
-                existing_device.services.extend(update_device.services);
-            }
-            IsKnown::Inferred
-                if let Some(this_id) = self.id
-                    && this_id == update_id
+
+            // Info on the device_type or direct services for a known root device
+            (IsKnown::Known, About::DeviceOrService)
+                if self.id == Some(update_id)
                     && let Some(device) = embedded_devices.remove(&update_id) =>
             {
-                self.device_type = device.device_type;
+                if device.device_type.is_some() {
+                    self.device_type = device.device_type;
+                }
                 self.services.extend(device.services);
             }
+
+            // We already have some info on this embedded device
+            _ if let Some(known_device) = self.embedded_devices.remove(&update_id)
+                && let Some(update_device) = embedded_devices.get_mut(&update_id) =>
+            {
+                // Update it accordingly before it gets inserted later
+                if update_device.device_type.is_none() {
+                    update_device.device_type = known_device.device_type;
+                }
+                update_device.services.extend(known_device.services);
             }
-        };
+
+            // Either a direct update to a known root device, or a previously unknown embedded device
+            _ => {
+                // Do nothing except the general updates below
+            }
+        }
+
         self.update_validity(last_seen, valid_until);
+
         if self.config_id.is_none() || config_id > self.config_id {
             self.config_id = config_id;
             self.product = product;
@@ -215,6 +210,7 @@ impl RootDevice {
             self.port = port;
             self.secure_location = secure_location;
         }
+
         self.embedded_devices.extend(embedded_devices);
     }
 
