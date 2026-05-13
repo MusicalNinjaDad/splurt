@@ -134,7 +134,7 @@ impl RootDevice {
     }
 
     pub fn update_based_on(&mut self, root_device: RootDevice, update_id: Uuid) {
-        let update_is_known = root_device.is_known();
+        let update_is_rootdevice = root_device.is_known();
         let RootDevice {
             id,
             last_seen,
@@ -149,7 +149,7 @@ impl RootDevice {
             mut embedded_devices,
             services: _, // todo! reduce confusion, handle update_based_on full details,
         } = root_device;
-        match update_is_known {
+        match update_is_rootdevice {
             IsKnown::Known if matches!(self.is_known(), IsKnown::Known) && id != self.id => {
                 todo!("handle id has changed")
             }
@@ -171,10 +171,22 @@ impl RootDevice {
                 self.device_type = device.device_type;
                 self.services.extend(device.services);
             }
-            IsKnown::Known if let Some(device) = self.embedded_devices.remove(&update_id) => {
-                self.id = id;
-                self.device_type = device.device_type;
-                self.services.extend(device.services);
+            IsKnown::Known => {
+                match self.is_known() {
+                    IsKnown::Known if id != self.id => {
+                        todo!("handle root device ID change")
+                    }
+                    IsKnown::Inferred => {
+                        self.id = id;
+                        if let Some(device) = self.embedded_devices.remove(&update_id) {
+                            self.device_type = device.device_type;
+                            self.services.extend(device.services);
+                        }
+                    }
+                    IsKnown::Known => {
+                        // Do nothing except the general updates below
+                    }
+                }
             }
             _ => (),
         };
