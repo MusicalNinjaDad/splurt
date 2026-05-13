@@ -256,8 +256,13 @@ impl DeviceMap {
                 };
                 Ok(())
             }
-            #[expect(unused_variables, reason = "todo")]
-            Information::Removal { id } => todo!("process byebye"),
+            Information::Removal { id } => {
+                let location = self.ids.remove(&id);
+                if let Some(location) = location {
+                    self.root_devices.remove(&location);
+                }
+                Ok(())
+            }
             #[expect(unused_variables, reason = "todo")]
             Information::ControlPoint(message) => todo!("process control points"),
         }

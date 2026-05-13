@@ -603,7 +603,6 @@ fn root_then_uuid() {
 }
 
 #[test]
-#[should_panic(expected = "not yet implemented: process byebye")]
 fn byebye_service() {
     let mut devices = DeviceMap::new();
     devices.process(root_msg());
