@@ -1,10 +1,13 @@
-use std::collections::{HashMap, hash_map::Entry};
+use std::{
+    cmp::max,
+    collections::{HashMap, hash_map::Entry},
+};
 
 use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    devicemap::rootdevice::{EmbeddedDevice, RootDevice},
+    devicemap::rootdevice::{EmbeddedDevice, IsKnown, RootDevice},
     message::{
         Message, Notify, Response, ST,
         notify::{Alive, NT},
@@ -210,14 +213,87 @@ impl DeviceMap {
                 match self.inner.entry(root_device.location.clone()) {
                     Entry::Occupied(mut known_rd) => {
                         let known_rd = known_rd.get_mut();
-                        known_rd.update_based_on(root_device, id);
-                        Ok(())
+                        enum About {
+                            RootDevice,
+                            DeviceOrService,
+                        }
+                        let update_describes = match root_device.is_known() {
+                            IsKnown::Inferred => About::DeviceOrService,
+                            IsKnown::Known => About::RootDevice,
+                        };
+                        let RootDevice {
+                            id: update_rd_id,
+                            last_seen,
+                            valid_until,
+                            location: _,
+                            product,
+                            boot_id,
+                            config_id,
+                            port,
+                            secure_location,
+                            device_type: _,
+                            mut embedded_devices,
+                            services: _,
+                        } = root_device;
+                        match (known_rd.is_known(), update_describes) {
+                            (IsKnown::Known, About::RootDevice) if known_rd.id != update_rd_id => {
+                                todo!("handle id has changed")
+                            }
+
+                            // Confirmation of root device details
+                            (IsKnown::Inferred, About::RootDevice) => {
+                                known_rd.id = update_rd_id;
+                                // If we already have more details about device type & direct services,
+                                // promote that embedded device.
+                                if let Some(device) = known_rd.embedded_devices.remove(&id) {
+                                    known_rd.device_type = device.device_type;
+                                    known_rd.services.extend(device.services);
+                                }
+                            }
+
+                            // Info on the device_type or direct services for a known root device
+                            (IsKnown::Known, About::DeviceOrService)
+                                if known_rd.id == Some(id)
+                                    && let Some(device) = embedded_devices.remove(&id) =>
+                            {
+                                if device.device_type.is_some() {
+                                    known_rd.device_type = device.device_type;
+                                }
+                                known_rd.services.extend(device.services);
+                            }
+
+                            // We already have some info on this embedded device
+                            _ if let Some(known_device) = known_rd.embedded_devices.remove(&id)
+                                && let Some(update_device) = embedded_devices.get_mut(&id) =>
+                            {
+                                // Update it accordingly before it gets inserted later
+                                if update_device.device_type.is_none() {
+                                    update_device.device_type = known_device.device_type;
+                                }
+                                update_device.services.extend(known_device.services);
+                            }
+
+                            // Either a direct update to a known root device, or a previously unknown embedded device
+                            _ => {
+                                // Do nothing except the general updates below
+                            }
+                        }
+                        known_rd.last_seen = max(known_rd.last_seen, last_seen);
+                        known_rd.valid_until = max(known_rd.valid_until, valid_until);
+                        if known_rd.config_id.is_none() || config_id > known_rd.config_id {
+                            known_rd.config_id = config_id;
+                            known_rd.product = product;
+                            known_rd.boot_id = boot_id;
+                            known_rd.port = port;
+                            known_rd.secure_location = secure_location;
+                        }
+                        known_rd.embedded_devices.extend(embedded_devices);
                     }
                     Entry::Vacant(entry) => {
                         entry.insert(root_device);
-                        Ok(())
                     }
-                }
+                };
+                Ok(())
             }
             #[expect(unused_variables, reason = "todo")]
             Information::ControlPoint(message) => todo!("process control points"),

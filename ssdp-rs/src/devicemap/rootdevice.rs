@@ -1,9 +1,6 @@
 //! A heirarchical map of rootdevice[/device]/service
 
-use std::{
-    cmp::max,
-    collections::{HashMap, HashSet},
-};
+use std::collections::{HashMap, HashSet};
 
 use chrono::{DateTime, Utc};
 use url::Url;
@@ -25,8 +22,8 @@ enum Lenient<T> {
 pub struct RootDevice {
     /// None if this is an inferred root device
     pub id: Option<Uuid>,
-    last_seen: DateTime<Utc>,
-    valid_until: DateTime<Utc>,
+    pub(crate) last_seen: DateTime<Utc>,
+    pub(crate) valid_until: DateTime<Utc>,
     /// URL for UPnP description for root device
     pub location: Url,
     /// OS/version UPnP/2.0 product/version
@@ -112,11 +109,6 @@ impl RootDevice {
         }
     }
 
-    pub fn update_validity(&mut self, last_seen: DateTime<Utc>, valid_until: DateTime<Utc>) {
-        self.last_seen = max(self.last_seen, last_seen);
-        self.valid_until = max(self.valid_until, valid_until);
-    }
-
     /// Update details which are
     pub fn received_new_config(
         &mut self,
@@ -131,87 +123,6 @@ impl RootDevice {
         self.boot_id = boot_id;
         self.port = port;
         self.secure_location = secure_location;
-    }
-
-    pub fn update_based_on(&mut self, root_device: RootDevice, update_id: Uuid) {
-        enum About {
-            RootDevice,
-            DeviceOrService,
-        }
-        let update_describes = match root_device.is_known() {
-            IsKnown::Inferred => About::DeviceOrService,
-            IsKnown::Known => About::RootDevice,
-        };
-        let RootDevice {
-            id,
-            last_seen,
-            valid_until,
-            location: _, // todo! reduce confusion, handle update_based_on full details,
-            product,
-            boot_id,
-            config_id,
-            port,
-            secure_location,
-            device_type: _, // todo! reduce confusion, handle update_based_on full details,
-            mut embedded_devices,
-            services: _, // todo! reduce confusion, handle update_based_on full details,
-        } = root_device;
-
-        match (self.is_known(), update_describes) {
-            (IsKnown::Known, About::RootDevice) if self.id != id => {
-                todo!("handle id has changed")
-            }
-
-            // Confirmation of root device details
-            (IsKnown::Inferred, About::RootDevice) => {
-                self.id = id;
-                // If we already have more details about device type & direct services,
-                // promote that embedded device.
-                if let Some(device) = self.embedded_devices.remove(&update_id) {
-                    self.device_type = device.device_type;
-                    self.services.extend(device.services);
-                }
-            }
-
-            // Info on the device_type or direct services for a known root device
-            (IsKnown::Known, About::DeviceOrService)
-                if self.id == Some(update_id)
-                    && let Some(device) = embedded_devices.remove(&update_id) =>
-            {
-                if device.device_type.is_some() {
-                    self.device_type = device.device_type;
-                }
-                self.services.extend(device.services);
-            }
-
-            // We already have some info on this embedded device
-            _ if let Some(known_device) = self.embedded_devices.remove(&update_id)
-                && let Some(update_device) = embedded_devices.get_mut(&update_id) =>
-            {
-                // Update it accordingly before it gets inserted later
-                if update_device.device_type.is_none() {
-                    update_device.device_type = known_device.device_type;
-                }
-                update_device.services.extend(known_device.services);
-            }
-
-            // Either a direct update to a known root device, or a previously unknown embedded device
-            _ => {
-                // Do nothing except the general updates below
-            }
-        }
-
-        self.update_validity(last_seen, valid_until);
-
-        if self.config_id.is_none() || config_id > self.config_id {
-            self.config_id = config_id;
-            self.product = product;
-            self.boot_id = boot_id;
-            self.port = port;
-            self.secure_location = secure_location;
-        }
-
-        self.embedded_devices.extend(embedded_devices);
     }
 
     pub const fn valid_until(&self) -> DateTime<Utc> {
