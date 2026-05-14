@@ -9,6 +9,7 @@
 
 use std::{fmt::Display, str::FromStr};
 
+use derive_more::Display;
 use uuid::Uuid;
 
 mod devices;
@@ -77,7 +78,7 @@ impl Display for Method {
 /// A valid & parsed ssdp message
 ///
 /// Create with `Message::parse()`
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
 // TODO: #39 Consider boxing `Message::Response`
 //       Contents are `Box`ed as they contain many large pointers to heap-allocated
 //       information e.g. `String`s (each is a 24b pointer to data that is on the heap anyway)
@@ -135,19 +136,6 @@ impl FromStr for Message {
             Method::MSearch => Ok(Message::Search(header.try_into()?)),
             Method::Notify => Ok(Message::Notify(header.try_into()?)),
             Method::Response => Ok(Message::Response(header.try_into()?)),
-        }
-    }
-}
-
-/// Formats Message as per OCF specification (2020)
-impl Display for Message {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Message::Notify(_notify) => todo!("display notify messages"),
-            Message::Search(msearch) => {
-                write!(f, "{msearch}")
-            }
-            Message::Response(_response) => todo!("display response messages"),
         }
     }
 }
@@ -322,7 +310,7 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003
             st: ST::All,
             user_agent: None,
             port: Default::default(),
-            friendly_name: Some(FriendlyName(friendly_name.to_string())),
+            friendly_name: Some(friendly_name.into()),
             uuid: Some(uuid.into()),
         };
         let msg_text = msg.to_string();

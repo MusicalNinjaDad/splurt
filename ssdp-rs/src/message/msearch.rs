@@ -121,8 +121,20 @@ impl<'h> TryFrom<UpnpHeader<'h>> for UnicastSearch {
 }
 
 impl Display for UnicastSearch {
-    #[expect(unused_variables, reason = "todo")]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!("display UnicastSearch")
+        let Self {
+            host,
+            st,
+            user_agent,
+        } = self;
+        writeln!(f, "{}", Method::MSearch)?;
+        host.write_header(f)?;
+        Man::Discover.write_header(f)?;
+        st.write_header(f)?;
+        user_agent.write_header(f)?;
+        // Must end with blank line as per spec:
+        //   "Note: No body is present in requests with method M-SEARCH, but note that the
+        //          message shall have a blank line following the last header field."
+        writeln!(f)
     }
 }

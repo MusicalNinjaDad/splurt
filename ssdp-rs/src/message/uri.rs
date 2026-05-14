@@ -102,7 +102,11 @@ impl Uri {
                     Some(_) => Err(ErrorKind::InvalidUsn(s.to_string()))?,
                 }
             }
-            _ => todo!("parse other types"),
+            UriToken::Device | UriToken::Service => {
+                // Cannot parse raw device/service URI as we need the vendor details which
+                // appear in a previous part of a well-formed URI (see UriToken::Urn above)
+                Err(err())?
+            }
         }
     }
 }
