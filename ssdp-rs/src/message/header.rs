@@ -903,6 +903,8 @@ impl Display for Version {
 
 #[cfg(test)]
 mod tests {
+    use crate::message::notify::NT;
+
     use super::*;
 
     #[cfg(assert_matches_in_root)]
@@ -988,5 +990,12 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003"#;
             if loc == "http://192.168.0.15/xml/device_description.xml"
         );
         assert!(err.source().is_none());
+    }
+
+    #[test]
+    fn parse_uuid() {
+        let usn = "uuid:2f402f80-da50-11e1-9b23-ecb5fa15b2c8";
+        usn.parse::<Uri>().expect("valid as URI");
+        usn.parse::<Usn<NT>>().expect("valid as USN");
     }
 }

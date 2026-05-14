@@ -468,11 +468,45 @@ impl Display for NTS {
 
 #[cfg(test)]
 mod tests {
+    use uuid::uuid;
+
+    use crate::message::{Device, Vendor};
+
     use super::*;
 
     #[test]
     fn display_ssdp_alive() {
         let output = format!("{}", Uri::Ssdp(SsdpNss::Alive));
         assert_eq!(output, "ssdp:alive");
+    }
+
+    #[test]
+    #[should_panic(
+        expected = r#"valid notify: ParseError { kind: InvalidUsn("uuid:f3d5b7e9-77f3-497e-ab39-ce2bc90001e8"), source: None }"#
+    )]
+    fn parse_alive() {
+        let msg = r#"HOST: 239.255.255.250:1900
+CACHE-CONTROL: max-age=100
+LOCATION: http://192.168.5.26:80/description.xml
+SERVER: Hue/1.0 UPnP/1.0 IpBridge/1.77.0
+NTS: ssdp:alive
+hue-bridgeid: CE2BC90001E8
+NT: urn:schemas-upnp-org:device:basic:1
+USN: uuid:f3d5b7e9-77f3-497e-ab39-ce2bc90001e8
+
+"#;
+        let header: UpnpHeader = msg.lines().collect();
+        let alive: Alive = header.try_into().expect("valid notify");
+        assert_eq!(
+            alive.usn.ntst,
+            NT::Device(DeviceDetails {
+                vendor: Vendor::Standard,
+                device: Device::Basic { ver: 1 }
+            })
+        );
+        assert_eq!(
+            alive.usn.uuid,
+            uuid!("f3d5b7e9-77f3-497e-ab39-ce2bc90001e8")
+        );
     }
 }

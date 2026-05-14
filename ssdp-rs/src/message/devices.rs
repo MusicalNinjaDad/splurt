@@ -18,6 +18,7 @@ impl Display for DeviceDetails {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Device {
+    Basic { ver: u8 },
     BinaryLight { ver: u8 },
     MediaServer { ver: u8 },
     ZonePlayer { ver: u8 },
@@ -40,6 +41,8 @@ impl Device {
         };
         let v = parts.collect();
         let device = match device_type.as_str() {
+            // TODO: Case sensitivity
+            "basic" => Device::Basic { ver: ver(v)? },
             "BinaryLight" => Device::BinaryLight { ver: ver(v)? },
             "MediaServer" => Device::MediaServer { ver: ver(v)? },
             "ZonePlayer" => Device::ZonePlayer { ver: ver(v)? },
@@ -55,6 +58,7 @@ impl Device {
 impl Display for Device {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Device::Basic { ver } => write!(f, "Basic:{}", ver),
             Device::BinaryLight { ver } => write!(f, "BinaryLight:{}", ver),
             Device::MediaServer { ver } => write!(f, "MediaServer:{}", ver),
             Device::ZonePlayer { ver } => write!(f, "ZonePlayer:{}", ver),
