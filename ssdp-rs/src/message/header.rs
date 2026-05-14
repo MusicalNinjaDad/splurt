@@ -250,8 +250,8 @@ impl Header for ControlPointUuid {
 impl FromStr for ControlPointUuid {
     type Err = ErrorKind;
 
-    fn from_str(_s: &str) -> Result<Self, Self::Err> {
-        todo!("fromstr controlpoint uuid")
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(Uuid::parse_str(s)?))
     }
 }
 
