@@ -203,6 +203,10 @@ impl DeviceMap {
         }
     }
 
+    pub fn devices(&self) -> &HashMap<Url, RootDevice> {
+        &self.root_devices
+    }
+
     pub fn process(&mut self, message: Message) {
         let info = message.into();
         match info {
