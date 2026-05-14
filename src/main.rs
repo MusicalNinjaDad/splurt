@@ -21,7 +21,7 @@ use ratatui::{
 use try_v2::{Try, Try_ConvertResult};
 use uuid::Uuid;
 
-use ssdp_rs::{Listener, Searcher};
+use ssdp_rs::{Listener, Searcher, devicemap::DeviceMap};
 
 mod cli;
 use cli::*;
@@ -57,18 +57,27 @@ fn main() -> Exit<()> {
     match &splurt.command {
         Command::Snoop => {
             let mut ui = ratatui::init();
-            let mut msgs = Text::default();
+            let mut devices = DeviceMap::new();
             let mut listener = Listener::new(Ipv4Addr::UNSPECIFIED)?;
             let listen_loop = async {
+                let m = Paragraph::new("").block(Block::bordered().title("devices"));
+                ui.draw(|frame| frame.render_widget(m, frame.area()))
+                    .unwrap();
                 try bikeshed Exit<()> {
                     loop {
-                        msgs.push_line("listening ...");
-                        let m = Paragraph::new(msgs.clone()).block(Block::bordered().title("messages"));
-                        ui.draw(|frame| frame.render_widget(m, frame.area())).unwrap();
-                        let (msg, sent_by) = listener.next().await.expect("a message")?;
-                        msgs.lines
-                            .extend(msg.lines().map(ToString::to_string).map(Into::into));
-                        msgs.push_line(format!("received: {} from {}", msg, sent_by));
+                        let (msg, _sent_by) = listener.next().await.expect("a message")?;
+                        devices.process(msg.parse().unwrap());
+                        let t = Text::from_iter(devices.devices().values().map(|rd| {
+                            format!(
+                                "{}: {:?} with {} embedded devices",
+                                rd.location,
+                                rd.device_type,
+                                rd.embedded_devices.len()
+                            )
+                        }));
+                        let m = Paragraph::new(t).block(Block::bordered().title("devices"));
+                        ui.draw(|frame| frame.render_widget(m, frame.area()))
+                            .unwrap();
                     }
                 }
             };
