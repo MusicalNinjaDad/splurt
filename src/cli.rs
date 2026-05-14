@@ -18,4 +18,6 @@ pub enum Command {
     Test,
     /// listen to udp messages
     Listen,
+    /// UI to silently listen (will not send out an initial search)
+    Snoop
 }

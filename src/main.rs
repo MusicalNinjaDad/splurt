@@ -51,6 +51,20 @@ fn main() -> Exit<()> {
     let splurt = Splurt::try_parse()?;
 
     match &splurt.command {
+        Command::Snoop => {
+            let mut listener = Listener::new(Ipv4Addr::UNSPECIFIED)?;
+            let listen_loop = async {
+                try bikeshed Exit<()> {
+                    loop {
+                        println!("listening ...");
+                        let (msg, sent_by) = listener.next().await.expect("a message")?;
+                        println!("received: {} from {}", msg, sent_by);
+                    }
+                }
+            };
+            futures::executor::block_on(listen_loop)?;
+        }
+
         Command::Listen => {
             let mut searcher = Searcher::new("splurt", "v0.0.1", "splurt ssdp repeater")?;
             let search = async {
