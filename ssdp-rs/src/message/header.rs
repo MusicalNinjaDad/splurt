@@ -256,8 +256,7 @@ impl FromStr for ControlPointUuid {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, From, Into)]
-// TODO make private inner when impl FromStr
-pub struct FriendlyName(pub String);
+pub struct FriendlyName(String);
 
 impl Header for FriendlyName {
     const HEADER_KEY: &'static str = "CPFN.UPNP.ORG";
@@ -270,8 +269,8 @@ impl UpnpV2 for FriendlyName {
 impl FromStr for FriendlyName {
     type Err = ErrorKind;
 
-    fn from_str(_s: &str) -> Result<Self, Self::Err> {
-        todo!("fromstr for friendly name")
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(s.into()))
     }
 }
 
