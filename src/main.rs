@@ -14,6 +14,10 @@ use cotton_netif::get_interfaces;
 use cotton_ssdp::{Advertisement, AsyncService, Notification};
 use exit_safely::Termination;
 use futures::StreamExt;
+use ratatui::{
+    text::Text,
+    widgets::{Block, Paragraph},
+};
 use try_v2::{Try, Try_ConvertResult};
 use uuid::Uuid;
 
@@ -52,17 +56,24 @@ fn main() -> Exit<()> {
 
     match &splurt.command {
         Command::Snoop => {
+            let mut ui = ratatui::init();
+            let mut msgs = Text::default();
             let mut listener = Listener::new(Ipv4Addr::UNSPECIFIED)?;
             let listen_loop = async {
                 try bikeshed Exit<()> {
                     loop {
-                        println!("listening ...");
+                        msgs.push_line("listening ...");
+                        let m = Paragraph::new(msgs.clone()).block(Block::bordered().title("messages"));
+                        ui.draw(|frame| frame.render_widget(m, frame.area())).unwrap();
                         let (msg, sent_by) = listener.next().await.expect("a message")?;
-                        println!("received: {} from {}", msg, sent_by);
+                        msgs.lines
+                            .extend(msg.lines().map(ToString::to_string).map(Into::into));
+                        msgs.push_line(format!("received: {} from {}", msg, sent_by));
                     }
                 }
             };
             futures::executor::block_on(listen_loop)?;
+            ratatui::restore();
         }
 
         Command::Listen => {
