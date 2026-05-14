@@ -439,8 +439,8 @@ impl MaxAge {
 }
 
 impl Display for MaxAge {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!("display MaxAge")
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_duration().as_secs())
     }
 }
 

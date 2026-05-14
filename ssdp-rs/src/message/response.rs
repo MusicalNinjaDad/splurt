@@ -1,7 +1,9 @@
+use std::fmt::Display;
+
 use chrono::{DateTime, NaiveDateTime, Utc};
 
 use crate::message::{
-    HeaderExt,
+    HeaderExt, Method,
     header::{BootId, ConfigId, Location, SecureLocation, Server, UpnpV2Ext, Usn},
 };
 
@@ -96,5 +98,40 @@ impl Response {
 
     pub fn into_st(self) -> ST {
         self.usn.ntst
+    }
+}
+
+impl Display for Response {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            max_age,
+            date,
+            #[expect(unused_variables, reason = "todo handle EXT better")]
+            ext,
+            location,
+            server,
+            usn,
+            boot_id,
+            config_id,
+            #[expect(unused_variables, reason = "todo handle port in message output")]
+            port,
+            secure_location,
+        } = self;
+        writeln!(f, "{}", Method::Response)?;
+        max_age.write_header(f)?;
+        if let Some(date) = date {
+            writeln!(f, "DATE: {}", date.format(RFC1123))?;
+        }
+        writeln!(f, "EXT:")?;
+        location.write_header(f)?;
+        server.write_header(f)?;
+        usn.ntst.write_header(f)?;
+        boot_id.write_header(f)?;
+        config_id.write_header(f)?;
+        secure_location.write_header(f)?;
+        // Must end with blank line as per spec:
+        //   "Note: No body is present in requests with method M-SEARCH, but note that the
+        //          message shall have a blank line following the last header field."
+        writeln!(f)
     }
 }

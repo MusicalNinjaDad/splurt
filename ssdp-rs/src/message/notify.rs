@@ -199,6 +199,27 @@ impl<'h> TryFrom<UpnpHeader<'h>> for ByeBye {
     }
 }
 
+impl Display for ByeBye {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            usn,
+            boot_id,
+            config_id,
+        } = self;
+        writeln!(f, "{}", Method::Notify)?;
+        Host::default().write_header(f)?;
+        usn.ntst.write_header(f)?;
+        NTS::ByeBye.write_header(f)?;
+        usn.write_header(f)?;
+        boot_id.write_header(f)?;
+        config_id.write_header(f)?;
+        // Must end with blank line as per spec:
+        //   "Note: No body is present in requests with method M-SEARCH, but note that the
+        //          message shall have a blank line following the last header field."
+        writeln!(f)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Update {
     /// `URL` for UPnP description for root device
@@ -270,6 +291,35 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Update {
             port,
             secure_location,
         })
+    }
+}
+
+impl Display for Update {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            location,
+            usn,
+            boot_id,
+            config_id,
+            next_boot_id,
+            #[expect(unused_variables, reason = "todo handle port in message output")]
+            port,
+            secure_location,
+        } = self;
+        writeln!(f, "{}", Method::Notify)?;
+        Host::default().write_header(f)?;
+        location.write_header(f)?;
+        usn.ntst.write_header(f)?;
+        NTS::Update.write_header(f)?;
+        usn.write_header(f)?;
+        boot_id.write_header(f)?;
+        config_id.write_header(f)?;
+        next_boot_id.write_header(f)?;
+        secure_location.write_header(f)?;
+        // Must end with blank line as per spec:
+        //   "Note: No body is present in requests with method M-SEARCH, but note that the
+        //          message shall have a blank line following the last header field."
+        writeln!(f)
     }
 }
 
@@ -409,7 +459,7 @@ impl FromStr for NTS {
 impl Display for NTS {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            NTS::Alive => write!(f, "{}",  Uri::Ssdp(SsdpNss::Alive)),
+            NTS::Alive => write!(f, "{}", Uri::Ssdp(SsdpNss::Alive)),
             NTS::ByeBye => write!(f, "{}", Uri::Ssdp(SsdpNss::ByeBye)),
             NTS::Update => write!(f, "{}", Uri::Ssdp(SsdpNss::Update)),
         }
