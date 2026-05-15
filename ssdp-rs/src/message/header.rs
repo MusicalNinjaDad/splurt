@@ -998,4 +998,13 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003"#;
         usn.parse::<Uri>().expect("valid as URI");
         usn.parse::<Usn>().expect("valid as USN");
     }
+
+    #[test]
+    #[should_panic(
+        expected = r#"parsed leniently: InvalidProductTokens("Microsoft Edge/148.0.3967.54 Windows")"#
+    )]
+    fn lenient_user_agent() {
+        let ms_rtfm = "Microsoft Edge/148.0.3967.54 Windows";
+        let _agent: UserAgent = ms_rtfm.parse().expect("parsed leniently");
+    }
 }
