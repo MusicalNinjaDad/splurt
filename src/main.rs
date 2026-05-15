@@ -6,7 +6,13 @@
 #![feature(try_trait_v2_residual)]
 
 use std::{
-    collections::HashMap, fmt::Debug, future::join, io, iter::once, net::{Ipv4Addr, SocketAddr}, process::Termination as _T
+    collections::HashMap,
+    fmt::Debug,
+    future::join,
+    io,
+    iter::once,
+    net::{Ipv4Addr, SocketAddr},
+    process::Termination as _T,
 };
 
 use clap::Parser;
@@ -21,11 +27,7 @@ use ratatui::{
 use try_v2::{Try, Try_ConvertResult};
 use uuid::Uuid;
 
-use ssdp_rs::{
-    Listener, Searcher,
-    devicemap::DeviceMap,
-    message::ParseError,
-};
+use ssdp_rs::{Listener, Searcher, devicemap::DeviceMap, message::ParseError};
 
 mod cli;
 use cli::*;
@@ -94,16 +96,18 @@ fn main() -> Exit<()> {
                                         rd.embedded_devices.len()
                                     )
                                 })
-                                .chain(rtfm.iter().map(|(addr, errs)| {
-                                    format!(
-                                        "{addr}: has {} errors. First is: {:?}",
-                                        errs.len(),
-                                        errs.first().unwrap()
-                                    )
-                                })
-                                .chain(once(format!("last message from {sent_by}")))
-                                .chain(msg.lines().map(ToString::to_string))
-                            ),
+                                .chain(
+                                    rtfm.iter()
+                                        .map(|(addr, errs)| {
+                                            format!(
+                                                "{addr}: has {} errors. First is: {:?}",
+                                                errs.len(),
+                                                errs.first().unwrap()
+                                            )
+                                        })
+                                        .chain(once(format!("last message from {sent_by}")))
+                                        .chain(msg.lines().map(ToString::to_string)),
+                                ),
                         );
                         let m = Paragraph::new(t).block(Block::bordered().title("devices"));
                         ui.draw(|frame| frame.render_widget(m, frame.area()))
