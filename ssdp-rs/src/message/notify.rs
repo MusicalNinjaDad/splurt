@@ -110,7 +110,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
         let location = Location::get_from(&header)?;
         let nt = NT::get_from(&header)?;
         let server = Server::get_from(&header)?;
-        let usn = Usn::get_validated(&header, &nt)?;
+        let usn = Usn::get_validated(&header, nt)?;
         let boot_id = Option::<BootId>::get_validated(&header, server.upnp_version)?;
         let config_id = Option::<ConfigId>::get_validated(&header, server.upnp_version)?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
@@ -194,7 +194,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for ByeBye {
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
         let nt = NT::get_from(&header)?;
-        let usn = Usn::get_validated(&header, &nt)?;
+        let usn = Usn::get_validated(&header, nt)?;
         // TODO - document Boot & ConfigID validation must be done by something that has a
         // suitable cache from previous Alive & Update notifications
         let boot_id = Option::<BootId>::get_from(&header)?;
@@ -271,7 +271,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Update {
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
         let location = Location::get_from(&header)?;
         let nt = NT::get_from(&header)?;
-        let usn = Usn::get_validated(&header, &nt)?;
+        let usn = Usn::get_validated(&header, nt)?;
         // No Server line so validation must happen downstream where info is cached.
         let boot_id = Option::<BootId>::get_from(&header)?;
         let config_id = Option::<ConfigId>::get_from(&header)?;
@@ -503,10 +503,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = r#"valid notify: ParseError { kind: InvalidUsn("uuid:f3d5b7e9-77f3-497e-ab39-ce2bc90001e8"), source: None }"#
-    )]
-    fn parse_alive() {
+    fn parse_huebridge() {
         let msg = r#"HOST: 239.255.255.250:1900
 CACHE-CONTROL: max-age=100
 LOCATION: http://192.168.5.26:80/description.xml

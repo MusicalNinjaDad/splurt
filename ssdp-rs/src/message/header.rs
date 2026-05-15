@@ -846,13 +846,16 @@ impl FromStr for Usn {
 }
 
 impl Usn {
-    pub fn get_validated(header: &UpnpHeader<'_>, ntst: &NT) -> Result<Self, ParseError> {
+    /// If the USN doesn't contain an NT suffix, we store the one from the NT field. If it does,
+    /// it must match. (Why? Because Philips can't RTFM)
+    pub fn get_validated(header: &UpnpHeader<'_>, ntst: NT) -> Result<Self, ParseError> {
         let mut usn = Self::get_from(header)?;
         dbg!(&usn);
         match usn.nt {
-            Some(ref nt) if nt == ntst => Ok(usn),
+            Some(ref nt) if nt == &ntst => Ok(usn),
+            // Handle messages from HueBridge - it sends USN without suffix for all NT
             None => {
-                usn.nt = Some(NT::Uuid(usn.uuid));
+                usn.nt = Some(ntst);
                 Ok(usn)
             }
             Some(_) => Err(ErrorKind::InvalidUsn(usn.to_string()))?,
