@@ -1,9 +1,11 @@
 //! Specific URI handling as used for the NT, ST & USN fields
 
-use std::{fmt::Display, str::FromStr};
+use std::{fmt::Display, str::FromStr, sync::Arc};
 
 use derive_more::{Display, FromStr};
 use uuid::Uuid;
+
+use crate::message::header::Lenient::{self, Invalid, Valid};
 
 use super::{Device, DeviceDetails, ErrorKind, ParseError, Service, ServiceDetails};
 
@@ -25,7 +27,7 @@ pub enum Uri {
     Upnp(UpnpNss),
     Urn(Target),
     Uuid {
-        uuid: Uuid,
+        uuid: Lenient<Uuid>,
         suffix: Option<Box<Uri>>,
     },
 }
@@ -90,9 +92,11 @@ impl Uri {
                 Ok(Self::Urn(target))
             }
             UriToken::Uuid => {
-                let uuid = try bikeshed Result<_, ErrorKind> {
-                    parts.next().ok_or_else(err)?.parse::<Uuid>()?
-                }?;
+                let uuid = parts.next().ok_or_else(err)?;
+                let uuid = match uuid.parse::<Uuid>() {
+                    Ok(uuid) => Valid(uuid),
+                    Err(_) => Invalid(Arc::new(uuid.to_string())),
+                };
                 match parts.next() {
                     None => Ok(Self::Uuid { uuid, suffix: None }),
                     Some("") => {
@@ -217,7 +221,7 @@ mod tests {
     #[test]
     fn display_usn_none() {
         let usn = Uri::Uuid {
-            uuid: uuid!("fd6e74c3-9c89-4fd0-bf52-994af57b5d40"),
+            uuid: Valid(uuid!("fd6e74c3-9c89-4fd0-bf52-994af57b5d40")),
             suffix: None,
         };
         assert_eq!(
@@ -229,7 +233,7 @@ mod tests {
     #[test]
     fn display_usn_root() {
         let usn = Uri::Uuid {
-            uuid: uuid!("fd6e74c3-9c89-4fd0-bf52-994af57b5d40"),
+            uuid: Valid(uuid!("fd6e74c3-9c89-4fd0-bf52-994af57b5d40")),
             suffix: Some(Box::new(Uri::Upnp(UpnpNss::RootDevice))),
         };
         assert_eq!(
@@ -245,7 +249,7 @@ mod tests {
             device: Device::MediaServer { ver: 4 },
         };
         let usn = Uri::Uuid {
-            uuid: uuid!("fd6e74c3-9c89-4fd0-bf52-994af57b5d40"),
+            uuid: Valid(uuid!("fd6e74c3-9c89-4fd0-bf52-994af57b5d40")),
             suffix: Some(Box::new(Uri::Urn(Target::Device(target)))),
         };
         assert_eq!(

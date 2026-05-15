@@ -8,7 +8,9 @@ use uuid::Uuid;
 use crate::message::{
     DeviceDetails, Header, HeaderExt, Host, MaxAge, Method, ST, ServiceDetails, Target, UpnpNss,
     UpnpPort,
-    header::{BootId, ConfigId, Location, NextBootId, SecureLocation, Server, UpnpV2Ext, Usn},
+    header::{
+        BootId, ConfigId, Lenient, Location, NextBootId, SecureLocation, Server, UpnpV2Ext, Usn,
+    },
 };
 
 use super::{ErrorKind, ParseError, SsdpNss, UpnpHeader, Uri};
@@ -47,7 +49,7 @@ impl Notify {
         };
         match &usn.nt {
             Some(nt) => nt.clone(),
-            None => NT::Uuid(usn.uuid),
+            None => NT::Uuid(usn.uuid.clone()),
         }
     }
 
@@ -340,7 +342,7 @@ pub enum NT {
     RootDevice,
     /// `uuid:device-UUID`: Sent once for each device, root or embedded, where
     /// `device-UUID` is specified by the UPnP vendor.
-    Uuid(Uuid),
+    Uuid(Lenient<Uuid>),
     /// `urn:schemas-upnp-org:device:deviceType:ver`:
     ///     Sent once for each device, root or embedded, where deviceType and ver are defined by
     ///     UPnP Forum working committee, and ver specifies the version of the device type.

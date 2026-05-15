@@ -656,7 +656,7 @@ pub enum ST {
     /// `upnp:rootdevice`: Search for root devices only.
     RootDevice,
     /// uuid:device-UUID: Search for a particular device.
-    Uuid(Uuid),
+    Uuid(Lenient<Uuid>),
     /// `urn:schemas-upnp-org:device:deviceType:ver`:
     ///     Search for any device of this type where `deviceType` and `ver` are
     ///     defined by the UPnP Forum working committee.
@@ -744,7 +744,7 @@ impl PartialEq<ST> for Uri {
             Uri::Uuid {
                 uuid: this_uuid,
                 suffix: None,
-            } => matches!(st, ST::Uuid(uuid) if uuid == this_uuid),
+            } => matches!(st, ST::Uuid(uuid) if this_uuid == uuid),
             Uri::Urn(Target::Device(this_device)) => {
                 matches!(st, ST::Device(device) if device == this_device)
             }
@@ -828,6 +828,7 @@ impl From<UpnpPort> for u16 {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
 pub enum Lenient<T> {
     Valid(T),
+    // Using an Arc here to be cheap to clone. Optimising for well-formed cases.
     Invalid(Arc<String>),
 }
 
@@ -853,12 +854,21 @@ where
     }
 }
 
+impl<T> PartialEq<T> for Lenient<T>
+where
+    T: PartialEq,
+{
+    fn eq(&self, other: &T) -> bool {
+        matches!(self, Self::Valid(t) if t == other)
+    }
+}
+
 pub type UserAgent = Lenient<ProductTokens<"USER-AGENT">>;
 
 /// USN as a type to validate invariances
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Usn {
-    pub uuid: Uuid,
+    pub uuid: Lenient<Uuid>,
     pub nt: Option<NT>,
 }
 
