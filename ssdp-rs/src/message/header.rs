@@ -1058,12 +1058,23 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003"#;
     }
 
     #[test]
-    #[should_panic(
-        expected = r#"parsed leniently: ParseError { kind: InvalidUUID(Error(ParseChar { character: 'R', index: 1 })), source: None }"#
-    )]
     fn lenient_uuid() {
         let ikea_rtfm =
             "uuid:RINCON_38420B91FCD002430::urn:smartspeaker-audio:service:SpeakerGroup:1";
-        let _usn: Usn = ikea_rtfm.parse().expect("parsed leniently");
+        let usn: Usn = ikea_rtfm.parse().expect("parsed leniently");
+        assert_eq!(
+            usn.uuid,
+            Lenient::Invalid(Arc::new("RINCON_38420B91FCD002430".to_string()))
+        );
+        assert_eq!(
+            usn.nt,
+            Some(NT::Service(ServiceDetails {
+                vendor: crate::message::Vendor::Custom("smartspeaker-audio".to_string()),
+                service: crate::message::Service::Other {
+                    service_type: "SpeakerGroup".to_string(),
+                    ver: "1".to_string()
+                }
+            }))
+        )
     }
 }
