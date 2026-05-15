@@ -38,7 +38,7 @@ pub enum ErrorKind {
     MissingNextBootId,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
     pub kind: ErrorKind,
     source: Option<Box<ParseError>>,
