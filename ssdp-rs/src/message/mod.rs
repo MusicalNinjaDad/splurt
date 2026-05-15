@@ -172,7 +172,7 @@ mod tests {
     use url::Url;
     use uuid::uuid;
 
-    use crate::message::header::Version;
+    use crate::message::header::{Lenient, Version};
 
     use super::*;
 
@@ -220,11 +220,14 @@ name: my_bulb
             if matches!(device.vendor, Vendor::Standard)
             && matches!(&device.device, Device::BinaryLight { ver } if ver == &1)
         );
-        assert_eq!(parsed.server.os, "POSIX");
-        assert_eq!(parsed.server.os_version, "1-2017");
-        assert_eq!(parsed.server.upnp_version, Version { major: 1, minor: 0 });
-        assert_eq!(parsed.server.product_name, "YGLC");
-        assert_eq!(parsed.server.product_version, "1");
+        let Lenient::Valid(server) = parsed.server else {
+            panic!("invalid server: {}", parsed.server)
+        };
+        assert_eq!(server.os, "POSIX");
+        assert_eq!(server.os_version, "1-2017");
+        assert_eq!(server.upnp_version, Version { major: 1, minor: 0 });
+        assert_eq!(server.product_name, "YGLC");
+        assert_eq!(server.product_version, "1");
         assert_eq!(
             parsed.usn.uuid,
             uuid!("f351ef6b-d281-4413-b33a-a75fac0c5ea5")
@@ -396,7 +399,10 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         assert_matches!(response.secure_location, Some(secure_location)
             if secure_location == Url::from_str("https://192.168.0.84:1443/xml/device_description.xml").expect("parsed url")
         );
-        assert_eq!(response.server.product_version, "85.0-64200 (ZPS29)");
+        let Lenient::Valid(server) = response.server else {
+            panic!("invalid server: {}", response.server)
+        };
+        assert_eq!(server.product_version, "85.0-64200 (ZPS29)");
         assert_matches!(response.boot_id, Some(id) if id == 6);
     }
 

@@ -23,7 +23,10 @@ use derive_more::{Display, From, FromStr, Into};
 use url::Url;
 use uuid::Uuid;
 
-use crate::{MULTICAST, SSDP_PORT, message::notify::NT};
+use crate::{
+    MULTICAST, SSDP_PORT,
+    message::{UPNP_VERSION1, notify::NT},
+};
 
 use super::{DeviceDetails, ErrorKind, ParseError, ServiceDetails, SsdpNss, Target, UpnpNss, Uri};
 
@@ -634,7 +637,16 @@ impl SecureLocation {
     }
 }
 
-pub type Server = ProductTokens<"SERVER">;
+pub type Server = Lenient<ProductTokens<"SERVER">>;
+
+impl Server {
+    pub fn upnp_version(&self) -> Version {
+        match self {
+            Lenient::Valid(tokens) => tokens.upnp_version,
+            Lenient::Invalid(_) => UPNP_VERSION1,
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// Search Target

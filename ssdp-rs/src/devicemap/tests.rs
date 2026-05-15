@@ -4,8 +4,8 @@ use crate::{
         RootDevice,
     },
     message::{
-        Device, DeviceDetails, Message, Server, Service, ServiceDetails, UPNP_VERSION1, UpnpPort,
-        Vendor,
+        Device, DeviceDetails, Message, ProductTokens, Server, Service, ServiceDetails,
+        UPNP_VERSION1, UpnpPort, Vendor,
     },
 };
 
@@ -194,13 +194,13 @@ fn url() -> Url {
 }
 
 fn server() -> Server {
-    Server {
+    Server::Valid(ProductTokens {
         os: "Linux".to_string(),
         os_version: "".to_string(),
         upnp_version: UPNP_VERSION1,
         product_name: "Sonos".to_string(),
         product_version: "85.0-64200 (ZPS29)".to_string(),
-    }
+    })
 }
 
 const BOOT_ID: Option<u32> = Some(6);
