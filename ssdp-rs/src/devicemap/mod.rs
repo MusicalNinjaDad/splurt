@@ -66,21 +66,21 @@ impl From<Message> for Information {
                     secure_location,
                 );
                 match usn.nt {
-                    NT::RootDevice => {
+                    Some(NT::RootDevice) => {
                         root_device.id = Some(id);
                         Self::Device { root_device, id }
                     }
-                    NT::Device(device) => {
+                    Some(NT::Device(device)) => {
                         embedded_device.device_type = Some(device);
                         root_device.embedded_devices.insert(id, embedded_device);
                         Self::Device { root_device, id }
                     }
-                    NT::Service(service) => {
+                    Some(NT::Service(service)) => {
                         embedded_device.services.insert(service);
                         root_device.embedded_devices.insert(id, embedded_device);
                         Self::Device { root_device, id }
                     }
-                    NT::Uuid(_) => {
+                    Some(NT::Uuid(_)) | None => {
                         root_device.embedded_devices.insert(id, embedded_device);
                         Self::Device { root_device, id }
                     }
@@ -145,21 +145,21 @@ impl From<Message> for Information {
                     secure_location,
                 );
                 match usn.nt {
-                    NT::RootDevice => {
+                    Some(NT::RootDevice) => {
                         root_device.id = Some(usn.uuid);
                         Self::Device { root_device, id }
                     }
-                    NT::Device(device) => {
+                    Some(NT::Device(device)) => {
                         embedded_device.device_type = Some(device);
                         root_device.embedded_devices.insert(id, embedded_device);
                         Self::Device { root_device, id }
                     }
-                    NT::Service(service) => {
+                    Some(NT::Service(service)) => {
                         embedded_device.services.insert(service);
                         root_device.embedded_devices.insert(id, embedded_device);
                         Self::Device { root_device, id }
                     }
-                    NT::Uuid(_) => {
+                    Some(NT::Uuid(_)) | None => {
                         root_device.embedded_devices.insert(id, embedded_device);
                         Self::Device { root_device, id }
                     }

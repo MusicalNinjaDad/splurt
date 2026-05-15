@@ -818,7 +818,7 @@ pub type UserAgent = ProductTokens<"USER-AGENT">;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Usn {
     pub uuid: Uuid,
-    pub nt: NT,
+    pub nt: Option<NT>,
 }
 
 impl Header for Usn {
@@ -836,12 +836,10 @@ impl FromStr for Usn {
                 suffix: Some(ntst),
             } => Ok(Self {
                 uuid,
-                nt: NT::try_from(*ntst)?,
+                //TODO use map here - single match arm
+                nt: Some(NT::try_from(*ntst)?),
             }),
-            Uri::Uuid { uuid, suffix: None } => Ok(Self {
-                uuid,
-                nt: NT::try_from(uri)?,
-            }),
+            Uri::Uuid { uuid, suffix: None } => Ok(Self { uuid, nt: None }),
             _ => Err(ErrorKind::InvalidUsn(usn.to_string()))?,
         }
     }
@@ -851,7 +849,9 @@ impl Usn {
     pub fn get_validated(header: &UpnpHeader<'_>, ntst: &NT) -> Result<Self, ParseError> {
         let usn = Self::get_from(header)?;
         dbg!(&usn);
-        if usn.nt == *ntst {
+        if let Some(nt) = &usn.nt
+            && nt == ntst
+        {
             Ok(usn)
         } else {
             Err(ErrorKind::InvalidUsn(usn.to_string()))?
@@ -862,13 +862,8 @@ impl Usn {
 impl Display for Usn {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "uuid:{}", self.uuid)?;
-        if self.nt
-            != (Uri::Uuid {
-                uuid: self.uuid,
-                suffix: None,
-            })
-        {
-            write!(f, "::{}", self.nt)?;
+        if let Some(nt) = &self.nt {
+            write!(f, "::{}", nt)?;
         }
         Ok(())
     }

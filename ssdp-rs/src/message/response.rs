@@ -93,7 +93,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
 
 impl Response {
     pub fn into_st(self) -> ST {
-        self.usn.nt.into()
+        self.usn.nt.expect("TODO handle Uuid USN").into()
     }
 }
 

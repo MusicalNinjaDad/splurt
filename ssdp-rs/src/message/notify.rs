@@ -39,19 +39,27 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
 }
 
 impl Notify {
-    pub fn nt(&self) -> &NT {
-        match self {
-            Notify::Alive(alive) => &alive.usn.nt,
-            Notify::ByeBye(bye_bye) => &bye_bye.usn.nt,
-            Notify::Update(update) => &update.usn.nt,
+    pub fn to_nt(&self) -> NT {
+        let usn = match self {
+            Notify::Alive(alive) => &alive.usn,
+            Notify::ByeBye(bye_bye) => &bye_bye.usn,
+            Notify::Update(update) => &update.usn,
+        };
+        match &usn.nt {
+            Some(nt) => nt.clone(),
+            None => NT::Uuid(usn.uuid),
         }
     }
 
     pub fn into_nt(self) -> NT {
-        match self {
-            Notify::Alive(alive) => alive.usn.nt,
-            Notify::ByeBye(bye_bye) => bye_bye.usn.nt,
-            Notify::Update(update) => update.usn.nt,
+        let usn = match self {
+            Notify::Alive(alive) => alive.usn,
+            Notify::ByeBye(bye_bye) => bye_bye.usn,
+            Notify::Update(update) => update.usn,
+        };
+        match usn.nt {
+            Some(nt) => nt,
+            None => NT::Uuid(usn.uuid),
         }
     }
 }
@@ -513,10 +521,10 @@ USN: uuid:f3d5b7e9-77f3-497e-ab39-ce2bc90001e8
         let alive: Alive = header.try_into().expect("valid notify");
         assert_eq!(
             alive.usn.nt,
-            NT::Device(DeviceDetails {
+            Some(NT::Device(DeviceDetails {
                 vendor: Vendor::Standard,
                 device: Device::Basic { ver: 1 }
-            })
+            }))
         );
         assert_eq!(
             alive.usn.uuid,
