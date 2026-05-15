@@ -5,7 +5,7 @@ use crate::{
     },
     message::{
         Device, DeviceDetails, Message, ProductTokens, Server, Service, ServiceDetails,
-        UPNP_VERSION1, UpnpPort, Vendor,
+        UPNP_VERSION1, UpnpPort, Vendor, header::Lenient::Valid,
     },
 };
 
@@ -157,9 +157,9 @@ fn service_byebye() -> Message {
     SERVICE_BYEBYE.parse().expect("service byebye")
 }
 
-const ID: Uuid = uuid!("c4248768-d6b6-4232-a273-5b1701524493");
+const ID: Lenient<Uuid> = Valid(uuid!("c4248768-d6b6-4232-a273-5b1701524493"));
 
-const EMBEDDED_DEVICE_ID: Uuid = uuid!("a4a60994-e188-4dd7-b3f5-3b5c6f47e036");
+const EMBEDDED_DEVICE_ID: Lenient<Uuid> = Valid(uuid!("a4a60994-e188-4dd7-b3f5-3b5c6f47e036"));
 
 const ROOT_TIMESTAMP: DateTime<Utc> = DateTime::from_naive_utc_and_offset(
     NaiveDate::from_ymd_opt(2026, 4, 29)
@@ -219,7 +219,7 @@ const SERVICE_DETAILS: ServiceDetails = ServiceDetails {
     service: Service::MusicServices { ver: 1 },
 };
 
-fn embedded_devices() -> HashMap<Uuid, EmbeddedDevice> {
+fn embedded_devices() -> HashMap<Lenient<Uuid>, EmbeddedDevice> {
     let mut embedded_devices = HashMap::new();
     let embedded_device = EmbeddedDevice {
         id: EMBEDDED_DEVICE_ID,
@@ -242,8 +242,8 @@ fn validate_root_device(
     valid_until: Option<DateTime<Utc>>,
     device_type: Option<DeviceDetails>,
     root_service: Option<ServiceDetails>,
-    embedded_devices: Option<HashMap<Uuid, EmbeddedDevice>>,
-    known_ids: Vec<Uuid>,
+    embedded_devices: Option<HashMap<Lenient<Uuid>, EmbeddedDevice>>,
+    known_ids: Vec<Lenient<Uuid>>,
 ) -> &RootDevice {
     for id in known_ids {
         assert_eq!(devices.ids.get(&id), Some(&url()));
