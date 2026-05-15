@@ -1046,4 +1046,14 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003"#;
         let agent: UserAgent = ms_rtfm.parse().expect("parsed leniently");
         assert_eq!(agent, Lenient::Invalid(Arc::new(ms_rtfm.to_string())));
     }
+
+    #[test]
+    #[should_panic(
+        expected = r#"parsed leniently: ParseError { kind: InvalidUUID(Error(ParseChar { character: 'R', index: 1 })), source: None }"#
+    )]
+    fn lenient_uuid() {
+        let ikea_rtfm =
+            "uuid:RINCON_38420B91FCD002430::urn:smartspeaker-audio:service:SpeakerGroup:1";
+        let _usn: Usn = ikea_rtfm.parse().expect("parsed leniently");
+    }
 }
