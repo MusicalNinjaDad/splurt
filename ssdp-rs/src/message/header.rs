@@ -12,7 +12,7 @@
 
 use std::{
     collections::HashMap,
-    fmt::Display,
+    fmt::{Debug, Display},
     net::{AddrParseError, SocketAddr},
     str::FromStr,
     time::Duration,
@@ -843,10 +843,11 @@ where
 impl<NTST> Usn<NTST>
 where
     Self: HeaderExt + Display,
-    NTST: PartialEq,
+    NTST: PartialEq + Debug,
 {
     pub fn get_validated(header: &UpnpHeader<'_>, ntst: &NTST) -> Result<Self, ParseError> {
         let usn = Self::get_from(header)?;
+        dbg!(&usn);
         if usn.ntst == *ntst {
             Ok(usn)
         } else {
