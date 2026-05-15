@@ -24,8 +24,8 @@ mod uri;
 pub use devices::{Device, DeviceDetails};
 pub use error::{ErrorKind, ParseError};
 pub use header::{
-    BootId, ConfigId, FriendlyName, Header, HeaderExt, Host, Location, Man, MaxAge, Mx, NextBootId,
-    ProductTokens, ST, SecureLocation, Server, UpnpHeader, UpnpPort,
+    BootId, ConfigId, FriendlyName, Header, HeaderExt, Host, Lenient::Valid, Location, Man, MaxAge,
+    Mx, NextBootId, ProductTokens, ST, SecureLocation, Server, UpnpHeader, UpnpPort,
 };
 pub use msearch::MulticastSearch;
 pub use notify::Notify;
@@ -105,13 +105,13 @@ impl Message {
         friendly_name: &str,
         uuid: Uuid,
     ) -> Self {
-        let user_agent = ProductTokens {
+        let user_agent = Valid(ProductTokens {
             os: os.to_string(),
             os_version: os_version.to_string(),
             upnp_version: UPNP_VERSION,
             product_name: product_name.to_string(),
             product_version: product_version.to_string(),
-        };
+        });
         let st = ST::All;
         let port = UpnpPort::Default;
         Message::Search(MSearch::Multicast(MulticastSearch {

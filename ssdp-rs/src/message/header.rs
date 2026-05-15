@@ -15,6 +15,7 @@ use std::{
     fmt::{Debug, Display},
     net::{AddrParseError, SocketAddr},
     str::FromStr,
+    sync::Arc,
     time::Duration,
 };
 
@@ -812,7 +813,35 @@ impl From<UpnpPort> for u16 {
     }
 }
 
-pub type UserAgent = ProductTokens<"USER-AGENT">;
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+pub enum Lenient<T> {
+    Valid(T),
+    Invalid(Arc<String>),
+}
+
+impl<H> Header for Lenient<H>
+where
+    H: Header,
+{
+    const HEADER_KEY: &'static str = H::HEADER_KEY;
+}
+
+impl<T> FromStr for Lenient<T>
+where
+    T: FromStr,
+{
+    // Should be !, but need to open that pre-RFC for this kind of case
+    type Err = ErrorKind;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.parse::<T>() {
+            Ok(t) => Ok(Self::Valid(t)),
+            Err(_) => Ok(Self::Invalid(Arc::new(s.to_string()))),
+        }
+    }
+}
+
+pub type UserAgent = Lenient<ProductTokens<"USER-AGENT">>;
 
 /// USN as a type to validate invariances
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -1000,11 +1029,9 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003"#;
     }
 
     #[test]
-    #[should_panic(
-        expected = r#"parsed leniently: InvalidProductTokens("Microsoft Edge/148.0.3967.54 Windows")"#
-    )]
     fn lenient_user_agent() {
         let ms_rtfm = "Microsoft Edge/148.0.3967.54 Windows";
-        let _agent: UserAgent = ms_rtfm.parse().expect("parsed leniently");
+        let agent: UserAgent = ms_rtfm.parse().expect("parsed leniently");
+        assert_eq!(agent, Lenient::Invalid(Arc::new(ms_rtfm.to_string())));
     }
 }

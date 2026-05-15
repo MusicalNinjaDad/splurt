@@ -11,13 +11,6 @@ use crate::message::{
     UpnpPort,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[expect(unused, reason = "nice to have, not yet implemented in message")]
-enum Lenient<T> {
-    Valid(T),
-    Invalid(String),
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RootDevice {
     /// None if this is an inferred root device
