@@ -538,7 +538,7 @@ impl<const _FLD: &'static str> FromStr for ProductTokens<_FLD> {
     type Err = ErrorKind;
 
     fn from_str(user_agent: &str) -> Result<Self, Self::Err> {
-        let err = || ErrorKind::InvalidUserAgent(user_agent.to_string());
+        let err = || ErrorKind::InvalidProductTokens(user_agent.to_string());
         let (os_token, rest) = user_agent.split_once("UPnP/").ok_or_else(err)?;
         // TODO: How to handle removing "," while allowing "OS Foo/6.3 (wibblish)"
         // https://datatracker.ietf.org/doc/html/rfc9110#name-server for formal grammar

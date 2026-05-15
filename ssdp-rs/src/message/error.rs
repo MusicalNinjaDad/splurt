@@ -24,11 +24,11 @@ pub enum ErrorKind {
     InvalidNTS(String),
     InvalidNextBootId(String),
     InvalidPort(String),
+    InvalidProductTokens(String),
     InvalidSecureLocation(String),
     InvalidST(String),
     InvalidUrn(String),
     InvalidUsn(String),
-    InvalidUserAgent(String),
     InvalidUUID(uuid::Error),
     InvalidVersion(String),
     MissingBootId,
@@ -125,6 +125,9 @@ impl Display for ErrorKind {
             ErrorKind::InvalidNT(nt) => write!(f, "{} is not a valid NT in this context", nt),
             ErrorKind::InvalidNTS(nts) => write!(f, "{} is not a valid NTS in this context", nts),
             ErrorKind::InvalidPort(port) => write!(f, "{port} is not a valid IP port"),
+            ErrorKind::InvalidProductTokens(tokens) => {
+                write!(f, "{tokens} is not valid as a UPnP user agent / server")
+            }
             ErrorKind::InvalidSecureLocation(location) => write!(
                 f,
                 "{location} is not a valid secure location (must be a valid URL beginning with `https://` and containing a port number)"
@@ -140,9 +143,6 @@ impl Display for ErrorKind {
                 f,
                 "{usn} is not a valid USN (Unique Search Name). Valid forms are: `uuid:device-UUID::upnp:rootdevice`, `uuid:device-UUID` & `uuid:device-UUID::urn:...`"
             ),
-            ErrorKind::InvalidUserAgent(user_agent) => {
-                write!(f, "{user_agent} is not a valid user agent")
-            }
             ErrorKind::InvalidUUID(err) => write!(f, "{err}"),
             ErrorKind::InvalidVersion(ver) => write!(
                 f,
