@@ -6,7 +6,7 @@ use derive_more::Display;
 use uuid::Uuid;
 
 use crate::message::{
-    DeviceDetails, Header, HeaderExt, Host, MaxAge, Method, ServiceDetails, Target, UpnpNss,
+    DeviceDetails, Header, HeaderExt, Host, MaxAge, Method, ST, ServiceDetails, Target, UpnpNss,
     UpnpPort,
     header::{BootId, ConfigId, Location, NextBootId, SecureLocation, Server, UpnpV2Ext, Usn},
 };
@@ -39,19 +39,27 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Notify {
 }
 
 impl Notify {
-    pub fn nt(&self) -> &NT {
-        match self {
-            Notify::Alive(alive) => &alive.usn.ntst,
-            Notify::ByeBye(bye_bye) => &bye_bye.usn.ntst,
-            Notify::Update(update) => &update.usn.ntst,
+    pub fn to_nt(&self) -> NT {
+        let usn = match self {
+            Notify::Alive(alive) => &alive.usn,
+            Notify::ByeBye(bye_bye) => &bye_bye.usn,
+            Notify::Update(update) => &update.usn,
+        };
+        match &usn.nt {
+            Some(nt) => nt.clone(),
+            None => NT::Uuid(usn.uuid),
         }
     }
 
     pub fn into_nt(self) -> NT {
-        match self {
-            Notify::Alive(alive) => alive.usn.ntst,
-            Notify::ByeBye(bye_bye) => bye_bye.usn.ntst,
-            Notify::Update(update) => update.usn.ntst,
+        let usn = match self {
+            Notify::Alive(alive) => alive.usn,
+            Notify::ByeBye(bye_bye) => bye_bye.usn,
+            Notify::Update(update) => update.usn,
+        };
+        match usn.nt {
+            Some(nt) => nt,
+            None => NT::Uuid(usn.uuid),
         }
     }
 }
@@ -68,7 +76,7 @@ pub struct Alive {
     /// `USN`: Field value contains Unique Service Name. Identifies a unique instance of a device
     /// or service. Obeys strict rules in relation to `NT` and therefore acts as the primary store
     /// of both the NT and the UUID.
-    pub usn: Usn<NT>,
+    pub usn: Usn,
     /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
     /// increasing value. Control points can use this header field to detect the case when a device
     /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
@@ -102,7 +110,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Alive {
         let location = Location::get_from(&header)?;
         let nt = NT::get_from(&header)?;
         let server = Server::get_from(&header)?;
-        let usn = Usn::get_validated(&header, &nt)?;
+        let usn = Usn::get_validated(&header, nt)?;
         let boot_id = Option::<BootId>::get_validated(&header, server.upnp_version)?;
         let config_id = Option::<ConfigId>::get_validated(&header, server.upnp_version)?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
@@ -137,7 +145,7 @@ impl Display for Alive {
         Host::default().write_header(f)?;
         max_age.write_header(f)?;
         location.write_header(f)?;
-        usn.ntst.write_header(f)?;
+        usn.nt.write_header(f)?;
         NTS::Alive.write_header(f)?;
         server.write_header(f)?;
         usn.write_header(f)?;
@@ -162,7 +170,7 @@ pub struct ByeBye {
     /// `USN`: Field value contains Unique Service Name. Identifies a unique instance of a device
     /// or service. Obeys strict rules in relation to `NT` and therefore acts as the primary store
     /// of both the NT and the UUID.
-    pub usn: Usn<NT>,
+    pub usn: Usn,
     /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
     /// increasing value. Control points can use this header field to detect the case when a device
     /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
@@ -186,7 +194,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for ByeBye {
 
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
         let nt = NT::get_from(&header)?;
-        let usn = Usn::get_validated(&header, &nt)?;
+        let usn = Usn::get_validated(&header, nt)?;
         // TODO - document Boot & ConfigID validation must be done by something that has a
         // suitable cache from previous Alive & Update notifications
         let boot_id = Option::<BootId>::get_from(&header)?;
@@ -208,7 +216,7 @@ impl Display for ByeBye {
         } = self;
         writeln!(f, "{}", Method::Notify)?;
         Host::default().write_header(f)?;
-        usn.ntst.write_header(f)?;
+        usn.nt.write_header(f)?;
         NTS::ByeBye.write_header(f)?;
         usn.write_header(f)?;
         boot_id.write_header(f)?;
@@ -227,7 +235,7 @@ pub struct Update {
     /// `USN`: Field value contains Unique Service Name. Identifies a unique instance of a device
     /// or service. Obeys strict rules in relation to `NT` and therefore acts as the primary store
     /// of both the NT and the UUID.
-    pub usn: Usn<NT>,
+    pub usn: Usn,
     /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
     /// increasing value. Control points can use this header field to detect the case when a device
     /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
@@ -263,7 +271,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Update {
     fn try_from(header: UpnpHeader<'h>) -> Result<Self, Self::Error> {
         let location = Location::get_from(&header)?;
         let nt = NT::get_from(&header)?;
-        let usn = Usn::get_validated(&header, &nt)?;
+        let usn = Usn::get_validated(&header, nt)?;
         // No Server line so validation must happen downstream where info is cached.
         let boot_id = Option::<BootId>::get_from(&header)?;
         let config_id = Option::<ConfigId>::get_from(&header)?;
@@ -309,7 +317,7 @@ impl Display for Update {
         writeln!(f, "{}", Method::Notify)?;
         Host::default().write_header(f)?;
         location.write_header(f)?;
-        usn.ntst.write_header(f)?;
+        usn.nt.write_header(f)?;
         NTS::Update.write_header(f)?;
         usn.write_header(f)?;
         boot_id.write_header(f)?;
@@ -365,6 +373,20 @@ impl FromStr for NT {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let uri = s.parse::<Uri>()?;
         Ok(uri.try_into()?)
+    }
+}
+
+impl TryFrom<ST> for NT {
+    type Error = ErrorKind;
+
+    fn try_from(st: ST) -> Result<Self, Self::Error> {
+        match st {
+            ST::All => Err(ErrorKind::InvalidNT(st.to_string())),
+            ST::RootDevice => Ok(Self::RootDevice),
+            ST::Uuid(uuid) => Ok(Self::Uuid(uuid)),
+            ST::Device(device_details) => Ok(Self::Device(device_details)),
+            ST::Service(service_details) => Ok(Self::Service(service_details)),
+        }
     }
 }
 
@@ -481,10 +503,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = r#"valid notify: ParseError { kind: InvalidUsn("uuid:f3d5b7e9-77f3-497e-ab39-ce2bc90001e8"), source: None }"#
-    )]
-    fn parse_alive() {
+    fn parse_huebridge() {
         let msg = r#"HOST: 239.255.255.250:1900
 CACHE-CONTROL: max-age=100
 LOCATION: http://192.168.5.26:80/description.xml
@@ -498,11 +517,11 @@ USN: uuid:f3d5b7e9-77f3-497e-ab39-ce2bc90001e8
         let header: UpnpHeader = msg.lines().collect();
         let alive: Alive = header.try_into().expect("valid notify");
         assert_eq!(
-            alive.usn.ntst,
-            NT::Device(DeviceDetails {
+            alive.usn.nt,
+            Some(NT::Device(DeviceDetails {
                 vendor: Vendor::Standard,
                 device: Device::Basic { ver: 1 }
-            })
+            }))
         );
         assert_eq!(
             alive.usn.uuid,
