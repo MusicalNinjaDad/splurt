@@ -850,7 +850,6 @@ impl Usn {
     /// it must match. (Why? Because Philips can't RTFM)
     pub fn get_validated(header: &UpnpHeader<'_>, ntst: NT) -> Result<Self, ParseError> {
         let mut usn = Self::get_from(header)?;
-        dbg!(&usn);
         match usn.nt {
             Some(ref nt) if nt == &ntst => Ok(usn),
             // Handle messages from HueBridge - it sends USN without suffix for all NT
