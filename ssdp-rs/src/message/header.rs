@@ -22,7 +22,7 @@ use derive_more::{Display, From, FromStr, Into};
 use url::Url;
 use uuid::Uuid;
 
-use crate::{MULTICAST, SSDP_PORT};
+use crate::{MULTICAST, SSDP_PORT, message::notify::NT};
 
 use super::{DeviceDetails, ErrorKind, ParseError, ServiceDetails, SsdpNss, Target, UpnpNss, Uri};
 
@@ -679,6 +679,17 @@ impl FromStr for ST {
     }
 }
 
+impl From<NT> for ST {
+    fn from(nt: NT) -> Self {
+        match nt {
+            NT::RootDevice => Self::RootDevice,
+            NT::Uuid(uuid) => Self::Uuid(uuid),
+            NT::Device(device_details) => Self::Device(device_details),
+            NT::Service(service_details) => Self::Service(service_details),
+        }
+    }
+}
+
 impl TryFrom<Uri> for ST {
     type Error = ErrorKind;
 
@@ -804,21 +815,17 @@ impl From<UpnpPort> for u16 {
 pub type UserAgent = ProductTokens<"USER-AGENT">;
 
 /// USN as a type to validate invariances
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Usn<NTST> {
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Usn {
     pub uuid: Uuid,
-    pub ntst: NTST,
+    pub nt: NT,
 }
 
-impl<_NTST> Header for Usn<_NTST> {
+impl Header for Usn {
     const HEADER_KEY: &'static str = "USN";
 }
 
-impl<NTST, E> FromStr for Usn<NTST>
-where
-    NTST: TryFrom<Uri, Error = E>,
-    ParseError: From<E>,
-{
+impl FromStr for Usn {
     type Err = ParseError;
 
     fn from_str(usn: &str) -> Result<Self, Self::Err> {
@@ -829,26 +836,22 @@ where
                 suffix: Some(ntst),
             } => Ok(Self {
                 uuid,
-                ntst: NTST::try_from(*ntst)?,
+                nt: NT::try_from(*ntst)?,
             }),
             Uri::Uuid { uuid, suffix: None } => Ok(Self {
                 uuid,
-                ntst: NTST::try_from(uri)?,
+                nt: NT::try_from(uri)?,
             }),
             _ => Err(ErrorKind::InvalidUsn(usn.to_string()))?,
         }
     }
 }
 
-impl<NTST> Usn<NTST>
-where
-    Self: HeaderExt + Display,
-    NTST: PartialEq + Debug,
-{
-    pub fn get_validated(header: &UpnpHeader<'_>, ntst: &NTST) -> Result<Self, ParseError> {
+impl Usn {
+    pub fn get_validated(header: &UpnpHeader<'_>, ntst: &NT) -> Result<Self, ParseError> {
         let usn = Self::get_from(header)?;
         dbg!(&usn);
-        if usn.ntst == *ntst {
+        if usn.nt == *ntst {
             Ok(usn)
         } else {
             Err(ErrorKind::InvalidUsn(usn.to_string()))?
@@ -856,19 +859,16 @@ where
     }
 }
 
-impl<NTST> Display for Usn<NTST>
-where
-    NTST: Display + PartialEq<Uri>,
-{
+impl Display for Usn {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "uuid:{}", self.uuid)?;
-        if self.ntst
+        if self.nt
             != (Uri::Uuid {
                 uuid: self.uuid,
                 suffix: None,
             })
         {
-            write!(f, "::{}", self.ntst)?;
+            write!(f, "::{}", self.nt)?;
         }
         Ok(())
     }
@@ -904,8 +904,6 @@ impl Display for Version {
 
 #[cfg(test)]
 mod tests {
-    use crate::message::notify::NT;
-
     use super::*;
 
     #[cfg(assert_matches_in_root)]
@@ -997,6 +995,6 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003"#;
     fn parse_uuid() {
         let usn = "uuid:2f402f80-da50-11e1-9b23-ecb5fa15b2c8";
         usn.parse::<Uri>().expect("valid as URI");
-        usn.parse::<Usn<NT>>().expect("valid as USN");
+        usn.parse::<Usn>().expect("valid as USN");
     }
 }

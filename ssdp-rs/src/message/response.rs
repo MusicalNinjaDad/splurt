@@ -29,7 +29,7 @@ pub struct Response {
     /// `USN`: Field value contains Unique Service Name. Identifies a unique instance of a device
     /// or service. Obeys strict rules in relation to `ST` and therefore acts as the primary store
     /// of both the ST and the UUID.
-    pub usn: Usn<ST>,
+    pub usn: Usn,
     /// `BOOTID.UPNP.ORG`: the boot instance of the device expressed according to a monotonically
     /// increasing value. Control points can use this header field to detect the case when a device
     /// leaves and rejoins the network (“reboots” in UPnP terms). It can be used by
@@ -71,7 +71,7 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
         let location = Location::get_from(&header)?;
         let server = Server::get_from(&header)?;
         let st = ST::get_from(&header)?;
-        let usn = Usn::get_validated(&header, &st)?;
+        let usn = Usn::get_validated(&header, &st.try_into()?)?;
         let boot_id = Option::<BootId>::get_validated(&header, server.upnp_version)?;
         let config_id = Option::<ConfigId>::get_validated(&header, server.upnp_version)?;
         let port = header.get(UpnpPort::HEADER_KEY).try_into()?;
@@ -92,12 +92,8 @@ impl<'h> TryFrom<UpnpHeader<'h>> for Response {
 }
 
 impl Response {
-    pub fn st(&self) -> &ST {
-        &self.usn.ntst
-    }
-
     pub fn into_st(self) -> ST {
-        self.usn.ntst
+        self.usn.nt.into()
     }
 }
 
@@ -125,7 +121,7 @@ impl Display for Response {
         writeln!(f, "EXT:")?;
         location.write_header(f)?;
         server.write_header(f)?;
-        usn.ntst.write_header(f)?;
+        usn.nt.write_header(f)?;
         boot_id.write_header(f)?;
         config_id.write_header(f)?;
         secure_location.write_header(f)?;

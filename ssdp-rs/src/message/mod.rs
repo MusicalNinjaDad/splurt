@@ -216,7 +216,7 @@ name: my_bulb
             parsed.location.to_string(),
             "yeelight://192.168.1.239:55443"
         );
-        assert_matches!(parsed.usn.ntst, notify::NT::Device(device)
+        assert_matches!(parsed.usn.nt, notify::NT::Device(device)
             if matches!(device.vendor, Vendor::Standard)
             && matches!(&device.device, Device::BinaryLight { ver } if ver == &1)
         );

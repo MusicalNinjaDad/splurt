@@ -12,7 +12,7 @@ use crate::{
         rootdevice::{EmbeddedDevice, IsKnown, RootDevice},
     },
     message::{
-        Message, MulticastSearch, Notify, Response, ST,
+        Message, MulticastSearch, Notify, Response,
         msearch::{MSearch, UnicastSearch},
         notify::{Alive, ByeBye, NT, Update},
     },
@@ -65,7 +65,7 @@ impl From<Message> for Information {
                     port,
                     secure_location,
                 );
-                match usn.ntst {
+                match usn.nt {
                     NT::RootDevice => {
                         root_device.id = Some(id);
                         Self::Device { root_device, id }
@@ -144,22 +144,22 @@ impl From<Message> for Information {
                     port,
                     secure_location,
                 );
-                match usn.ntst {
-                    ST::RootDevice => {
+                match usn.nt {
+                    NT::RootDevice => {
                         root_device.id = Some(usn.uuid);
                         Self::Device { root_device, id }
                     }
-                    ST::Device(device) => {
+                    NT::Device(device) => {
                         embedded_device.device_type = Some(device);
                         root_device.embedded_devices.insert(id, embedded_device);
                         Self::Device { root_device, id }
                     }
-                    ST::Service(service) => {
+                    NT::Service(service) => {
                         embedded_device.services.insert(service);
                         root_device.embedded_devices.insert(id, embedded_device);
                         Self::Device { root_device, id }
                     }
-                    ST::Uuid(_) | ST::All => {
+                    NT::Uuid(_) => {
                         root_device.embedded_devices.insert(id, embedded_device);
                         Self::Device { root_device, id }
                     }
