@@ -847,14 +847,15 @@ impl FromStr for Usn {
 
 impl Usn {
     pub fn get_validated(header: &UpnpHeader<'_>, ntst: &NT) -> Result<Self, ParseError> {
-        let usn = Self::get_from(header)?;
+        let mut usn = Self::get_from(header)?;
         dbg!(&usn);
-        if let Some(nt) = &usn.nt
-            && nt == ntst
-        {
-            Ok(usn)
-        } else {
-            Err(ErrorKind::InvalidUsn(usn.to_string()))?
+        match usn.nt {
+            Some(ref nt) if nt == ntst => Ok(usn),
+            None => {
+                usn.nt = Some(NT::Uuid(usn.uuid));
+                Ok(usn)
+            }
+            Some(_) => Err(ErrorKind::InvalidUsn(usn.to_string()))?,
         }
     }
 }
