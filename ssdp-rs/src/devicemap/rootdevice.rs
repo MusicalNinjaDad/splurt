@@ -8,13 +8,13 @@ use uuid::Uuid;
 
 use crate::message::{
     BootId, ConfigId, DeviceDetails, Location, MaxAge, SecureLocation, Server, ServiceDetails,
-    UpnpPort,
+    UpnpPort, header::Lenient,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RootDevice {
     /// None if this is an inferred root device
-    pub id: Option<Uuid>,
+    pub id: Option<Lenient<Uuid>>,
     pub(crate) last_seen: DateTime<Utc>,
     pub(crate) valid_until: DateTime<Utc>,
     /// URL for UPnP description for root device
@@ -46,7 +46,7 @@ pub struct RootDevice {
     pub secure_location: Option<Url>,
     /// The core device type of the root device, if known
     pub device_type: Option<DeviceDetails>,
-    pub embedded_devices: HashMap<Uuid, EmbeddedDevice>,
+    pub embedded_devices: HashMap<Lenient<Uuid>, EmbeddedDevice>,
     /// Services directly offered by this root device
     pub services: HashSet<ServiceDetails>,
 }
@@ -58,7 +58,7 @@ impl RootDevice {
         Cannot use `From` implementations as nested matches on Messages need to own fields."
     )]
     pub(crate) fn new(
-        id: Option<Uuid>,
+        id: Option<Lenient<Uuid>>,
         max_age: MaxAge,
         date: Option<DateTime<Utc>>,
         location: Location,
@@ -104,7 +104,7 @@ pub enum IsKnown {
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// An embedded device, only containing the data which is not common across the entire RootDevice
 pub struct EmbeddedDevice {
-    pub id: Uuid,
+    pub id: Lenient<Uuid>,
     /// None if inferred as a home for a lonely service
     pub device_type: Option<DeviceDetails>,
     pub services: HashSet<ServiceDetails>,

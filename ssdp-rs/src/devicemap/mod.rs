@@ -13,6 +13,7 @@ use crate::{
     },
     message::{
         Message, MulticastSearch, Notify, Response,
+        header::Lenient,
         msearch::{MSearch, UnicastSearch},
         notify::{Alive, ByeBye, NT, Update},
     },
@@ -27,12 +28,19 @@ pub enum Error {}
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[expect(clippy::large_enum_variant, reason = "most likely case is Device")]
 pub enum Information {
-    Device { root_device: RootDevice, id: Uuid },
+    Device {
+        root_device: RootDevice,
+        id: Lenient<Uuid>,
+    },
     // TODO handle BootID & ConfigID in byebye
-    Removal { id: Uuid },
+    Removal {
+        id: Lenient<Uuid>,
+    },
     // TODO handle updates to BootID
     Update,
-    ControlPoint { control_point: ControlPoint },
+    ControlPoint {
+        control_point: ControlPoint,
+    },
 }
 
 impl From<Message> for Information {
@@ -50,7 +58,7 @@ impl From<Message> for Information {
             })) => {
                 let id = usn.uuid;
                 let mut embedded_device = EmbeddedDevice {
-                    id,
+                    id: id.clone(),
                     device_type: None,
                     services: Default::default(),
                 };
@@ -67,21 +75,27 @@ impl From<Message> for Information {
                 );
                 match usn.nt {
                     Some(NT::RootDevice) => {
-                        root_device.id = Some(id);
+                        root_device.id = Some(id.clone());
                         Self::Device { root_device, id }
                     }
                     Some(NT::Device(device)) => {
                         embedded_device.device_type = Some(device);
-                        root_device.embedded_devices.insert(id, embedded_device);
+                        root_device
+                            .embedded_devices
+                            .insert(id.clone(), embedded_device);
                         Self::Device { root_device, id }
                     }
                     Some(NT::Service(service)) => {
                         embedded_device.services.insert(service);
-                        root_device.embedded_devices.insert(id, embedded_device);
+                        root_device
+                            .embedded_devices
+                            .insert(id.clone(), embedded_device);
                         Self::Device { root_device, id }
                     }
                     Some(NT::Uuid(_)) | None => {
-                        root_device.embedded_devices.insert(id, embedded_device);
+                        root_device
+                            .embedded_devices
+                            .insert(id.clone(), embedded_device);
                         Self::Device { root_device, id }
                     }
                 }
@@ -129,7 +143,7 @@ impl From<Message> for Information {
             }) => {
                 let id = usn.uuid;
                 let mut embedded_device = EmbeddedDevice {
-                    id,
+                    id: id.clone(),
                     device_type: None,
                     services: Default::default(),
                 };
@@ -146,21 +160,27 @@ impl From<Message> for Information {
                 );
                 match usn.nt {
                     Some(NT::RootDevice) => {
-                        root_device.id = Some(usn.uuid);
+                        root_device.id = Some(id.clone());
                         Self::Device { root_device, id }
                     }
                     Some(NT::Device(device)) => {
                         embedded_device.device_type = Some(device);
-                        root_device.embedded_devices.insert(id, embedded_device);
+                        root_device
+                            .embedded_devices
+                            .insert(id.clone(), embedded_device);
                         Self::Device { root_device, id }
                     }
                     Some(NT::Service(service)) => {
                         embedded_device.services.insert(service);
-                        root_device.embedded_devices.insert(id, embedded_device);
+                        root_device
+                            .embedded_devices
+                            .insert(id.clone(), embedded_device);
                         Self::Device { root_device, id }
                     }
                     Some(NT::Uuid(_)) | None => {
-                        root_device.embedded_devices.insert(id, embedded_device);
+                        root_device
+                            .embedded_devices
+                            .insert(id.clone(), embedded_device);
                         Self::Device { root_device, id }
                     }
                 }
@@ -189,7 +209,7 @@ impl From<Message> for Information {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeviceMap {
     root_devices: HashMap<Url, RootDevice>,
-    ids: HashMap<Uuid, Url>,
+    ids: HashMap<Lenient<Uuid>, Url>,
     // TODO Properly handle control points
     control_points: HashSet<ControlPoint>,
 }
@@ -213,8 +233,8 @@ impl DeviceMap {
             Information::Device { root_device, id } => {
                 if matches!(root_device.is_known(), IsKnown::Known)
                     && let Some(known_root_device) = self.root_devices.get(&root_device.location)
-                    && let Some(known_id) = known_root_device.id
-                    && known_id != id
+                    && let Some(known_id) = &known_root_device.id
+                    && *known_id != id
                 {
                     // Something else was previously known at this address!
                     self.ids.remove(&id);
@@ -224,7 +244,7 @@ impl DeviceMap {
                     self.root_devices.remove(&root_device.location);
                 }
                 // TODO: handling non-UUID IDs - check validity of insert (see docs re: update key)
-                self.ids.insert(id, root_device.location.clone());
+                self.ids.insert(id.clone(), root_device.location.clone());
                 match self.root_devices.entry(root_device.location.clone()) {
                     Entry::Occupied(mut known_rd) => {
                         let known_rd = known_rd.get_mut();
@@ -264,7 +284,7 @@ impl DeviceMap {
 
                             // Info on the device_type or direct services for a known root device
                             (IsKnown::Known, About::DeviceOrService)
-                                if known_rd.id == Some(id)
+                                if known_rd.id == Some(id.clone())
                                     && let Some(device) = embedded_devices.remove(&id) =>
                             {
                                 if device.device_type.is_some() {

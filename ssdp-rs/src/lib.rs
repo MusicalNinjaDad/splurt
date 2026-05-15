@@ -5,7 +5,6 @@
 #![cfg_attr(unstable_never_type, feature(never_type))]
 #![feature(doc_notable_trait)]
 #![feature(strip_circumfix)]
-#![feature(try_blocks_heterogeneous)]
 #![allow(incomplete_features)]
 #![feature(unsized_const_params)]
 
