@@ -10,7 +10,6 @@ use std::{
     fmt::Debug,
     future::join,
     io,
-    iter::once,
     net::{Ipv4Addr, SocketAddr},
     process::Termination as _T,
 };
@@ -70,13 +69,13 @@ fn main() -> Exit<()> {
             let mut devices = DeviceMap::new();
             let mut rtfm: HashMap<SocketAddr, Vec<ParseError>> = HashMap::new();
             let mut listener = Listener::new(Ipv4Addr::UNSPECIFIED)?;
-            let (messages_tx, messages_rx) =
+            let (mut messages_tx, mut messages_rx) =
                 unbounded::<(Result<Message, ParseError>, SocketAddr)>();
             let listen_loop = async {
                 try bikeshed Exit<!> {
                     loop {
                         let (msg, sent_by) = listener.next().await.expect("a message")?;
-                        messages_tx.send((msg.parse(), sent_by));
+                        messages_tx.send((msg.parse(), sent_by)).await?;
                     }
                 }
             };
@@ -84,51 +83,51 @@ fn main() -> Exit<()> {
                 let m = Paragraph::new("").block(Block::bordered().title("devices"));
                 ui.draw(|frame| frame.render_widget(m, frame.area()))
                     .unwrap();
-                loop {
-                    let (msg, sent_by) = messages_rx.recv().await?;
-                    match msg {
-                        Ok(message) => devices.process(message),
-                        Err(e) => match rtfm.entry(sent_by) {
-                            std::collections::hash_map::Entry::Occupied(mut grrr) => {
-                                grrr.get_mut().push(e);
-                            }
-                            std::collections::hash_map::Entry::Vacant(entry) => {
-                                entry.insert(vec![e]);
-                            }
-                        },
-                    };
-                    let t = Text::from_iter(
-                        devices
-                            .devices()
-                            .values()
-                            .map(|rd| {
-                                format!(
-                                    "{}: {:?} with {} embedded devices",
-                                    rd.location,
-                                    rd.device_type,
-                                    rd.embedded_devices.len()
-                                )
-                            })
-                            .chain(
-                                rtfm.iter()
-                                    .map(|(addr, errs)| {
-                                        format!(
-                                            "{addr}: has {} errors. First is: {:?}",
-                                            errs.len(),
-                                            errs.first().unwrap()
-                                        )
-                                    })
-                                    .chain(once(format!("last message from {sent_by}")))
-                                    .chain(msg.lines().map(ToString::to_string)),
-                            ),
-                    );
-                    let m = Paragraph::new(t).block(Block::bordered().title("devices"));
-                    ui.draw(|frame| frame.render_widget(m, frame.area()))
-                        .unwrap();
+                try bikeshed Exit<!> {
+                    loop {
+                        let (msg, sent_by) = messages_rx.recv().await?;
+                        match msg {
+                            Ok(message) => devices.process(message),
+                            Err(e) => match rtfm.entry(sent_by) {
+                                std::collections::hash_map::Entry::Occupied(mut grrr) => {
+                                    grrr.get_mut().push(e);
+                                }
+                                std::collections::hash_map::Entry::Vacant(entry) => {
+                                    entry.insert(vec![e]);
+                                }
+                            },
+                        };
+                        let t = Text::from_iter(
+                            devices
+                                .devices()
+                                .values()
+                                .map(|rd| {
+                                    format!(
+                                        "{}: {:?} with {} embedded devices",
+                                        rd.location,
+                                        rd.device_type,
+                                        rd.embedded_devices.len()
+                                    )
+                                })
+                                .chain(rtfm.iter().map(|(addr, errs)| {
+                                    format!(
+                                        "{addr}: has {} errors. First is: {:?}",
+                                        errs.len(),
+                                        errs.first().unwrap()
+                                    )
+                                }))
+                        );
+                        let m = Paragraph::new(t).block(Block::bordered().title("devices"));
+                        ui.draw(|frame| frame.render_widget(m, frame.area()))
+                            .unwrap();
+                    }
                 }
             };
-            futures::executor::block_on(listen_loop)?;
+            let joined = join!(listen_loop, render_loop);
+            let (listen, render) = futures::executor::block_on(joined);
             ratatui::restore();
+            listen?;
+            render?
         }
 
         Command::Listen => {
@@ -325,6 +324,18 @@ impl<T: _T> From<futures_util::task::SpawnError> for Exit<T> {
 
 impl<T: _T> From<ssdp_rs::Error> for Exit<T> {
     fn from(e: ssdp_rs::Error) -> Self {
+        Self::Error(e.to_string())
+    }
+}
+
+impl<T: _T> From<futures::channel::mpsc::RecvError> for Exit<T> {
+    fn from(e: futures::channel::mpsc::RecvError) -> Self {
+        Self::Error(e.to_string())
+    }
+}
+
+impl<T: _T> From<futures::channel::mpsc::SendError> for Exit<T> {
+    fn from(e: futures::channel::mpsc::SendError) -> Self {
         Self::Error(e.to_string())
     }
 }
