@@ -19,7 +19,7 @@ use clap::Parser;
 use cotton_netif::get_interfaces;
 use cotton_ssdp::{Advertisement, AsyncService, Notification};
 use exit_safely::Termination;
-use futures::StreamExt;
+use futures::{SinkExt, StreamExt, channel::mpsc::unbounded};
 use ratatui::{
     text::Text,
     widgets::{Block, Paragraph},
@@ -27,7 +27,11 @@ use ratatui::{
 use try_v2::{Try, Try_ConvertResult};
 use uuid::Uuid;
 
-use ssdp_rs::{Listener, Searcher, devicemap::DeviceMap, message::ParseError};
+use ssdp_rs::{
+    Listener, Searcher,
+    devicemap::DeviceMap,
+    message::{Message, ParseError},
+};
 
 mod cli;
 use cli::*;
@@ -66,53 +70,61 @@ fn main() -> Exit<()> {
             let mut devices = DeviceMap::new();
             let mut rtfm: HashMap<SocketAddr, Vec<ParseError>> = HashMap::new();
             let mut listener = Listener::new(Ipv4Addr::UNSPECIFIED)?;
+            let (messages_tx, messages_rx) =
+                unbounded::<(Result<Message, ParseError>, SocketAddr)>();
             let listen_loop = async {
+                try bikeshed Exit<!> {
+                    loop {
+                        let (msg, sent_by) = listener.next().await.expect("a message")?;
+                        messages_tx.send((msg.parse(), sent_by));
+                    }
+                }
+            };
+            let render_loop = async {
                 let m = Paragraph::new("").block(Block::bordered().title("devices"));
                 ui.draw(|frame| frame.render_widget(m, frame.area()))
                     .unwrap();
-                try bikeshed Exit<()> {
-                    loop {
-                        let (msg, sent_by) = listener.next().await.expect("a message")?;
-                        match msg.parse() {
-                            Ok(message) => devices.process(message),
-                            Err(e) => match rtfm.entry(sent_by) {
-                                std::collections::hash_map::Entry::Occupied(mut grrr) => {
-                                    grrr.get_mut().push(e);
-                                }
-                                std::collections::hash_map::Entry::Vacant(entry) => {
-                                    entry.insert(vec![e]);
-                                }
-                            },
-                        };
-                        let t = Text::from_iter(
-                            devices
-                                .devices()
-                                .values()
-                                .map(|rd| {
-                                    format!(
-                                        "{}: {:?} with {} embedded devices",
-                                        rd.location,
-                                        rd.device_type,
-                                        rd.embedded_devices.len()
-                                    )
-                                })
-                                .chain(
-                                    rtfm.iter()
-                                        .map(|(addr, errs)| {
-                                            format!(
-                                                "{addr}: has {} errors. First is: {:?}",
-                                                errs.len(),
-                                                errs.first().unwrap()
-                                            )
-                                        })
-                                        .chain(once(format!("last message from {sent_by}")))
-                                        .chain(msg.lines().map(ToString::to_string)),
-                                ),
-                        );
-                        let m = Paragraph::new(t).block(Block::bordered().title("devices"));
-                        ui.draw(|frame| frame.render_widget(m, frame.area()))
-                            .unwrap();
-                    }
+                loop {
+                    let (msg, sent_by) = messages_rx.recv().await?;
+                    match msg {
+                        Ok(message) => devices.process(message),
+                        Err(e) => match rtfm.entry(sent_by) {
+                            std::collections::hash_map::Entry::Occupied(mut grrr) => {
+                                grrr.get_mut().push(e);
+                            }
+                            std::collections::hash_map::Entry::Vacant(entry) => {
+                                entry.insert(vec![e]);
+                            }
+                        },
+                    };
+                    let t = Text::from_iter(
+                        devices
+                            .devices()
+                            .values()
+                            .map(|rd| {
+                                format!(
+                                    "{}: {:?} with {} embedded devices",
+                                    rd.location,
+                                    rd.device_type,
+                                    rd.embedded_devices.len()
+                                )
+                            })
+                            .chain(
+                                rtfm.iter()
+                                    .map(|(addr, errs)| {
+                                        format!(
+                                            "{addr}: has {} errors. First is: {:?}",
+                                            errs.len(),
+                                            errs.first().unwrap()
+                                        )
+                                    })
+                                    .chain(once(format!("last message from {sent_by}")))
+                                    .chain(msg.lines().map(ToString::to_string)),
+                            ),
+                    );
+                    let m = Paragraph::new(t).block(Block::bordered().title("devices"));
+                    ui.draw(|frame| frame.render_widget(m, frame.area()))
+                        .unwrap();
                 }
             };
             futures::executor::block_on(listen_loop)?;
