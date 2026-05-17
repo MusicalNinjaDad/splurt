@@ -18,9 +18,11 @@ use std::{
 use clap::Parser;
 use cotton_netif::get_interfaces;
 use cotton_ssdp::{Advertisement, AsyncService, Notification};
+use crossterm::event::EventStream;
 use exit_safely::Termination;
 use futures::{FutureExt, SinkExt, StreamExt, channel::mpsc::unbounded, select};
 use ratatui::{
+    crossterm::event::{Event, KeyCode},
     text::Text,
     widgets::{Block, Paragraph},
 };
@@ -86,18 +88,41 @@ fn main() -> Exit<()> {
                 let m = Paragraph::new("").block(Block::bordered().title("devices"));
                 ui.draw(|frame| frame.render_widget(m, frame.area()))
                     .unwrap();
+
+                let mut events = EventStream::new();
+                fn handle_event(event: Option<io::Result<Event>>) -> Option<Exit<()>> {
+                    match event {
+                        Some(Ok(event)) => match event {
+                            Event::Key(event) if event == KeyCode::Esc.into() => Some(Exit::Ok(())),
+                            _ => None,
+                        },
+                        Some(Err(e)) => Some(e.into()),
+                        None => Some(Exit::IO("Keyboard handler closed".to_string())),
+                    }
+                }
+
                 try bikeshed Exit<!> {
                     loop {
-                        let (msg, sent_by) = messages_rx.recv().await?;
-                        match msg {
-                            Ok(message) => devices.process(message),
-                            Err(e) => match rtfm.entry(sent_by) {
-                                std::collections::hash_map::Entry::Occupied(mut grrr) => {
-                                    grrr.get_mut().push(e);
+                        let mut messages = messages_rx.recv().fuse();
+                        let mut events = events.next().fuse();
+                        select! {
+                            message = messages => {
+                                let (msg, sent_by) = message?;
+                                match msg {
+                                    Ok(message) => devices.process(message),
+                                    Err(e) => match rtfm.entry(sent_by) {
+                                        std::collections::hash_map::Entry::Occupied(mut grrr) => {
+                                            grrr.get_mut().push(e);
+                                        }
+                                        std::collections::hash_map::Entry::Vacant(entry) => {
+                                            entry.insert(vec![e]);
+                                        }
+                                    },
                                 }
-                                std::collections::hash_map::Entry::Vacant(entry) => {
-                                    entry.insert(vec![e]);
-                                }
+                            },
+                            event = events => match handle_event(event) {
+                                None => (),
+                                Some(e) => e?,
                             },
                         };
                         let t = Text::from_iter(
