@@ -6,12 +6,7 @@
 #![feature(try_trait_v2_residual)]
 
 use std::{
-    collections::HashMap,
-    fmt::Debug,
-    future::join,
-    io,
-    net::{Ipv4Addr, SocketAddr},
-    process::Termination as _T,
+    collections::HashMap, fmt::Debug, future::{join, poll_fn}, io, net::{Ipv4Addr, SocketAddr}, pin::pin, process::Termination as _T, task::Poll
 };
 
 use clap::Parser;
@@ -115,7 +110,7 @@ fn main() -> Exit<()> {
                                         errs.len(),
                                         errs.first().unwrap()
                                     )
-                                }))
+                                })),
                         );
                         let m = Paragraph::new(t).block(Block::bordered().title("devices"));
                         ui.draw(|frame| frame.render_widget(m, frame.area()))
@@ -123,11 +118,23 @@ fn main() -> Exit<()> {
                     }
                 }
             };
-            let joined = join!(listen_loop, render_loop);
-            let (listen, render) = futures::executor::block_on(joined);
+            let try_join = async move {
+                let mut listen = pin!(listen_loop);
+                let mut render = pin!(render_loop);
+                poll_fn(move |cx:&mut std::task::Context<'_>| {
+                    match listen.as_mut().poll(cx) {
+                        Poll::Ready(e) => return Poll::Ready(e),
+                        Poll::Pending => (),
+                    };
+                    match render.as_mut().poll(cx) {
+                        Poll::Ready(e) => Poll::Ready(e),
+                        Poll::Pending => Poll::Pending,
+                    }
+                }).await
+            };
+            let err = futures::executor::block_on(try_join);
             ratatui::restore();
-            listen?;
-            render?
+            err?;
         }
 
         Command::Listen => {
