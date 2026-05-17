@@ -68,6 +68,7 @@ fn main() -> Exit<()> {
         Command::Snoop => {
             let (mut messages_tx, mut messages_rx) =
                 unbounded::<(Result<Message, ParseError>, SocketAddr)>();
+
             let listen_loop = async {
                 let mut listener = Listener::new(Ipv4Addr::UNSPECIFIED)?;
                 try bikeshed Exit<!> {
@@ -77,6 +78,7 @@ fn main() -> Exit<()> {
                     }
                 }
             };
+
             let render_loop = async {
                 let mut ui = ratatui::init();
                 let mut devices = DeviceMap::new();
@@ -124,6 +126,7 @@ fn main() -> Exit<()> {
                     }
                 }
             };
+
             let mut listen = pin!(listen_loop.fuse());
             let mut render = pin!(render_loop.fuse());
             let try_join = async {
@@ -133,6 +136,7 @@ fn main() -> Exit<()> {
                 )
             };
             let err = futures::executor::block_on(try_join);
+
             ratatui::restore();
             err?;
         }
