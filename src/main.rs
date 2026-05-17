@@ -90,18 +90,8 @@ fn main() -> Exit<()> {
                     .unwrap();
 
                 let mut events = EventStream::new();
-                fn handle_event(event: Option<io::Result<Event>>) -> Option<Exit<()>> {
-                    match event {
-                        Some(Ok(event)) => match event {
-                            Event::Key(event) if event == KeyCode::Esc.into() => Some(Exit::Ok(())),
-                            _ => None,
-                        },
-                        Some(Err(e)) => Some(e.into()),
-                        None => Some(Exit::IO("Keyboard handler closed".to_string())),
-                    }
-                }
 
-                try bikeshed Exit<!> {
+                try bikeshed Exit<()> {
                     loop {
                         let mut messages = messages_rx.recv().fuse();
                         let mut events = events.next().fuse();
@@ -120,9 +110,13 @@ fn main() -> Exit<()> {
                                     },
                                 }
                             },
-                            event = events => match handle_event(event) {
-                                None => (),
-                                Some(e) => e?,
+                            event = events => match event {
+                                None => Exit::IO("Keyboard handler closed".to_string())?,
+                                Some(Err(e)) => Err(e)?,
+                                Some(Ok(event)) => match event {
+                                    Event::Key(event) if event == KeyCode::Esc.into() => Exit::Ok(())?,
+                                    _ => (),
+                                }
                             },
                         };
                         let t = Text::from_iter(
