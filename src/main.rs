@@ -66,13 +66,10 @@ fn main() -> Exit<()> {
 
     match &splurt.command {
         Command::Snoop => {
-            let mut ui = ratatui::init();
-            let mut devices = DeviceMap::new();
-            let mut rtfm: HashMap<SocketAddr, Vec<ParseError>> = HashMap::new();
-            let mut listener = Listener::new(Ipv4Addr::UNSPECIFIED)?;
             let (mut messages_tx, mut messages_rx) =
                 unbounded::<(Result<Message, ParseError>, SocketAddr)>();
             let listen_loop = async {
+                let mut listener = Listener::new(Ipv4Addr::UNSPECIFIED)?;
                 try bikeshed Exit<!> {
                     loop {
                         let (msg, sent_by) = listener.next().await.expect("a message")?;
@@ -81,6 +78,9 @@ fn main() -> Exit<()> {
                 }
             };
             let render_loop = async {
+                let mut ui = ratatui::init();
+                let mut devices = DeviceMap::new();
+                let mut rtfm: HashMap<SocketAddr, Vec<ParseError>> = HashMap::new();
                 let m = Paragraph::new("").block(Block::bordered().title("devices"));
                 ui.draw(|frame| frame.render_widget(m, frame.area()))
                     .unwrap();
