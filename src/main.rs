@@ -6,14 +6,20 @@
 #![feature(try_trait_v2_residual)]
 
 use std::{
-    collections::HashMap, fmt::Debug, future::{join, poll_fn}, io, net::{Ipv4Addr, SocketAddr}, pin::pin, process::Termination as _T, task::Poll
+    collections::HashMap,
+    fmt::Debug,
+    future::join,
+    io,
+    net::{Ipv4Addr, SocketAddr},
+    pin::pin,
+    process::Termination as _T,
 };
 
 use clap::Parser;
 use cotton_netif::get_interfaces;
 use cotton_ssdp::{Advertisement, AsyncService, Notification};
 use exit_safely::Termination;
-use futures::{SinkExt, StreamExt, channel::mpsc::unbounded};
+use futures::{FutureExt, SinkExt, StreamExt, channel::mpsc::unbounded, select};
 use ratatui::{
     text::Text,
     widgets::{Block, Paragraph},
@@ -118,19 +124,13 @@ fn main() -> Exit<()> {
                     }
                 }
             };
-            let try_join = async move {
-                let mut listen = pin!(listen_loop);
-                let mut render = pin!(render_loop);
-                poll_fn(move |cx:&mut std::task::Context<'_>| {
-                    match listen.as_mut().poll(cx) {
-                        Poll::Ready(e) => return Poll::Ready(e),
-                        Poll::Pending => (),
-                    };
-                    match render.as_mut().poll(cx) {
-                        Poll::Ready(e) => Poll::Ready(e),
-                        Poll::Pending => Poll::Pending,
-                    }
-                }).await
+            let mut listen = pin!(listen_loop.fuse());
+            let mut render = pin!(render_loop.fuse());
+            let try_join = async {
+                select!(
+                    err = listen => err,
+                    err = render => err
+                )
             };
             let err = futures::executor::block_on(try_join);
             ratatui::restore();
