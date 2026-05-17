@@ -73,7 +73,8 @@ fn main() -> Exit<()> {
 
             let listen_loop = async {
                 let mut listener = Listener::new(Ipv4Addr::UNSPECIFIED)?;
-                try bikeshed Exit<!> {
+                // TODO this should be Exit<!> but ... see my pre-RFC
+                try bikeshed Exit<()> {
                     loop {
                         let (msg, sent_by) = listener.next().await.expect("a message")?;
                         messages_tx.send((msg.parse(), sent_by)).await?;
@@ -151,13 +152,13 @@ fn main() -> Exit<()> {
             let try_join = async {
                 select!(
                     err = listen => err,
-                    err = render => err
+                    exit = render => exit
                 )
             };
-            let err = futures::executor::block_on(try_join);
+            let exit = futures::executor::block_on(try_join);
 
             ratatui::restore();
-            err?;
+            return exit;
         }
 
         Command::Listen => {
