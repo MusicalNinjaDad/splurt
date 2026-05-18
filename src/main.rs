@@ -6,7 +6,7 @@
 #![feature(try_trait_v2_residual)]
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, hash_map::Values},
     fmt::Debug,
     future::join,
     io,
@@ -25,19 +25,20 @@ use ratatui::{
     backend::{Backend, CrosstermBackend},
     crossterm::event::{Event, KeyCode},
     layout::{Constraint, Layout},
-    text::Text,
+    text::{Line, Text},
     widgets::{Block, Paragraph, Widget},
 };
 use try_v2::{Try, Try_ConvertResult};
 
 use ssdp_rs::{
     Listener, Searcher,
-    devicemap::DeviceMap,
+    devicemap::{DeviceMap, rootdevice::RootDevice},
     message::{Message, ParseError},
 };
 
 mod cli;
 use cli::*;
+use url::Url;
 
 struct Ui<B>
 where
@@ -83,15 +84,8 @@ impl<B: Backend> Ui<B> {
         devices: &DeviceMap,
         errors: &HashMap<SocketAddr, Vec<ParseError>>,
     ) -> Result<CompletedFrame<'_>, B::Error> {
-        let device_text = Text::from_iter(devices.devices().values().map(|rd| {
-            format!(
-                "{}: {:?} with {} embedded devices",
-                rd.location,
-                rd.device_type,
-                rd.embedded_devices.len()
-            )
-        }));
-        let device_text = Paragraph::new(device_text).block(Block::bordered().title("devices"));
+        let device_text =
+            Paragraph::new(DeviceLines::from(devices)).block(Block::bordered().title("devices"));
         let error_text = Text::from_iter(errors.iter().map(|(addr, errs)| {
             format!(
                 "{addr}: has {} errors. First is: {:?}",
@@ -106,6 +100,40 @@ impl<B: Backend> Ui<B> {
             device_text.render(device_listing, frame.buffer_mut());
             error_text.render(error_listing, frame.buffer_mut());
         })
+    }
+}
+
+struct DeviceLines<'devices> {
+    devices: Values<'devices, Url, RootDevice>,
+}
+
+impl<'d> From<&'d DeviceMap> for DeviceLines<'d> {
+    fn from(devicemap: &'d DeviceMap) -> Self {
+        Self {
+            devices: devicemap.devices().values(),
+        }
+    }
+}
+
+impl<'d> From<DeviceLines<'d>> for Text<'d> {
+    fn from(devicelines: DeviceLines<'d>) -> Self {
+        Text::from_iter(devicelines)
+    }
+}
+
+impl<'d> Iterator for DeviceLines<'d> {
+    type Item = Line<'d>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let rd = self.devices.next()?;
+        let text = format!(
+            "{}: {:?} with {} embedded devices",
+            rd.location,
+            rd.device_type,
+            rd.embedded_devices.len()
+        )
+        .into();
+        Some(text)
     }
 }
 

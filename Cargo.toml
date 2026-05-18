@@ -31,6 +31,7 @@ futures-net = "0.6.0"
 futures-udp = "0.1.0"
 ninja-build_rs = "0.1.0"
 try_v2 = "0.4.2"
+url = "2.5.8"
 
 ssdp_rs = { path = "ssdp-rs" }
 
@@ -46,6 +47,7 @@ futures-util = { version = "0.3.32", default-features = false, features = [
 ratatui = "0.30.0"
 ssdp_rs = { workspace = true }
 try_v2 = { workspace = true }
+url = { workspace = true }
 
 [build-dependencies]
 autocfg = { workspace = true }
