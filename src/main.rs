@@ -11,6 +11,7 @@ use std::{
     future::join,
     io,
     net::{Ipv4Addr, SocketAddr},
+    ops::{Deref, DerefMut},
     pin::pin,
     process::Termination as _T,
 };
@@ -22,6 +23,8 @@ use crossterm::event::EventStream;
 use exit_safely::Termination;
 use futures::{FutureExt, SinkExt, StreamExt, channel::mpsc::unbounded, select};
 use ratatui::{
+    Terminal,
+    backend::{Backend, CrosstermBackend},
     crossterm::event::{Event, KeyCode},
     text::Text,
     widgets::{Block, Paragraph},
@@ -63,6 +66,40 @@ impl KnownService {
     }
 }
 
+struct Ui<B>
+where
+    B: Backend,
+{
+    terminal: Terminal<B>,
+}
+
+impl<B: Backend> Deref for Ui<B> {
+    type Target = Terminal<B>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.terminal
+    }
+}
+
+impl<B: Backend> DerefMut for Ui<B> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.terminal
+    }
+}
+
+impl Ui<CrosstermBackend<io::Stdout>> {
+    fn new() -> Self {
+        let terminal = ratatui::init();
+        Self { terminal }
+    }
+}
+
+impl<B: Backend> Drop for Ui<B> {
+    fn drop(&mut self) {
+        ratatui::restore();
+    }
+}
+
 fn main() -> Exit<()> {
     let splurt = Splurt::try_parse()?;
 
@@ -82,7 +119,7 @@ fn main() -> Exit<()> {
             };
 
             let render_loop = async {
-                let mut ui = ratatui::init();
+                let mut ui = Ui::new();
                 let mut devices = DeviceMap::new();
                 let mut rtfm: HashMap<SocketAddr, Vec<ParseError>> = HashMap::new();
                 let m = Paragraph::new("").block(Block::bordered().title("devices"));
@@ -154,7 +191,6 @@ fn main() -> Exit<()> {
             };
             let exit = futures::executor::block_on(try_join);
 
-            ratatui::restore();
             exit?;
         }
 
