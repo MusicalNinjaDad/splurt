@@ -165,9 +165,7 @@ fn main() -> Exit<()> {
                 let mut ui = Ui::new();
                 let mut devices = DeviceMap::new();
                 let mut errors: HashMap<SocketAddr, Vec<ParseError>> = HashMap::new();
-                let m = Paragraph::new("").block(Block::bordered().title("devices"));
-                ui.draw(|frame| frame.render_widget(m, frame.area()))
-                    .unwrap();
+                ui.render(&devices, &errors)?;
 
                 let mut events = EventStream::new();
 
@@ -194,7 +192,7 @@ fn main() -> Exit<()> {
                                 break exit?;
                             },
                         };
-                        ui.render(&devices, &errors).unwrap();
+                        ui.render(&devices, &errors)?;
                     }
                 }
             };
