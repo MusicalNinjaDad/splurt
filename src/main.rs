@@ -23,7 +23,7 @@ use crossterm::event::EventStream;
 use exit_safely::Termination;
 use futures::{FutureExt, SinkExt, StreamExt, channel::mpsc::unbounded, select};
 use ratatui::{
-    Terminal,
+    CompletedFrame, Terminal,
     backend::{Backend, CrosstermBackend},
     crossterm::event::{Event, KeyCode},
     text::Text,
@@ -104,6 +104,35 @@ impl<B: Backend> Ui<B> {
             _ => None,
         }
     }
+
+    fn render(
+        &mut self,
+        devices: &DeviceMap,
+        errors: &HashMap<SocketAddr, Vec<ParseError>>,
+    ) -> Result<CompletedFrame<'_>, B::Error> {
+        let t = Text::from_iter(
+            devices
+                .devices()
+                .values()
+                .map(|rd| {
+                    format!(
+                        "{}: {:?} with {} embedded devices",
+                        rd.location,
+                        rd.device_type,
+                        rd.embedded_devices.len()
+                    )
+                })
+                .chain(errors.iter().map(|(addr, errs)| {
+                    format!(
+                        "{addr}: has {} errors. First is: {:?}",
+                        errs.len(),
+                        errs.first().unwrap()
+                    )
+                })),
+        );
+        let m = Paragraph::new(t).block(Block::bordered().title("devices"));
+        self.draw(|frame| frame.render_widget(m, frame.area()))
+    }
 }
 
 impl<B: Backend> Drop for Ui<B> {
@@ -133,7 +162,7 @@ fn main() -> Exit<()> {
             let render_loop = async {
                 let mut ui = Ui::new();
                 let mut devices = DeviceMap::new();
-                let mut rtfm: HashMap<SocketAddr, Vec<ParseError>> = HashMap::new();
+                let mut errors: HashMap<SocketAddr, Vec<ParseError>> = HashMap::new();
                 let m = Paragraph::new("").block(Block::bordered().title("devices"));
                 ui.draw(|frame| frame.render_widget(m, frame.area()))
                     .unwrap();
@@ -149,7 +178,7 @@ fn main() -> Exit<()> {
                                 let (msg, sent_by) = message?;
                                 match msg {
                                     Ok(message) => devices.process(message),
-                                    Err(e) => match rtfm.entry(sent_by) {
+                                    Err(e) => match errors.entry(sent_by) {
                                         std::collections::hash_map::Entry::Occupied(mut grrr) => {
                                             grrr.get_mut().push(e);
                                         }
@@ -163,29 +192,7 @@ fn main() -> Exit<()> {
                                 break exit?;
                             },
                         };
-                        let t = Text::from_iter(
-                            devices
-                                .devices()
-                                .values()
-                                .map(|rd| {
-                                    format!(
-                                        "{}: {:?} with {} embedded devices",
-                                        rd.location,
-                                        rd.device_type,
-                                        rd.embedded_devices.len()
-                                    )
-                                })
-                                .chain(rtfm.iter().map(|(addr, errs)| {
-                                    format!(
-                                        "{addr}: has {} errors. First is: {:?}",
-                                        errs.len(),
-                                        errs.first().unwrap()
-                                    )
-                                })),
-                        );
-                        let m = Paragraph::new(t).block(Block::bordered().title("devices"));
-                        ui.draw(|frame| frame.render_widget(m, frame.area()))
-                            .unwrap();
+                        ui.render(&devices, &errors).unwrap();
                     }
                 }
             };
