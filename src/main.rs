@@ -147,7 +147,7 @@ impl<'d> Iterator for DeviceLines<'d> {
                     }
                     let dt = match &ed.device_type {
                         Some(d) => d.to_string(),
-                        None => "Uknnown".to_string(),
+                        None => "Uknown".to_string(),
                     };
                     return Some(
                         format!(
@@ -169,11 +169,15 @@ impl<'d> Iterator for DeviceLines<'d> {
         if !rd.services.is_empty() {
             self.services = Some(rd.services.iter());
         }
+        let dt = match &rd.device_type {
+            Some(d) => d.to_string(),
+            None => "Uknown".to_string(),
+        };
         Some(
             format!(
-                "{}: {:?} with {} embedded devices",
+                "{}: {} with {} embedded devices",
                 rd.location,
-                rd.device_type,
+                dt,
                 rd.embedded_devices.len()
             )
             .into(),
