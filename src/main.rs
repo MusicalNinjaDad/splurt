@@ -131,42 +131,35 @@ impl<'d> Iterator for DeviceLines<'d> {
     type Item = Line<'d>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let text = match self.embedded_devices.as_mut() {
-            None => {
-                let rd = self.rootdevices.next()?;
-                if !rd.embedded_devices.is_empty() {
-                    self.embedded_devices = Some(rd.embedded_devices.values());
+        if let Some(embedded_devices) = self.embedded_devices.as_mut() {
+            match embedded_devices.next() {
+                Some(ed) => {
+                    return Some(
+                        format!(
+                            "\t{}: {:?} offering {} services",
+                            ed.id,
+                            ed.device_type,
+                            ed.services.len()
+                        )
+                        .into(),
+                    );
                 }
-                format!(
-                    "{}: {:?} with {} embedded devices",
-                    rd.location,
-                    rd.device_type,
-                    rd.embedded_devices.len()
-                )
+                None => self.embedded_devices = None,
             }
-            Some(embedded_devices) => match embedded_devices.next() {
-                Some(ed) => format!(
-                    "\t{}: {:?} offering {} services",
-                    ed.id,
-                    ed.device_type,
-                    ed.services.len()
-                ),
-                None => {
-                    self.embedded_devices = None;
-                    let rd = self.rootdevices.next()?;
-                    if !rd.embedded_devices.is_empty() {
-                        self.embedded_devices = Some(rd.embedded_devices.values());
-                    }
-                    format!(
-                        "{}: {:?} with {} embedded devices",
-                        rd.location,
-                        rd.device_type,
-                        rd.embedded_devices.len()
-                    )
-                }
-            },
         };
-        Some(text.into())
+        let rd = self.rootdevices.next()?;
+        if !rd.embedded_devices.is_empty() {
+            self.embedded_devices = Some(rd.embedded_devices.values());
+        }
+        Some(
+            format!(
+                "{}: {:?} with {} embedded devices",
+                rd.location,
+                rd.device_type,
+                rd.embedded_devices.len()
+            )
+            .into(),
+        )
     }
 }
 
