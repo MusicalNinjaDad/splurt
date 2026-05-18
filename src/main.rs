@@ -94,6 +94,18 @@ impl Ui<CrosstermBackend<io::Stdout>> {
     }
 }
 
+impl<B: Backend> Ui<B> {
+    /// Returns `Some(Exit)` if an event occurs which leads to an exit condition.
+    fn handle_event(&self, event: Option<io::Result<Event>>) -> Option<Exit<()>> {
+        match event {
+            None => Some(Exit::IO("Keyboard handler closed".to_string())),
+            Some(Err(e)) => Some(try bikeshed Exit<()> { Err(e)? }),
+            Some(Ok(Event::Key(event))) if event == KeyCode::Esc.into() => Some(Exit::Ok(())),
+            _ => None,
+        }
+    }
+}
+
 impl<B: Backend> Drop for Ui<B> {
     fn drop(&mut self) {
         ratatui::restore();
@@ -147,11 +159,8 @@ fn main() -> Exit<()> {
                                     },
                                 }
                             },
-                            event = events => match event {
-                                None => Exit::IO("Keyboard handler closed".to_string())?,
-                                Some(Err(e)) => Err(e)?,
-                                Some(Ok(Event::Key(event))) if event == KeyCode::Esc.into() => break,
-                                _ => (),
+                            event = events => if let Some(exit) = ui.handle_event(event) {
+                                break exit?;
                             },
                         };
                         let t = Text::from_iter(
