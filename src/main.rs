@@ -6,7 +6,7 @@
 #![feature(try_trait_v2_residual)]
 
 use std::{
-    collections::{HashMap, hash_map::Values},
+    collections::{HashMap, hash_map::Values, hash_set},
     fmt::Debug,
     future::join,
     io,
@@ -36,7 +36,7 @@ use ssdp_rs::{
         DeviceMap,
         rootdevice::{EmbeddedDevice, RootDevice},
     },
-    message::{Message, ParseError, header::Lenient},
+    message::{Message, ParseError, ServiceDetails, header::Lenient},
 };
 
 mod cli;
@@ -110,6 +110,7 @@ impl<B: Backend> Ui<B> {
 struct DeviceLines<'devices> {
     rootdevices: Values<'devices, Url, RootDevice>,
     embedded_devices: Option<Values<'devices, Lenient<Uuid>, EmbeddedDevice>>,
+    services: Option<hash_set::Iter<'devices, ServiceDetails>>,
 }
 
 impl<'d> From<&'d DeviceMap> for DeviceLines<'d> {
@@ -117,6 +118,7 @@ impl<'d> From<&'d DeviceMap> for DeviceLines<'d> {
         Self {
             rootdevices: devicemap.devices().values(),
             embedded_devices: None,
+            services: None,
         }
     }
 }
@@ -131,9 +133,18 @@ impl<'d> Iterator for DeviceLines<'d> {
     type Item = Line<'d>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if let Some(services) = self.services.as_mut() {
+            match services.next() {
+                Some(s) => return Some(format!("\t\t{}", s).into()),
+                None => self.services = None,
+            }
+        }
         if let Some(embedded_devices) = self.embedded_devices.as_mut() {
             match embedded_devices.next() {
                 Some(ed) => {
+                    if !ed.services.is_empty() {
+                        self.services = Some(ed.services.iter());
+                    }
                     let dt = match &ed.device_type {
                         Some(d) => d.to_string(),
                         None => "Uknnown".to_string(),
@@ -154,6 +165,9 @@ impl<'d> Iterator for DeviceLines<'d> {
         let rd = self.rootdevices.next()?;
         if !rd.embedded_devices.is_empty() {
             self.embedded_devices = Some(rd.embedded_devices.values());
+        }
+        if !rd.services.is_empty() {
+            self.services = Some(rd.services.iter());
         }
         Some(
             format!(
