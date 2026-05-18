@@ -26,8 +26,9 @@ use ratatui::{
     CompletedFrame, Terminal,
     backend::{Backend, CrosstermBackend},
     crossterm::event::{Event, KeyCode},
+    layout::{Constraint, Layout},
     text::Text,
-    widgets::{Block, Paragraph},
+    widgets::{Block, Paragraph, Widget},
 };
 use try_v2::{Try, Try_ConvertResult};
 use uuid::Uuid;
@@ -110,28 +111,29 @@ impl<B: Backend> Ui<B> {
         devices: &DeviceMap,
         errors: &HashMap<SocketAddr, Vec<ParseError>>,
     ) -> Result<CompletedFrame<'_>, B::Error> {
-        let t = Text::from_iter(
-            devices
-                .devices()
-                .values()
-                .map(|rd| {
-                    format!(
-                        "{}: {:?} with {} embedded devices",
-                        rd.location,
-                        rd.device_type,
-                        rd.embedded_devices.len()
-                    )
-                })
-                .chain(errors.iter().map(|(addr, errs)| {
-                    format!(
-                        "{addr}: has {} errors. First is: {:?}",
-                        errs.len(),
-                        errs.first().unwrap()
-                    )
-                })),
-        );
-        let m = Paragraph::new(t).block(Block::bordered().title("devices"));
-        self.draw(|frame| frame.render_widget(m, frame.area()))
+        let device_text = Text::from_iter(devices.devices().values().map(|rd| {
+            format!(
+                "{}: {:?} with {} embedded devices",
+                rd.location,
+                rd.device_type,
+                rd.embedded_devices.len()
+            )
+        }));
+        let device_text = Paragraph::new(device_text).block(Block::bordered().title("devices"));
+        let error_text = Text::from_iter(errors.iter().map(|(addr, errs)| {
+            format!(
+                "{addr}: has {} errors. First is: {:?}",
+                errs.len(),
+                errs.first().unwrap()
+            )
+        }));
+        let error_text = Paragraph::new(error_text).block(Block::bordered().title("errors"));
+        self.draw(|frame| {
+            let [device_listing, error_listing] =
+                Layout::vertical([Constraint::Fill(2), Constraint::Fill(1)]).areas(frame.area());
+            device_text.render(device_listing, frame.buffer_mut());
+            error_text.render(error_listing, frame.buffer_mut());
+        })
     }
 }
 
