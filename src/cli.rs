@@ -10,13 +10,7 @@ pub struct Splurt {
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// list interfaces
-    Interfaces,
-    /// list SSDP services
-    Ssdp,
-    /// advertise dummy service
-    Test,
-    /// listen to udp messages
+    /// Send out a search request for ssdp:all then listen to udp messages
     Listen,
     /// UI to silently listen (will not send out an initial search)
     Snoop,

@@ -36,8 +36,6 @@ ssdp_rs = { path = "ssdp-rs" }
 
 [dependencies]
 clap = { workspace = true }
-cotton-ssdp = "0.1.0"
-cotton-netif = { version = "0.1.0", default-features = true }
 crossterm = { version = "0.29.0", features = ["event-stream"] }
 exit_safely = { workspace = true }
 futures = { workspace = true }
@@ -47,9 +45,7 @@ futures-util = { version = "0.3.32", default-features = false, features = [
 ] }
 ratatui = "0.30.0"
 ssdp_rs = { workspace = true }
-tokio = "1.52.1"
 try_v2 = { workspace = true }
-uuid = { version = "1.23.1", features = ["v4"] }
 
 [build-dependencies]
 autocfg = { workspace = true }
