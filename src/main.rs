@@ -128,7 +128,7 @@ fn main() -> Exit<()> {
 
                 let mut events = EventStream::new();
 
-                try bikeshed Exit<!> {
+                try bikeshed Exit<()> {
                     loop {
                         let mut messages = messages_rx.recv().fuse();
                         let mut events = events.next().fuse();
@@ -150,7 +150,7 @@ fn main() -> Exit<()> {
                             event = events => match event {
                                 None => Exit::IO("Keyboard handler closed".to_string())?,
                                 Some(Err(e)) => Err(e)?,
-                                Some(Ok(Event::Key(event))) if event == KeyCode::Esc.into() => Exit::Error("esc pressed".to_string())?,
+                                Some(Ok(Event::Key(event))) if event == KeyCode::Esc.into() => break,
                                 _ => (),
                             },
                         };
@@ -185,13 +185,13 @@ fn main() -> Exit<()> {
             let mut render = pin!(render_loop.fuse());
             let try_join = async {
                 select!(
-                    err = listen => err,
+                    err = listen => err.unnever(),
                     exit = render => exit
                 )
             };
             let exit = futures::executor::block_on(try_join);
 
-            exit?;
+            return exit;
         }
 
         Command::Listen => {
@@ -360,6 +360,16 @@ pub enum Exit<T: _T> {
     Error(String) = 1,
     InvocationError(String) = 2,
     IO(String) = 3,
+}
+
+impl Exit<!> {
+    fn unnever<T: _T>(self) -> Exit<T> {
+        match self {
+            Exit::Error(e) => Exit::Error(e),
+            Exit::InvocationError(e) => Exit::InvocationError(e),
+            Exit::IO(e) => Exit::IO(e),
+        }
+    }
 }
 
 impl<T: _T> From<clap::Error> for Exit<T> {
