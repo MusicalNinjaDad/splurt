@@ -134,11 +134,15 @@ impl<'d> Iterator for DeviceLines<'d> {
         if let Some(embedded_devices) = self.embedded_devices.as_mut() {
             match embedded_devices.next() {
                 Some(ed) => {
+                    let dt = match &ed.device_type {
+                        Some(d) => d.to_string(),
+                        None => "Uknnown".to_string(),
+                    };
                     return Some(
                         format!(
-                            "\t{}: {:?} offering {} services",
+                            "\t{}: {} offering {} services",
                             ed.id,
-                            ed.device_type,
+                            dt,
                             ed.services.len()
                         )
                         .into(),
