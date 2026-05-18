@@ -73,8 +73,7 @@ fn main() -> Exit<()> {
 
             let listen_loop = async {
                 let mut listener = Listener::new(Ipv4Addr::UNSPECIFIED)?;
-                // TODO this should be Exit<!> but ... see my pre-RFC
-                try bikeshed Exit<()> {
+                try bikeshed Exit<!> {
                     loop {
                         let (msg, sent_by) = listener.next().await.expect("a message")?;
                         messages_tx.send((msg.parse(), sent_by)).await?;
@@ -92,7 +91,7 @@ fn main() -> Exit<()> {
 
                 let mut events = EventStream::new();
 
-                try bikeshed Exit<()> {
+                try bikeshed Exit<!> {
                     loop {
                         let mut messages = messages_rx.recv().fuse();
                         let mut events = events.next().fuse();
@@ -114,10 +113,8 @@ fn main() -> Exit<()> {
                             event = events => match event {
                                 None => Exit::IO("Keyboard handler closed".to_string())?,
                                 Some(Err(e)) => Err(e)?,
-                                Some(Ok(event)) => match event {
-                                    Event::Key(event) if event == KeyCode::Esc.into() => Exit::Ok(())?,
-                                    _ => (),
-                                }
+                                Some(Ok(Event::Key(event))) if event == KeyCode::Esc.into() => Exit::Error("esc pressed".to_string())?,
+                                _ => (),
                             },
                         };
                         let t = Text::from_iter(
@@ -158,7 +155,7 @@ fn main() -> Exit<()> {
             let exit = futures::executor::block_on(try_join);
 
             ratatui::restore();
-            return exit;
+            exit?;
         }
 
         Command::Listen => {
