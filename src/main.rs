@@ -184,10 +184,12 @@ fn main() -> Exit<()> {
             let mut listen = pin!(listen_loop.fuse());
             let mut render = pin!(render_loop.fuse());
             let try_join = async {
-                select!(
-                    err = listen => err.unnever(),
-                    exit = render => exit
-                )
+                try bikeshed Exit<()> {
+                    select!(
+                        err = listen => err?,
+                        exit = render => exit?,
+                    )
+                }
             };
             let exit = futures::executor::block_on(try_join);
 
@@ -360,16 +362,6 @@ pub enum Exit<T: _T> {
     Error(String) = 1,
     InvocationError(String) = 2,
     IO(String) = 3,
-}
-
-impl Exit<!> {
-    fn unnever<T: _T>(self) -> Exit<T> {
-        match self {
-            Exit::Error(e) => Exit::Error(e),
-            Exit::InvocationError(e) => Exit::InvocationError(e),
-            Exit::IO(e) => Exit::IO(e),
-        }
-    }
 }
 
 impl<T: _T> From<clap::Error> for Exit<T> {
