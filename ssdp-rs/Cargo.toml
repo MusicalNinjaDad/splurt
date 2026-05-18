@@ -26,7 +26,7 @@ futures-timer = "3.0.3"
 futures-udp = { workspace = true }
 osinfo = "1.0.0"
 url = { workspace = true }
-uuid = { version = "1.23.1", features = ["v4"] }
+uuid = { workspace = true, features = ["v4"] }
 
 [build-dependencies]
 autocfg = { workspace = true }

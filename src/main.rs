@@ -32,13 +32,17 @@ use try_v2::{Try, Try_ConvertResult};
 
 use ssdp_rs::{
     Listener, Searcher,
-    devicemap::{DeviceMap, rootdevice::RootDevice},
-    message::{Message, ParseError},
+    devicemap::{
+        DeviceMap,
+        rootdevice::{EmbeddedDevice, RootDevice},
+    },
+    message::{Message, ParseError, header::Lenient},
 };
 
 mod cli;
 use cli::*;
 use url::Url;
+use uuid::Uuid;
 
 struct Ui<B>
 where
@@ -104,13 +108,15 @@ impl<B: Backend> Ui<B> {
 }
 
 struct DeviceLines<'devices> {
-    devices: Values<'devices, Url, RootDevice>,
+    rootdevices: Values<'devices, Url, RootDevice>,
+    embedded_devices: Option<Values<'devices, Lenient<Uuid>, EmbeddedDevice>>,
 }
 
 impl<'d> From<&'d DeviceMap> for DeviceLines<'d> {
     fn from(devicemap: &'d DeviceMap) -> Self {
         Self {
-            devices: devicemap.devices().values(),
+            rootdevices: devicemap.devices().values(),
+            embedded_devices: None,
         }
     }
 }
@@ -125,15 +131,42 @@ impl<'d> Iterator for DeviceLines<'d> {
     type Item = Line<'d>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let rd = self.devices.next()?;
-        let text = format!(
-            "{}: {:?} with {} embedded devices",
-            rd.location,
-            rd.device_type,
-            rd.embedded_devices.len()
-        )
-        .into();
-        Some(text)
+        let text = match self.embedded_devices.as_mut() {
+            None => {
+                let rd = self.rootdevices.next()?;
+                if !rd.embedded_devices.is_empty() {
+                    self.embedded_devices = Some(rd.embedded_devices.values());
+                }
+                format!(
+                    "{}: {:?} with {} embedded devices",
+                    rd.location,
+                    rd.device_type,
+                    rd.embedded_devices.len()
+                )
+            }
+            Some(embedded_devices) => match embedded_devices.next() {
+                Some(ed) => format!(
+                    "\t{}: {:?} offering {} services",
+                    ed.id,
+                    ed.device_type,
+                    ed.services.len()
+                ),
+                None => {
+                    self.embedded_devices = None;
+                    let rd = self.rootdevices.next()?;
+                    if !rd.embedded_devices.is_empty() {
+                        self.embedded_devices = Some(rd.embedded_devices.values());
+                    }
+                    format!(
+                        "{}: {:?} with {} embedded devices",
+                        rd.location,
+                        rd.device_type,
+                        rd.embedded_devices.len()
+                    )
+                }
+            },
+        };
+        Some(text.into())
     }
 }
 

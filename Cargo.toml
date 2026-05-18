@@ -32,6 +32,7 @@ futures-udp = "0.1.0"
 ninja-build_rs = "0.1.0"
 try_v2 = "0.4.2"
 url = "2.5.8"
+uuid = { version = "1.23.1" }
 
 ssdp_rs = { path = "ssdp-rs" }
 
@@ -48,6 +49,7 @@ ratatui = "0.30.0"
 ssdp_rs = { workspace = true }
 try_v2 = { workspace = true }
 url = { workspace = true }
+uuid = { workspace = true }
 
 [build-dependencies]
 autocfg = { workspace = true }
