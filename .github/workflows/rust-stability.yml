@@ -27,7 +27,9 @@ jobs:
         tool: jaq
     - name: process matrix
       id: matrix
-      run: echo "matrix=$(jaq -c .channels .github/workflows/config/matrix.yml)" >> GITHUB_OUTPUT
+      run: |
+        jaq -c .channels .github/workflows/config/matrix.yml
+        echo matrix="$(jaq -c .channels .github/workflows/config/matrix.yml)" >> GITHUB_OUTPUT
 
   test:
     needs:
