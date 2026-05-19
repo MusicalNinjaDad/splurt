@@ -135,7 +135,7 @@ impl<'d> Iterator for DeviceLines<'d> {
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(services) = self.services.as_mut() {
             match services.next() {
-                Some(s) => return Some(format!("\t\t{}", s).into()),
+                Some(s) => return Some(format!("        [ ] {}", s).into()),
                 None => self.services = None,
             }
         }
@@ -147,11 +147,11 @@ impl<'d> Iterator for DeviceLines<'d> {
                     }
                     let dt = match &ed.device_type {
                         Some(d) => d.to_string(),
-                        None => "Uknown".to_string(),
+                        None => "Unknown".to_string(),
                     };
                     return Some(
                         format!(
-                            "\t{}: {} offering {} services",
+                            "    [ ] {}: {} offering {} services",
                             ed.id,
                             dt,
                             ed.services.len()
@@ -171,11 +171,11 @@ impl<'d> Iterator for DeviceLines<'d> {
         }
         let dt = match &rd.device_type {
             Some(d) => d.to_string(),
-            None => "Uknown".to_string(),
+            None => "Unknown".to_string(),
         };
         Some(
             format!(
-                "{}: {} with {} embedded devices",
+                "[ ] {}: {} with {} embedded devices",
                 rd.location,
                 dt,
                 rd.embedded_devices.len()
