@@ -135,7 +135,7 @@ impl<'d> Iterator for DeviceLines<'d> {
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(services) = self.services.as_mut() {
             match services.next() {
-                Some(s) => return Some(format!("        [ ] {}", s).into()),
+                Some(s) => return Some(format!("   └[ ] {}", s).into()),
                 None => self.services = None,
             }
         }
@@ -151,7 +151,7 @@ impl<'d> Iterator for DeviceLines<'d> {
                     };
                     return Some(
                         format!(
-                            "    [ ] {}: {} offering {} services",
+                            " └[ ] {}: {} offering {} services",
                             ed.id,
                             dt,
                             ed.services.len()
