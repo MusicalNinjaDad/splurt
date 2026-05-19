@@ -28,6 +28,7 @@ jobs:
     - name: process matrix
       id: matrix
       run: |
+        cat .github/workflows/config/matrix.yml
         jaq -c .channels .github/workflows/config/matrix.yml
         echo matrix="$(jaq -c .channels .github/workflows/config/matrix.yml)" >> GITHUB_OUTPUT
 
