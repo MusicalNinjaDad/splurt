@@ -10,10 +10,6 @@ on:
   workflow_dispatch:
   workflow_call:
 
-permissions:
-  contents: read
-  issues: write
-
 env:
     CARGO_TERM_COLOR: always
 
@@ -50,6 +46,9 @@ jobs:
       run: cargo +${{ matrix.channel }} clippy -- --deny warnings
 
   report:
+    permissions:
+      contents: read
+      issues: write
     if: ${{ always() }}
     needs: [test, lint]
     runs-on: ubuntu-latest
