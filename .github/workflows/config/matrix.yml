@@ -1,0 +1,6 @@
+channels:
+    channel: ["stable", "beta", "nightly"]
+    bootstrap: ["1"]
+    include:
+        - channel: "nightly"
+          bootstrap: "0"

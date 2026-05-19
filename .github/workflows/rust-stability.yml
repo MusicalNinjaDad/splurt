@@ -15,33 +15,49 @@ env:
 
 jobs:
 
+  channels:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+    - uses: actions/checkout@v6
+    - name: install jaq
+      uses: taiki-e/install-action@v2.77.7
+      with:
+        tool: jaq
+    - name: process matrix
+      id: matrix
+      run: echo "matrix=$(jaq -c .channels .github/workflows/config/matrix.yml)" >> GITHUB_OUTPUT
+
   test:
+    needs:
+      - channels
     strategy:
       fail-fast: false
-      matrix:
-        channel: ["stable", "beta", "nightly"]
+      matrix: ${{ fromJson(needs.channels.outputs.matrix) }}
+    env:
+      RUSTC_BOOTSTRAP: ${{ matrix.bootstrap }}
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
     - name: update rust
       run: rustup update
-    - name: Set bootstrap
-      run: test "${{ matrix.channel }}" != "nightly"  && echo "RUSTC_BOOTSTRAP=1" >> $GITHUB_ENV || true
     - name: Run tests
       run: cargo "+${{ matrix.channel }}" test --no-fail-fast
 
   lint:
+    needs:
+      - channels
     strategy:
       fail-fast: false
-      matrix:
-        channel: ["stable", "beta", "nightly"]
+      matrix: ${{ fromJson(needs.channels.outputs.matrix) }}
+    env:
+      RUSTC_BOOTSTRAP: ${{ matrix.bootstrap }}
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
     - name: update rust
       run: rustup update && rustup component add --toolchain ${{ matrix.channel }} clippy
-    - name: Set bootstrap
-      run: test "${{ matrix.channel }}" != "nightly"  && echo "RUSTC_BOOTSTRAP=1" >> $GITHUB_ENV  || true
     - name: clippy
       run: cargo +${{ matrix.channel }} clippy -- --deny warnings
 
