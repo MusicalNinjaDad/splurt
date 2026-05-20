@@ -1,9 +1,4 @@
-use std::{
-    collections::HashMap,
-    io,
-    net::SocketAddr,
-    ops::{Deref, DerefMut},
-};
+use std::{collections::HashMap, io, net::SocketAddr};
 
 use crossterm::event::{Event, KeyCode};
 use ratatui::{
@@ -22,20 +17,6 @@ where
     B: Backend,
 {
     terminal: Terminal<B>,
-}
-
-impl<B: Backend> Deref for Ui<B> {
-    type Target = Terminal<B>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.terminal
-    }
-}
-
-impl<B: Backend> DerefMut for Ui<B> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.terminal
-    }
 }
 
 impl Ui<CrosstermBackend<io::Stdout>> {
@@ -71,7 +52,7 @@ impl<B: Backend> Ui<B> {
             )
         }));
         let error_text = Paragraph::new(error_text).block(Block::bordered().title("errors"));
-        self.draw(|frame| {
+        self.terminal.draw(|frame| {
             let [device_listing, error_listing] =
                 Layout::vertical([Constraint::Fill(2), Constraint::Fill(1)]).areas(frame.area());
             device_text.render(device_listing, frame.buffer_mut());
