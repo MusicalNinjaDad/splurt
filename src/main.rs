@@ -69,7 +69,7 @@ fn main() -> Exit<()> {
                                 }
                             },
                             event = events => if let Some(exit) = ui.handle_event(event) {
-                                break exit?;
+                                break exit?; // break required as this could be Exit::Ok(())
                             },
                         };
                         ui.render()?;
