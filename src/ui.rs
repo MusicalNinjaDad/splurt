@@ -18,7 +18,7 @@ use ssdp_rs::{
         DeviceMap,
         rootdevice::{EmbeddedDevice, RootDevice},
     },
-    message::{ParseError, ServiceDetails, header::Lenient},
+    message::{Message, ParseError, ServiceDetails, header::Lenient},
 };
 use url::Url;
 use uuid::Uuid;
@@ -83,6 +83,10 @@ impl<B: Backend> Ui<B> {
             device_text.render(device_listing, frame.buffer_mut());
             error_text.render(error_listing, frame.buffer_mut());
         })
+    }
+
+    pub fn process_device(&mut self, message: Message) {
+        self.devices.devices.process(message);
     }
 }
 
