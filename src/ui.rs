@@ -31,6 +31,7 @@ where
 {
     terminal: Terminal<B>,
     devices: DeviceListing,
+    errors: ErrorListing,
 }
 
 impl Ui<CrosstermBackend<io::Stdout>> {
@@ -39,6 +40,7 @@ impl Ui<CrosstermBackend<io::Stdout>> {
         Self {
             terminal,
             devices: Default::default(),
+            errors: Default::default(),
         }
     }
 }
@@ -65,28 +67,28 @@ impl<B: Backend> HandleEvent for Ui<B> {
 }
 
 impl<B: Backend> Ui<B> {
-    pub fn render(
-        &mut self,
-        errors: &HashMap<SocketAddr, Vec<ParseError>>,
-    ) -> Result<CompletedFrame<'_>, B::Error> {
-        let error_text = Text::from_iter(errors.iter().map(|(addr, errs)| {
-            format!(
-                "{addr}: has {} errors. First is: {:?}",
-                errs.len(),
-                errs.first().unwrap()
-            )
-        }));
-        let error_text = Paragraph::new(error_text).block(Block::bordered().title("errors"));
+    pub fn render(&mut self) -> Result<CompletedFrame<'_>, B::Error> {
         self.terminal.draw(|frame| {
             let [device_listing, error_listing] =
                 Layout::vertical([Constraint::Fill(2), Constraint::Fill(1)]).areas(frame.area());
             self.devices.render(device_listing, frame.buffer_mut());
-            error_text.render(error_listing, frame.buffer_mut());
+            self.errors.render(error_listing, frame.buffer_mut());
         })
     }
 
     pub fn process_device(&mut self, message: Message) {
         self.devices.devices.process(message);
+    }
+
+    pub fn process_error(&mut self, error: ParseError, sent_by: SocketAddr) {
+        match self.errors.errors.entry(sent_by) {
+            std::collections::hash_map::Entry::Occupied(mut grrr) => {
+                grrr.get_mut().push(error);
+            }
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert(vec![error]);
+            }
+        }
     }
 }
 
@@ -187,5 +189,27 @@ impl<'d> Iterator for DeviceLines<'d> {
             )
             .into(),
         )
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct ErrorListing {
+    errors: HashMap<SocketAddr, Vec<ParseError>>,
+}
+
+impl Widget for &ErrorListing {
+    fn render(self, area: Rect, buf: &mut Buffer)
+    where
+        Self: Sized,
+    {
+        let error_text = Text::from_iter(self.errors.iter().map(|(addr, errs)| {
+            format!(
+                "{addr}: has {} errors. First is: {:?}",
+                errs.len(),
+                errs.first().unwrap()
+            )
+        }));
+        let error_text = Paragraph::new(error_text).block(Block::bordered().title("errors"));
+        error_text.render(area, buf);
     }
 }

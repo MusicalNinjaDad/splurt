@@ -6,7 +6,6 @@
 #![feature(try_trait_v2_residual)]
 
 use std::{
-    collections::HashMap,
     fmt::Debug,
     future::join,
     io,
@@ -53,8 +52,7 @@ fn main() -> Exit<()> {
 
             let render_loop = async {
                 let mut ui = Ui::new();
-                let mut errors: HashMap<SocketAddr, Vec<ParseError>> = HashMap::new();
-                ui.render(&errors)?;
+                ui.render()?;
 
                 let mut events = EventStream::new();
 
@@ -67,21 +65,14 @@ fn main() -> Exit<()> {
                                 let (msg, sent_by) = message?;
                                 match msg {
                                     Ok(message) => ui.process_device(message),
-                                    Err(e) => match errors.entry(sent_by) {
-                                        std::collections::hash_map::Entry::Occupied(mut grrr) => {
-                                            grrr.get_mut().push(e);
-                                        }
-                                        std::collections::hash_map::Entry::Vacant(entry) => {
-                                            entry.insert(vec![e]);
-                                        }
-                                    },
+                                    Err(error) => ui.process_error(error, sent_by),
                                 }
                             },
                             event = events => if let Some(exit) = ui.handle_event(event) {
                                 break exit?;
                             },
                         };
-                        ui.render(&errors)?;
+                        ui.render()?;
                     }
                 }
             };
