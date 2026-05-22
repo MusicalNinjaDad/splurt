@@ -66,23 +66,21 @@ impl Ui<CrosstermBackend<io::Stdout>> {
     }
 }
 
-pub trait HandleEvent<B: Backend> {
-    type Output: Try;
+pub trait HandleEvent {
+    type Output;
 
     /// Handle the given event, returning Some(Output) if this leads to a situation which should
     /// be handled by the caller.
-    fn handle_event(&mut self, event: Option<io::Result<Event>>) -> Option<Self::Output>
-    where
-        Self::Output: FromResidual<<Result<!, B::Error> as Try>::Residual>;
+    fn handle_event(&mut self, event: Option<io::Result<Event>>) -> Option<Self::Output>;
 }
 
-impl<B: Backend> HandleEvent<B> for Ui<B> {
+impl<B: Backend> HandleEvent for Ui<B>
+where
+    Exit<()>: FromResidual<<Result<!, B::Error> as Try>::Residual>,
+{
     type Output = Exit<()>;
 
-    fn handle_event(&mut self, event: Option<io::Result<Event>>) -> Option<Self::Output>
-    where
-        Self::Output: FromResidual<<Result<!, B::Error> as Try>::Residual>,
-    {
+    fn handle_event(&mut self, event: Option<io::Result<Event>>) -> Option<Self::Output> {
         match event {
             None => Some(Exit::IO("Keyboard handler closed".to_string())),
             Some(Err(e)) => Some(try bikeshed Exit<()> { Err(e)? }),
