@@ -36,7 +36,10 @@ where
 impl Ui<CrosstermBackend<io::Stdout>> {
     pub fn new() -> Self {
         let terminal = ratatui::init();
-        Self { terminal, devices: Default::default() }
+        Self {
+            terminal,
+            devices: Default::default(),
+        }
     }
 }
 
@@ -64,11 +67,8 @@ impl<B: Backend> HandleEvent for Ui<B> {
 impl<B: Backend> Ui<B> {
     pub fn render(
         &mut self,
-        devices: &DeviceMap,
         errors: &HashMap<SocketAddr, Vec<ParseError>>,
     ) -> Result<CompletedFrame<'_>, B::Error> {
-        let device_text =
-            Paragraph::new(DeviceLines::from(devices)).block(Block::bordered().title("devices"));
         let error_text = Text::from_iter(errors.iter().map(|(addr, errs)| {
             format!(
                 "{addr}: has {} errors. First is: {:?}",
@@ -80,7 +80,7 @@ impl<B: Backend> Ui<B> {
         self.terminal.draw(|frame| {
             let [device_listing, error_listing] =
                 Layout::vertical([Constraint::Fill(2), Constraint::Fill(1)]).areas(frame.area());
-            device_text.render(device_listing, frame.buffer_mut());
+            self.devices.render(device_listing, frame.buffer_mut());
             error_text.render(error_listing, frame.buffer_mut());
         })
     }
@@ -106,8 +106,8 @@ impl Widget for &mut DeviceListing {
     where
         Self: Sized,
     {
-        let device_text =
-            Paragraph::new(DeviceLines::from(&self.devices)).block(Block::bordered().title("devices"));
+        let device_text = Paragraph::new(DeviceLines::from(&self.devices))
+            .block(Block::bordered().title("devices"));
         device_text.render(area, buf);
     }
 }

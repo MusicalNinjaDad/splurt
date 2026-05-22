@@ -23,7 +23,6 @@ use try_v2::{Try, Try_ConvertResult};
 
 use ssdp_rs::{
     Listener, Searcher,
-    devicemap::DeviceMap,
     message::{Message, ParseError},
 };
 
@@ -54,9 +53,8 @@ fn main() -> Exit<()> {
 
             let render_loop = async {
                 let mut ui = Ui::new();
-                let mut devices = DeviceMap::new();
                 let mut errors: HashMap<SocketAddr, Vec<ParseError>> = HashMap::new();
-                ui.render(&devices, &errors)?;
+                ui.render(&errors)?;
 
                 let mut events = EventStream::new();
 
@@ -68,7 +66,7 @@ fn main() -> Exit<()> {
                             message = messages => {
                                 let (msg, sent_by) = message?;
                                 match msg {
-                                    Ok(message) => devices.process(message),
+                                    Ok(message) => ui.process_device(message),
                                     Err(e) => match errors.entry(sent_by) {
                                         std::collections::hash_map::Entry::Occupied(mut grrr) => {
                                             grrr.get_mut().push(e);
@@ -83,7 +81,7 @@ fn main() -> Exit<()> {
                                 break exit?;
                             },
                         };
-                        ui.render(&devices, &errors)?;
+                        ui.render(&errors)?;
                     }
                 }
             };
