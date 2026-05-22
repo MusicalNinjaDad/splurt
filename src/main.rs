@@ -38,6 +38,8 @@ use cli::*;
 mod ui;
 use ui::Ui;
 
+use crate::ui::HandleEvent;
+
 struct DeviceLines<'devices> {
     rootdevices: Values<'devices, Url, RootDevice>,
     embedded_devices: Option<Values<'devices, Lenient<Uuid>, EmbeddedDevice>>,

@@ -26,9 +26,18 @@ impl Ui<CrosstermBackend<io::Stdout>> {
     }
 }
 
-impl<B: Backend> Ui<B> {
-    /// Returns `Some(Exit)` if an event occurs which leads to an exit condition.
-    pub fn handle_event(&self, event: Option<io::Result<Event>>) -> Option<Exit<()>> {
+pub trait HandleEvent {
+    type Output;
+
+    /// Handle the given event, returning Some(Output) if this leads to a situation which should
+    /// be handled by the caller.
+    fn handle_event(&self, event: Option<io::Result<Event>>) -> Option<Self::Output>;
+}
+
+impl<B: Backend> HandleEvent for Ui<B> {
+    type Output = Exit<()>;
+
+    fn handle_event(&self, event: Option<io::Result<Event>>) -> Option<Self::Output> {
         match event {
             None => Some(Exit::IO("Keyboard handler closed".to_string())),
             Some(Err(e)) => Some(try bikeshed Exit<()> { Err(e)? }),
@@ -36,7 +45,9 @@ impl<B: Backend> Ui<B> {
             _ => None,
         }
     }
+}
 
+impl<B: Backend> Ui<B> {
     pub fn render(
         &mut self,
         devices: &DeviceMap,
