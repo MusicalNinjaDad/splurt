@@ -1,16 +1,28 @@
-use std::{collections::HashMap, io, net::SocketAddr};
+use std::{
+    collections::{HashMap, hash_map::Values, hash_set},
+    io,
+    net::SocketAddr,
+};
 
 use crossterm::event::{Event, KeyCode};
 use ratatui::{
     CompletedFrame, Terminal,
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Layout},
-    text::Text,
+    text::{Line, Text},
     widgets::{Block, Paragraph, Widget},
 };
-use ssdp_rs::{devicemap::DeviceMap, message::ParseError};
+use ssdp_rs::{
+    devicemap::{
+        DeviceMap,
+        rootdevice::{EmbeddedDevice, RootDevice},
+    },
+    message::{ParseError, ServiceDetails, header::Lenient},
+};
+use url::Url;
+use uuid::Uuid;
 
-use crate::{DeviceLines, Exit};
+use crate::Exit;
 
 pub(crate) struct Ui<B>
 where
@@ -75,5 +87,83 @@ impl<B: Backend> Ui<B> {
 impl<B: Backend> Drop for Ui<B> {
     fn drop(&mut self) {
         ratatui::restore();
+    }
+}
+
+struct DeviceLines<'devices> {
+    rootdevices: Values<'devices, Url, RootDevice>,
+    embedded_devices: Option<Values<'devices, Lenient<Uuid>, EmbeddedDevice>>,
+    services: Option<hash_set::Iter<'devices, ServiceDetails>>,
+}
+
+impl<'d> From<&'d DeviceMap> for DeviceLines<'d> {
+    fn from(devicemap: &'d DeviceMap) -> Self {
+        Self {
+            rootdevices: devicemap.devices().values(),
+            embedded_devices: None,
+            services: None,
+        }
+    }
+}
+
+impl<'d> From<DeviceLines<'d>> for Text<'d> {
+    fn from(devicelines: DeviceLines<'d>) -> Self {
+        Text::from_iter(devicelines)
+    }
+}
+
+impl<'d> Iterator for DeviceLines<'d> {
+    type Item = Line<'d>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(services) = self.services.as_mut() {
+            match services.next() {
+                Some(s) => return Some(format!("   └[ ] {}", s).into()),
+                None => self.services = None,
+            }
+        }
+        if let Some(embedded_devices) = self.embedded_devices.as_mut() {
+            match embedded_devices.next() {
+                Some(ed) => {
+                    if !ed.services.is_empty() {
+                        self.services = Some(ed.services.iter());
+                    }
+                    let dt = match &ed.device_type {
+                        Some(d) => d.to_string(),
+                        None => "Unknown".to_string(),
+                    };
+                    return Some(
+                        format!(
+                            " └[ ] {}: {} offering {} services",
+                            ed.id,
+                            dt,
+                            ed.services.len()
+                        )
+                        .into(),
+                    );
+                }
+                None => self.embedded_devices = None,
+            }
+        };
+        let rd = self.rootdevices.next()?;
+        if !rd.embedded_devices.is_empty() {
+            self.embedded_devices = Some(rd.embedded_devices.values());
+        }
+        if !rd.services.is_empty() {
+            self.services = Some(rd.services.iter());
+        }
+        let dt = match &rd.device_type {
+            Some(d) => d.to_string(),
+            None => "Unknown".to_string(),
+        };
+        Some(
+            format!(
+                "[ ] {}: {} with {} embedded devices",
+                rd.location,
+                dt,
+                rd.embedded_devices.len()
+            )
+            .into(),
+        )
     }
 }

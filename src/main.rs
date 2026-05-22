@@ -6,7 +6,7 @@
 #![feature(try_trait_v2_residual)]
 
 use std::{
-    collections::{HashMap, hash_map::Values, hash_set},
+    collections::HashMap,
     fmt::Debug,
     future::join,
     io,
@@ -19,18 +19,12 @@ use clap::Parser;
 use crossterm::event::EventStream;
 use exit_safely::Termination;
 use futures::{FutureExt, SinkExt, StreamExt, channel::mpsc::unbounded, select};
-use ratatui::text::{Line, Text};
 use try_v2::{Try, Try_ConvertResult};
-use url::Url;
-use uuid::Uuid;
 
 use ssdp_rs::{
     Listener, Searcher,
-    devicemap::{
-        DeviceMap,
-        rootdevice::{EmbeddedDevice, RootDevice},
-    },
-    message::{Message, ParseError, ServiceDetails, header::Lenient},
+    devicemap::DeviceMap,
+    message::{Message, ParseError},
 };
 
 mod cli;
@@ -39,84 +33,6 @@ mod ui;
 use ui::Ui;
 
 use crate::ui::HandleEvent;
-
-struct DeviceLines<'devices> {
-    rootdevices: Values<'devices, Url, RootDevice>,
-    embedded_devices: Option<Values<'devices, Lenient<Uuid>, EmbeddedDevice>>,
-    services: Option<hash_set::Iter<'devices, ServiceDetails>>,
-}
-
-impl<'d> From<&'d DeviceMap> for DeviceLines<'d> {
-    fn from(devicemap: &'d DeviceMap) -> Self {
-        Self {
-            rootdevices: devicemap.devices().values(),
-            embedded_devices: None,
-            services: None,
-        }
-    }
-}
-
-impl<'d> From<DeviceLines<'d>> for Text<'d> {
-    fn from(devicelines: DeviceLines<'d>) -> Self {
-        Text::from_iter(devicelines)
-    }
-}
-
-impl<'d> Iterator for DeviceLines<'d> {
-    type Item = Line<'d>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(services) = self.services.as_mut() {
-            match services.next() {
-                Some(s) => return Some(format!("   └[ ] {}", s).into()),
-                None => self.services = None,
-            }
-        }
-        if let Some(embedded_devices) = self.embedded_devices.as_mut() {
-            match embedded_devices.next() {
-                Some(ed) => {
-                    if !ed.services.is_empty() {
-                        self.services = Some(ed.services.iter());
-                    }
-                    let dt = match &ed.device_type {
-                        Some(d) => d.to_string(),
-                        None => "Unknown".to_string(),
-                    };
-                    return Some(
-                        format!(
-                            " └[ ] {}: {} offering {} services",
-                            ed.id,
-                            dt,
-                            ed.services.len()
-                        )
-                        .into(),
-                    );
-                }
-                None => self.embedded_devices = None,
-            }
-        };
-        let rd = self.rootdevices.next()?;
-        if !rd.embedded_devices.is_empty() {
-            self.embedded_devices = Some(rd.embedded_devices.values());
-        }
-        if !rd.services.is_empty() {
-            self.services = Some(rd.services.iter());
-        }
-        let dt = match &rd.device_type {
-            Some(d) => d.to_string(),
-            None => "Unknown".to_string(),
-        };
-        Some(
-            format!(
-                "[ ] {}: {} with {} embedded devices",
-                rd.location,
-                dt,
-                rd.embedded_devices.len()
-            )
-            .into(),
-        )
-    }
-}
 
 fn main() -> Exit<()> {
     let splurt = Splurt::try_parse()?;
