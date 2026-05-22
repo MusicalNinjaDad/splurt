@@ -30,12 +30,13 @@ where
     B: Backend,
 {
     terminal: Terminal<B>,
+    devices: DeviceListing,
 }
 
 impl Ui<CrosstermBackend<io::Stdout>> {
     pub fn new() -> Self {
         let terminal = ratatui::init();
-        Self { terminal }
+        Self { terminal, devices: Default::default() }
     }
 }
 
@@ -91,6 +92,7 @@ impl<B: Backend> Drop for Ui<B> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 struct DeviceListing {
     devices: DeviceMap,
 }
