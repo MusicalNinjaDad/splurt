@@ -103,7 +103,7 @@ struct DeviceListing {
     devices: DeviceMap,
 }
 
-impl Widget for &mut DeviceListing {
+impl Widget for &DeviceListing {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
