@@ -8,7 +8,8 @@ use crossterm::event::{Event, KeyCode};
 use ratatui::{
     CompletedFrame, Terminal,
     backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Layout},
+    buffer::Buffer,
+    layout::{Constraint, Layout, Rect},
     text::{Line, Text},
     widgets::{Block, Paragraph, Widget},
 };
@@ -87,6 +88,21 @@ impl<B: Backend> Ui<B> {
 impl<B: Backend> Drop for Ui<B> {
     fn drop(&mut self) {
         ratatui::restore();
+    }
+}
+
+struct DeviceListing {
+    devices: DeviceMap,
+}
+
+impl Widget for &mut DeviceListing {
+    fn render(self, area: Rect, buf: &mut Buffer)
+    where
+        Self: Sized,
+    {
+        let device_text =
+            Paragraph::new(DeviceLines::from(&self.devices)).block(Block::bordered().title("devices"));
+        device_text.render(area, buf);
     }
 }
 
