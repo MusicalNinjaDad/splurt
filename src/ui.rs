@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, hash_map::Values, hash_set},
     io,
     net::SocketAddr,
+    ops::{FromResidual, Try},
 };
 
 use crossterm::event::{Event, KeyCode};
@@ -11,7 +12,7 @@ use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Layout, Rect},
     text::{Line, Text},
-    widgets::{Block, Paragraph, Widget},
+    widgets::{Block, BorderType, Paragraph, StatefulWidget, Widget},
 };
 use ssdp_rs::{
     devicemap::{
@@ -32,6 +33,25 @@ where
     terminal: Terminal<B>,
     devices: DeviceListing,
     errors: ErrorListing,
+    focus: FocusHolder,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Default)]
+enum FocusHolder {
+    #[default]
+    None,
+    Devices,
+    Errors,
+}
+
+impl FocusHolder {
+    fn next(&mut self) {
+        *self = match self {
+            FocusHolder::None => Self::Devices,
+            FocusHolder::Devices => Self::Errors,
+            FocusHolder::Errors => Self::Devices,
+        }
+    }
 }
 
 impl Ui<CrosstermBackend<io::Stdout>> {
@@ -41,26 +61,39 @@ impl Ui<CrosstermBackend<io::Stdout>> {
             terminal,
             devices: Default::default(),
             errors: Default::default(),
+            focus: Default::default(),
         }
     }
 }
 
-pub trait HandleEvent {
-    type Output;
+pub trait HandleEvent<B: Backend> {
+    type Output: Try;
 
     /// Handle the given event, returning Some(Output) if this leads to a situation which should
     /// be handled by the caller.
-    fn handle_event(&self, event: Option<io::Result<Event>>) -> Option<Self::Output>;
+    fn handle_event(&mut self, event: Option<io::Result<Event>>) -> Option<Self::Output>
+    where
+        Self::Output: FromResidual<<Result<!, B::Error> as Try>::Residual>;
 }
 
-impl<B: Backend> HandleEvent for Ui<B> {
+impl<B: Backend> HandleEvent<B> for Ui<B> {
     type Output = Exit<()>;
 
-    fn handle_event(&self, event: Option<io::Result<Event>>) -> Option<Self::Output> {
+    fn handle_event(&mut self, event: Option<io::Result<Event>>) -> Option<Self::Output>
+    where
+        Self::Output: FromResidual<<Result<!, B::Error> as Try>::Residual>,
+    {
         match event {
             None => Some(Exit::IO("Keyboard handler closed".to_string())),
             Some(Err(e)) => Some(try bikeshed Exit<()> { Err(e)? }),
             Some(Ok(Event::Key(event))) if event == KeyCode::Esc.into() => Some(Exit::Ok(())),
+            Some(Ok(Event::Key(event))) if event == KeyCode::Tab.into() => {
+                self.focus.next();
+                match self.render() {
+                    Ok(_) => None,
+                    Err(e) => Some(try bikeshed Exit<()> { Err(e)? }),
+                }
+            }
             _ => None,
         }
     }
@@ -71,7 +104,8 @@ impl<B: Backend> Ui<B> {
         self.terminal.draw(|frame| {
             let [device_listing, error_listing] =
                 Layout::vertical([Constraint::Fill(2), Constraint::Fill(1)]).areas(frame.area());
-            self.devices.render(device_listing, frame.buffer_mut());
+            self.devices
+                .render(device_listing, frame.buffer_mut(), &mut self.focus);
             self.errors.render(error_listing, frame.buffer_mut());
         })
     }
@@ -103,13 +137,19 @@ struct DeviceListing {
     devices: DeviceMap,
 }
 
-impl Widget for &DeviceListing {
-    fn render(self, area: Rect, buf: &mut Buffer)
+impl StatefulWidget for &DeviceListing {
+    type State = FocusHolder;
+
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut FocusHolder)
     where
         Self: Sized,
     {
+        let border_type = match state {
+            FocusHolder::Devices => BorderType::Double,
+            _ => BorderType::default(),
+        };
         let device_text = Paragraph::new(DeviceLines::from(&self.devices))
-            .block(Block::bordered().title("devices"));
+            .block(Block::bordered().border_type(border_type).title("devices"));
         device_text.render(area, buf);
     }
 }
