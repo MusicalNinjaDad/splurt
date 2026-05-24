@@ -18,6 +18,9 @@ publish = false
 members = ["ssdp-rs"]
 default-members = [".", "ssdp-rs"]
 
+[workspace.lints.clippy]
+tests_outside_test_module = "deny"
+
 [workspace.dependencies]
 async-ready = "3.0.0"
 autocfg = "1.5.0"
@@ -35,6 +38,9 @@ url = "2.5.8"
 uuid = { version = "1.23.1" }
 
 ssdp_rs = { path = "ssdp-rs" }
+
+[lints]
+workspace = true
 
 [dependencies]
 clap = { workspace = true }
