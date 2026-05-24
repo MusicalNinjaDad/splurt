@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, hash_map::Values, hash_set},
+    collections::{HashMap, HashSet, hash_map::Values, hash_set},
     io,
     net::SocketAddr,
     ops::{FromResidual, Try},
@@ -133,6 +133,7 @@ impl<B: Backend> Drop for Ui<B> {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 struct DeviceListing {
     devices: DeviceMap,
+    expanded: HashSet<Lenient<Uuid>>,
 }
 
 impl StatefulWidget for &DeviceListing {
@@ -146,7 +147,7 @@ impl StatefulWidget for &DeviceListing {
             FocusHolder::Devices => BorderType::Double,
             _ => BorderType::default(),
         };
-        let device_text = Paragraph::new(DeviceLines::from(&self.devices))
+        let device_text = Paragraph::new(DeviceLines::from(self))
             .block(Block::bordered().border_type(border_type).title("devices"));
         device_text.render(area, buf);
     }
@@ -156,14 +157,16 @@ struct DeviceLines<'devices> {
     rootdevices: Values<'devices, Url, RootDevice>,
     embedded_devices: Option<Values<'devices, Lenient<Uuid>, EmbeddedDevice>>,
     services: Option<hash_set::Iter<'devices, ServiceDetails>>,
+    expanded: &'devices HashSet<Lenient<Uuid>>,
 }
 
-impl<'d> From<&'d DeviceMap> for DeviceLines<'d> {
-    fn from(devicemap: &'d DeviceMap) -> Self {
+impl<'d> From<&'d DeviceListing> for DeviceLines<'d> {
+    fn from(devicelisting: &'d DeviceListing) -> Self {
         Self {
-            rootdevices: devicemap.devices().values(),
+            rootdevices: devicelisting.devices.devices().values(),
             embedded_devices: None,
             services: None,
+            expanded: &devicelisting.expanded,
         }
     }
 }
@@ -211,7 +214,13 @@ impl<'d> Iterator for DeviceLines<'d> {
         let mut marker = "[ ]";
         if !rd.embedded_devices.is_empty() {
             self.embedded_devices = Some(rd.embedded_devices.values());
-            marker = "[+]";
+            if let Some(id) = &rd.id
+                && self.expanded.contains(id)
+            {
+                marker = "[-]";
+            } else {
+                marker = "[+]";
+            }
         }
         if !rd.services.is_empty() {
             self.services = Some(rd.services.iter());
@@ -260,6 +269,7 @@ impl Widget for &ErrorListing {
 mod tests {
 
     use ratatui::style::Style;
+    use uuid::uuid;
 
     use super::*;
 
@@ -288,7 +298,10 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         let message = device.parse().expect("root device message");
         devices.process(message);
 
-        let listing = DeviceListing { devices };
+        let listing = DeviceListing {
+            devices,
+            ..Default::default()
+        };
         let area = Rect::new(0, 0, 80, 3);
         let mut buf = Buffer::empty(area);
         let mut state = Default::default();
@@ -358,13 +371,91 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         let message = embedded_device.parse().expect("embedded device message");
         devices.process(message);
 
-        let listing = DeviceListing { devices };
+        let listing = DeviceListing {
+            devices,
+            ..Default::default()
+        };
         let area = Rect::new(0, 0, 80, 3);
         let mut buf = Buffer::empty(area);
         let mut state = Default::default();
         listing.render(area, &mut buf, &mut state);
 
         let expected_text = "[+] http://192.168.0.84:1400/xml/device_description.xml: Unknown";
+        let expected_area = Rect::new(1, 1, expected_text.len().try_into().unwrap(), 1);
+        let mut expected_buf = Buffer::empty(expected_area);
+        expected_buf.set_string(1, 1, expected_text, Style::default());
+
+        let mut relevant_buf = Buffer::empty(expected_area);
+        relevant_buf.content = buf
+            .content
+            .into_iter()
+            .skip(81)
+            .take(expected_text.len())
+            .collect();
+
+        assert_eq!(relevant_buf, expected_buf);
+    }
+
+    #[test]
+    fn minus_if_expanded() {
+        let mut devices = DeviceMap::new();
+
+        let root_device = r#"HTTP/1.1 200 OK
+CACHE-CONTROL: max-age = 1800
+DATE: Wed, 29 Apr 2026 08:22:03 GMT
+EXT:
+LOCATION: http://192.168.0.84:1400/xml/device_description.xml
+SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
+ST: upnp:rootdevice
+USN: uuid:c4248768-d6b6-4232-a273-5b1701524493::upnp:rootdevice
+X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
+X-RINCON-BOOTSEQ: 6
+BOOTID.UPNP.ORG: 6
+X-RINCON-WIFIMODE: 1
+X-RINCON-VARIANT: 2
+HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
+LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
+SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
+X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
+
+"#;
+        let message = root_device.parse().expect("root device message");
+        devices.process(message);
+
+        let embedded_device = r#"HTTP/1.1 200 OK
+CACHE-CONTROL: max-age = 1800
+DATE: Wed, 29 Apr 2026 08:22:03 GMT
+EXT:
+LOCATION: http://192.168.0.84:1400/xml/device_description.xml
+SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
+ST: urn:schemas-upnp-org:device:MediaServer:1
+USN: uuid:a4a60994-e188-4dd7-b3f5-3b5c6f47e036::urn:schemas-upnp-org:device:MediaServer:1
+X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
+X-RINCON-BOOTSEQ: 6
+BOOTID.UPNP.ORG: 6
+X-RINCON-WIFIMODE: 1
+X-RINCON-VARIANT: 2
+HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
+LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
+SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
+X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
+
+"#;
+        let message = embedded_device.parse().expect("embedded device message");
+        devices.process(message);
+
+        let listing = DeviceListing {
+            devices,
+            expanded: HashSet::from([Lenient::Valid(uuid!(
+                "c4248768-d6b6-4232-a273-5b1701524493"
+            ))]),
+        };
+        let area = Rect::new(0, 0, 80, 3);
+        let mut buf = Buffer::empty(area);
+        let mut state = Default::default();
+        listing.render(area, &mut buf, &mut state);
+
+        let expected_text = "[-] http://192.168.0.84:1400/xml/device_description.xml: Unknown";
         let expected_area = Rect::new(1, 1, expected_text.len().try_into().unwrap(), 1);
         let mut expected_buf = Buffer::empty(expected_area);
         expected_buf.set_string(1, 1, expected_text, Style::default());
