@@ -208,11 +208,14 @@ impl<'d> Iterator for DeviceLines<'d> {
             }
         };
         let rd = self.rootdevices.next()?;
+        let mut marker = "[ ]";
         if !rd.embedded_devices.is_empty() {
             self.embedded_devices = Some(rd.embedded_devices.values());
+            marker = "[+]";
         }
         if !rd.services.is_empty() {
             self.services = Some(rd.services.iter());
+            marker = "[+]";
         }
         let dt = match &rd.device_type {
             Some(d) => d.to_string(),
@@ -220,7 +223,8 @@ impl<'d> Iterator for DeviceLines<'d> {
         };
         Some(
             format!(
-                "[ ] {}: {} with {} embedded devices",
+                "{} {}: {} with {} embedded devices",
+                marker,
                 rd.location,
                 dt,
                 rd.embedded_devices.len()
