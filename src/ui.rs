@@ -283,14 +283,26 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         let mut devices = DeviceMap::new();
         let message = device.parse().expect("root device message");
         devices.process(message);
+
         let listing = DeviceListing { devices };
-        let area = Rect::new(0, 0, 80, 1);
+        let area = Rect::new(0, 0, 80, 3);
         let mut buf = Buffer::empty(area);
-        let expected_text = "[ ] http://192.168.0.84:1400/xml/device_description.xml: Unknown";
-        let mut expected_buf = buf.clone();
-        expected_buf.set_string(0, 0, expected_text, Style::default());
         let mut state = Default::default();
         listing.render(area, &mut buf, &mut state);
-        assert_eq!(buf, expected_buf);
+
+        let expected_text = "[ ] http://192.168.0.84:1400/xml/device_description.xml: Unknown";
+        let expected_area = Rect::new(1, 1, expected_text.len().try_into().unwrap(), 1);
+        let mut expected_buf = Buffer::empty(expected_area);
+        expected_buf.set_string(1, 1, expected_text, Style::default());
+
+        let mut relevant_buf = Buffer::empty(expected_area);
+        relevant_buf.content = buf
+            .content
+            .into_iter()
+            .skip(81)
+            .take(expected_text.len())
+            .collect();
+
+        assert_eq!(relevant_buf, expected_buf);
     }
 }
