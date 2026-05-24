@@ -211,20 +211,19 @@ impl<'d> Iterator for DeviceLines<'d> {
             }
         };
         let rd = self.rootdevices.next()?;
-        let mut marker = "[ ]";
+        let marker = match (
+            rd.embedded_devices.is_empty() && rd.services.is_empty(),
+            &rd.id,
+        ) {
+            (true, _) => "[ ]",
+            (false, Some(id)) if self.expanded.contains(id) => "[-]",
+            (false, _) => "[+]",
+        };
         if !rd.embedded_devices.is_empty() {
             self.embedded_devices = Some(rd.embedded_devices.values());
-            if let Some(id) = &rd.id
-                && self.expanded.contains(id)
-            {
-                marker = "[-]";
-            } else {
-                marker = "[+]";
-            }
         }
         if !rd.services.is_empty() {
             self.services = Some(rd.services.iter());
-            marker = "[+]";
         }
         let dt = match &rd.device_type {
             Some(d) => d.to_string(),
