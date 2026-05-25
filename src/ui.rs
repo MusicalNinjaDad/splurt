@@ -290,9 +290,7 @@ mod tests {
         window
     }
 
-    #[test]
-    fn list_root_device() {
-        let device = r#"HTTP/1.1 200 OK
+    const ROOT: &str = r#"HTTP/1.1 200 OK
 CACHE-CONTROL: max-age = 1800
 DATE: Wed, 29 Apr 2026 08:22:03 GMT
 EXT:
@@ -311,9 +309,39 @@ SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
 X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
 "#;
+
+    fn root_msg() -> Message {
+        ROOT.parse().expect("root device message")
+    }
+
+    const EMBEDDED_DEVICE: &str = r#"HTTP/1.1 200 OK
+CACHE-CONTROL: max-age = 1800
+DATE: Wed, 29 Apr 2026 08:22:03 GMT
+EXT:
+LOCATION: http://192.168.0.84:1400/xml/device_description.xml
+SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
+ST: urn:schemas-upnp-org:device:MediaServer:1
+USN: uuid:a4a60994-e188-4dd7-b3f5-3b5c6f47e036::urn:schemas-upnp-org:device:MediaServer:1
+X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
+X-RINCON-BOOTSEQ: 6
+BOOTID.UPNP.ORG: 6
+X-RINCON-WIFIMODE: 1
+X-RINCON-VARIANT: 2
+HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
+LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
+SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
+X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
+
+"#;
+
+    fn emb_dev_msg() -> Message {
+        EMBEDDED_DEVICE.parse().expect("embedded device message")
+    }
+
+    #[test]
+    fn list_root_device() {
         let mut devices = DeviceMap::new();
-        let message = device.parse().expect("root device message");
-        devices.process(message);
+        devices.process(root_msg());
 
         let listing = DeviceListing {
             devices,
@@ -336,50 +364,8 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     #[test]
     fn plus_if_embedded_devices() {
         let mut devices = DeviceMap::new();
-
-        let root_device = r#"HTTP/1.1 200 OK
-CACHE-CONTROL: max-age = 1800
-DATE: Wed, 29 Apr 2026 08:22:03 GMT
-EXT:
-LOCATION: http://192.168.0.84:1400/xml/device_description.xml
-SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
-ST: upnp:rootdevice
-USN: uuid:c4248768-d6b6-4232-a273-5b1701524493::upnp:rootdevice
-X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
-X-RINCON-BOOTSEQ: 6
-BOOTID.UPNP.ORG: 6
-X-RINCON-WIFIMODE: 1
-X-RINCON-VARIANT: 2
-HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
-LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
-SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
-X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
-
-"#;
-        let message = root_device.parse().expect("root device message");
-        devices.process(message);
-
-        let embedded_device = r#"HTTP/1.1 200 OK
-CACHE-CONTROL: max-age = 1800
-DATE: Wed, 29 Apr 2026 08:22:03 GMT
-EXT:
-LOCATION: http://192.168.0.84:1400/xml/device_description.xml
-SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
-ST: urn:schemas-upnp-org:device:MediaServer:1
-USN: uuid:a4a60994-e188-4dd7-b3f5-3b5c6f47e036::urn:schemas-upnp-org:device:MediaServer:1
-X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
-X-RINCON-BOOTSEQ: 6
-BOOTID.UPNP.ORG: 6
-X-RINCON-WIFIMODE: 1
-X-RINCON-VARIANT: 2
-HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
-LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
-SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
-X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
-
-"#;
-        let message = embedded_device.parse().expect("embedded device message");
-        devices.process(message);
+        devices.process(root_msg());
+        devices.process(emb_dev_msg());
 
         let listing = DeviceListing {
             devices,
@@ -402,50 +388,8 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     #[test]
     fn minus_if_expanded() {
         let mut devices = DeviceMap::new();
-
-        let root_device = r#"HTTP/1.1 200 OK
-CACHE-CONTROL: max-age = 1800
-DATE: Wed, 29 Apr 2026 08:22:03 GMT
-EXT:
-LOCATION: http://192.168.0.84:1400/xml/device_description.xml
-SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
-ST: upnp:rootdevice
-USN: uuid:c4248768-d6b6-4232-a273-5b1701524493::upnp:rootdevice
-X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
-X-RINCON-BOOTSEQ: 6
-BOOTID.UPNP.ORG: 6
-X-RINCON-WIFIMODE: 1
-X-RINCON-VARIANT: 2
-HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
-LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
-SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
-X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
-
-"#;
-        let message = root_device.parse().expect("root device message");
-        devices.process(message);
-
-        let embedded_device = r#"HTTP/1.1 200 OK
-CACHE-CONTROL: max-age = 1800
-DATE: Wed, 29 Apr 2026 08:22:03 GMT
-EXT:
-LOCATION: http://192.168.0.84:1400/xml/device_description.xml
-SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
-ST: urn:schemas-upnp-org:device:MediaServer:1
-USN: uuid:a4a60994-e188-4dd7-b3f5-3b5c6f47e036::urn:schemas-upnp-org:device:MediaServer:1
-X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
-X-RINCON-BOOTSEQ: 6
-BOOTID.UPNP.ORG: 6
-X-RINCON-WIFIMODE: 1
-X-RINCON-VARIANT: 2
-HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
-LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
-SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
-X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
-
-"#;
-        let message = embedded_device.parse().expect("embedded device message");
-        devices.process(message);
+        devices.process(root_msg());
+        devices.process(emb_dev_msg());
 
         let listing = DeviceListing {
             devices,
@@ -470,50 +414,8 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     #[test]
     fn show_embedded_device_if_expanded() {
         let mut devices = DeviceMap::new();
-
-        let root_device = r#"HTTP/1.1 200 OK
-CACHE-CONTROL: max-age = 1800
-DATE: Wed, 29 Apr 2026 08:22:03 GMT
-EXT:
-LOCATION: http://192.168.0.84:1400/xml/device_description.xml
-SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
-ST: upnp:rootdevice
-USN: uuid:c4248768-d6b6-4232-a273-5b1701524493::upnp:rootdevice
-X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
-X-RINCON-BOOTSEQ: 6
-BOOTID.UPNP.ORG: 6
-X-RINCON-WIFIMODE: 1
-X-RINCON-VARIANT: 2
-HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
-LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
-SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
-X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
-
-"#;
-        let message = root_device.parse().expect("root device message");
-        devices.process(message);
-
-        let embedded_device = r#"HTTP/1.1 200 OK
-CACHE-CONTROL: max-age = 1800
-DATE: Wed, 29 Apr 2026 08:22:03 GMT
-EXT:
-LOCATION: http://192.168.0.84:1400/xml/device_description.xml
-SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
-ST: urn:schemas-upnp-org:device:MediaServer:1
-USN: uuid:a4a60994-e188-4dd7-b3f5-3b5c6f47e036::urn:schemas-upnp-org:device:MediaServer:1
-X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
-X-RINCON-BOOTSEQ: 6
-BOOTID.UPNP.ORG: 6
-X-RINCON-WIFIMODE: 1
-X-RINCON-VARIANT: 2
-HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
-LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
-SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
-X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
-
-"#;
-        let message = embedded_device.parse().expect("embedded device message");
-        devices.process(message);
+        devices.process(root_msg());
+        devices.process(emb_dev_msg());
 
         let listing = DeviceListing {
             devices,
@@ -538,50 +440,8 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
     #[test]
     fn hide_embedded_device_if_not_expanded() {
         let mut devices = DeviceMap::new();
-
-        let root_device = r#"HTTP/1.1 200 OK
-CACHE-CONTROL: max-age = 1800
-DATE: Wed, 29 Apr 2026 08:22:03 GMT
-EXT:
-LOCATION: http://192.168.0.84:1400/xml/device_description.xml
-SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
-ST: upnp:rootdevice
-USN: uuid:c4248768-d6b6-4232-a273-5b1701524493::upnp:rootdevice
-X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
-X-RINCON-BOOTSEQ: 6
-BOOTID.UPNP.ORG: 6
-X-RINCON-WIFIMODE: 1
-X-RINCON-VARIANT: 2
-HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
-LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
-SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
-X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
-
-"#;
-        let message = root_device.parse().expect("root device message");
-        devices.process(message);
-
-        let embedded_device = r#"HTTP/1.1 200 OK
-CACHE-CONTROL: max-age = 1800
-DATE: Wed, 29 Apr 2026 08:22:03 GMT
-EXT:
-LOCATION: http://192.168.0.84:1400/xml/device_description.xml
-SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
-ST: urn:schemas-upnp-org:device:MediaServer:1
-USN: uuid:a4a60994-e188-4dd7-b3f5-3b5c6f47e036::urn:schemas-upnp-org:device:MediaServer:1
-X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
-X-RINCON-BOOTSEQ: 6
-BOOTID.UPNP.ORG: 6
-X-RINCON-WIFIMODE: 1
-X-RINCON-VARIANT: 2
-HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
-LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
-SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
-X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
-
-"#;
-        let message = embedded_device.parse().expect("embedded device message");
-        devices.process(message);
+        devices.process(root_msg());
+        devices.process(emb_dev_msg());
 
         let listing = DeviceListing {
             devices,
