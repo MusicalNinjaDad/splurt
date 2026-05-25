@@ -133,7 +133,7 @@ impl<B: Backend> Drop for Ui<B> {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 struct DeviceListing {
     devices: DeviceMap,
-    expanded: HashSet<Lenient<Uuid>>,
+    expanded: HashSet<Url>,
 }
 
 impl StatefulWidget for &DeviceListing {
@@ -157,7 +157,7 @@ struct DeviceLines<'devices> {
     rootdevices: Values<'devices, Url, RootDevice>,
     embedded_devices: Option<Values<'devices, Lenient<Uuid>, EmbeddedDevice>>,
     services: Option<hash_set::Iter<'devices, ServiceDetails>>,
-    expanded: &'devices HashSet<Lenient<Uuid>>,
+    expanded: &'devices HashSet<Url>,
 }
 
 impl<'d> From<&'d DeviceListing> for DeviceLines<'d> {
@@ -213,16 +213,13 @@ impl<'d> Iterator for DeviceLines<'d> {
         let rd = self.rootdevices.next()?;
         let marker = match (
             rd.embedded_devices.is_empty() && rd.services.is_empty(),
-            &rd.id,
+            self.expanded.contains(&rd.location),
         ) {
             (true, _) => "[ ]",
-            (false, Some(id)) if self.expanded.contains(id) => "[-]",
-            (false, _) => "[+]",
+            (false, true) => "[-]",
+            (false, false) => "[+]",
         };
-        if !rd.embedded_devices.is_empty()
-            && let Some(id) = &rd.id
-            && self.expanded.contains(id)
-        {
+        if !rd.embedded_devices.is_empty() && self.expanded.contains(&rd.location) {
             self.embedded_devices = Some(rd.embedded_devices.values());
         }
         if !rd.services.is_empty() {
@@ -271,7 +268,6 @@ impl Widget for &ErrorListing {
 mod tests {
 
     use ratatui::style::Style;
-    use uuid::uuid;
 
     use super::*;
 
@@ -393,9 +389,9 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
         let listing = DeviceListing {
             devices,
-            expanded: HashSet::from([Lenient::Valid(uuid!(
-                "c4248768-d6b6-4232-a273-5b1701524493"
-            ))]),
+            expanded: HashSet::from(["http://192.168.0.84:1400/xml/device_description.xml"
+                .parse()
+                .expect("valid url")]),
         };
         let area = Rect::new(0, 0, 80, 3);
         let mut buf = Buffer::empty(area);
@@ -419,9 +415,9 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
 
         let listing = DeviceListing {
             devices,
-            expanded: HashSet::from([Lenient::Valid(uuid!(
-                "c4248768-d6b6-4232-a273-5b1701524493"
-            ))]),
+            expanded: HashSet::from(["http://192.168.0.84:1400/xml/device_description.xml"
+                .parse()
+                .expect("valid url")]),
         };
         let area = Rect::new(0, 0, 120, 4);
         let mut buf = Buffer::empty(area);
