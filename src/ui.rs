@@ -463,7 +463,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         relevant_buf.content = buf
             .content
             .into_iter()
-            .skip(81)
+            .skip((area.width + expected_area.x).into())
             .take(expected_text.len())
             .collect();
 
