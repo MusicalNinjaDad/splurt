@@ -231,11 +231,12 @@ impl<'d> Iterator for DeviceLines<'d> {
         };
         Some(
             format!(
-                "{} {}: {} with {} embedded devices",
+                "{} {}: {} with {} embedded devices & {} direct services",
                 marker,
                 rd.location,
                 dt,
-                rd.embedded_devices.len()
+                rd.embedded_devices.len(),
+                rd.services.len(),
             )
             .into(),
         )
@@ -343,12 +344,12 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             devices,
             ..Default::default()
         };
-        let area = Rect::new(0, 0, 80, 3);
+        let area = Rect::new(0, 0, 120, 3);
         let mut buf = Buffer::empty(area);
         let mut state = Default::default();
         listing.render(area, &mut buf, &mut state);
 
-        let expected_text = "[ ] http://192.168.0.84:1400/xml/device_description.xml: Unknown";
+        let expected_text = "[ ] http://192.168.0.84:1400/xml/device_description.xml: Unknown with 0 embedded devices & 0 direct services";
         let expected_area = Rect::new(1, 1, expected_text.len().try_into().unwrap(), 1);
         let mut expected_buf = Buffer::empty(expected_area);
         expected_buf.set_string(1, 1, expected_text, Style::default());
@@ -367,12 +368,12 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
             devices,
             ..Default::default()
         };
-        let area = Rect::new(0, 0, 80, 3);
+        let area = Rect::new(0, 0, 120, 3);
         let mut buf = Buffer::empty(area);
         let mut state = Default::default();
         listing.render(area, &mut buf, &mut state);
 
-        let expected_text = "[+] http://192.168.0.84:1400/xml/device_description.xml: Unknown";
+        let expected_text = "[+] http://192.168.0.84:1400/xml/device_description.xml: Unknown with 1 embedded devices & 0 direct services";
         let expected_area = Rect::new(1, 1, expected_text.len().try_into().unwrap(), 1);
         let mut expected_buf = Buffer::empty(expected_area);
         expected_buf.set_string(1, 1, expected_text, Style::default());
@@ -393,12 +394,12 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
                 .parse()
                 .expect("valid url")]),
         };
-        let area = Rect::new(0, 0, 80, 3);
+        let area = Rect::new(0, 0, 120, 3);
         let mut buf = Buffer::empty(area);
         let mut state = Default::default();
         listing.render(area, &mut buf, &mut state);
 
-        let expected_text = "[-] http://192.168.0.84:1400/xml/device_description.xml: Unknown";
+        let expected_text = "[-] http://192.168.0.84:1400/xml/device_description.xml: Unknown with 1 embedded devices & 0 direct services";
         let expected_area = Rect::new(1, 1, expected_text.len().try_into().unwrap(), 1);
         let mut expected_buf = Buffer::empty(expected_area);
         expected_buf.set_string(1, 1, expected_text, Style::default());
