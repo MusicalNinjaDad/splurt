@@ -272,6 +272,21 @@ mod tests {
 
     use super::*;
 
+    /// Consume buf and return a new buffer only containing the cells within `overlay`.
+    /// Needed as `Buffer`'s API does not respect `x` & `y` coordinates.
+    /// See: https://github.com/ratatui/ratatui/issues/2556
+    fn window(buf: Buffer, overlay: Rect) -> Buffer {
+        let width = buf.area.width;
+        let mut window = Buffer::empty(overlay);
+        window.content = buf
+            .content
+            .into_iter()
+            .skip((width + overlay.x).into())
+            .take(overlay.width.into())
+            .collect();
+        window
+    }
+
     #[test]
     fn list_root_device() {
         let device = r#"HTTP/1.1 200 OK
@@ -311,14 +326,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         let mut expected_buf = Buffer::empty(expected_area);
         expected_buf.set_string(1, 1, expected_text, Style::default());
 
-        let mut relevant_buf = Buffer::empty(expected_area);
-        relevant_buf.content = buf
-            .content
-            .into_iter()
-            .skip(81)
-            .take(expected_text.len())
-            .collect();
-
+        let relevant_buf = window(buf, expected_area);
         assert_eq!(relevant_buf, expected_buf);
     }
 
@@ -384,14 +392,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         let mut expected_buf = Buffer::empty(expected_area);
         expected_buf.set_string(1, 1, expected_text, Style::default());
 
-        let mut relevant_buf = Buffer::empty(expected_area);
-        relevant_buf.content = buf
-            .content
-            .into_iter()
-            .skip(81)
-            .take(expected_text.len())
-            .collect();
-
+        let relevant_buf = window(buf, expected_area);
         assert_eq!(relevant_buf, expected_buf);
     }
 
@@ -459,14 +460,7 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         let mut expected_buf = Buffer::empty(expected_area);
         expected_buf.set_string(1, 1, expected_text, Style::default());
 
-        let mut relevant_buf = Buffer::empty(expected_area);
-        relevant_buf.content = buf
-            .content
-            .into_iter()
-            .skip((area.width + expected_area.x).into())
-            .take(expected_text.len())
-            .collect();
-
+        let relevant_buf = window(buf, expected_area);
         assert_eq!(relevant_buf, expected_buf);
     }
 }
