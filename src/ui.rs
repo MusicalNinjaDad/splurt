@@ -17,7 +17,7 @@ use ratatui::{
 use ssdp_rs::{
     devicemap::{
         DeviceMap,
-        rootdevice::{EmbeddedDevice, RootDevice},
+        rootdevice::{EmbeddedDevice, IsKnown, RootDevice},
     },
     message::{Message, ParseError, ServiceDetails, header::Lenient},
 };
@@ -225,9 +225,10 @@ impl<'d> Iterator for DeviceLines<'d> {
         if !rd.services.is_empty() {
             self.services = Some(rd.services.iter());
         }
-        let dt = match &rd.device_type {
-            Some(d) => d.to_string(),
-            None => "Unknown".to_string(),
+        let dt = match (&rd.device_type, rd.is_known()) {
+            (Some(d), _) => d.to_string(),
+            (None, IsKnown::Known) => "Unknown".to_string(),
+            (None, IsKnown::Inferred) => "Inferred".to_string(),
         };
         Some(
             format!(
@@ -452,6 +453,29 @@ X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
         let forbidden_text = " └[ ] a4a60994-e188-4dd7-b3f5-3b5c6f47e036: schemas-upnp-org:device:MediaServer:1 offering 0 services";
         let expected_area = Rect::new(1, 2, forbidden_text.len().try_into().unwrap(), 1);
         let expected_buf = Buffer::empty(expected_area);
+
+        let relevant_buf = window(buf, expected_area);
+        assert_eq!(relevant_buf, expected_buf);
+    }
+
+    #[test]
+    fn inferred_root() {
+        let mut devices = DeviceMap::new();
+        devices.process(emb_dev_msg());
+
+        let listing = DeviceListing {
+            devices,
+            ..Default::default()
+        };
+        let area = Rect::new(0, 0, 120, 3);
+        let mut buf = Buffer::empty(area);
+        let mut state = Default::default();
+        listing.render(area, &mut buf, &mut state);
+
+        let expected_text = "[+] http://192.168.0.84:1400/xml/device_description.xml: Inferred with 1 embedded devices & 0 direct services";
+        let expected_area = Rect::new(1, 1, expected_text.len().try_into().unwrap(), 1);
+        let mut expected_buf = Buffer::empty(expected_area);
+        expected_buf.set_string(1, 1, expected_text, Style::default());
 
         let relevant_buf = window(buf, expected_area);
         assert_eq!(relevant_buf, expected_buf);
