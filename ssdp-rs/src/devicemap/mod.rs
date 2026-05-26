@@ -22,6 +22,11 @@ use crate::{
 pub mod controlpoint;
 pub mod rootdevice;
 
+#[cfg(any(test, feature = "test_fixtures"))]
+pub mod test_fixtures;
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Error {}
 
@@ -346,6 +351,3 @@ impl Default for DeviceMap {
         Self::new()
     }
 }
-
-#[cfg(test)]
-mod tests;

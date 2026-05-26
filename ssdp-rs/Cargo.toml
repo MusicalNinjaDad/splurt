@@ -13,6 +13,9 @@ license = "MIT"
 rust-version = "1.90.0"
 publish = false
 
+[features]
+test_fixtures = []
+
 [dependencies]
 chrono = "0.4.44"
 derive_more = { version = "2.1.1", features = [

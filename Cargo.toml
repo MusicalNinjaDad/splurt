@@ -57,6 +57,9 @@ try_v2 = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
 
+[dev-dependencies]
+ssdp_rs = { workspace = true, features = ["test_fixtures"] }
+
 [build-dependencies]
 autocfg = { workspace = true }
 clap = { workspace = true }
