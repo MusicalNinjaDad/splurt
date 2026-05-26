@@ -270,6 +270,7 @@ impl Widget for &ErrorListing {
 mod tests {
 
     use ratatui::style::Style;
+    use ssdp_rs::devicemap::test_fixtures::{emb_dev_msg, root_msg};
 
     use super::*;
 
@@ -286,54 +287,6 @@ mod tests {
             .take(overlay.width.into())
             .collect();
         window
-    }
-
-    const ROOT: &str = r#"HTTP/1.1 200 OK
-CACHE-CONTROL: max-age = 1800
-DATE: Wed, 29 Apr 2026 08:22:03 GMT
-EXT:
-LOCATION: http://192.168.0.84:1400/xml/device_description.xml
-SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
-ST: upnp:rootdevice
-USN: uuid:c4248768-d6b6-4232-a273-5b1701524493::upnp:rootdevice
-X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
-X-RINCON-BOOTSEQ: 6
-BOOTID.UPNP.ORG: 6
-X-RINCON-WIFIMODE: 1
-X-RINCON-VARIANT: 2
-HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
-LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
-SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
-X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
-
-"#;
-
-    fn root_msg() -> Message {
-        ROOT.parse().expect("root device message")
-    }
-
-    const EMBEDDED_DEVICE: &str = r#"HTTP/1.1 200 OK
-CACHE-CONTROL: max-age = 1800
-DATE: Wed, 29 Apr 2026 08:22:03 GMT
-EXT:
-LOCATION: http://192.168.0.84:1400/xml/device_description.xml
-SERVER: Linux UPnP/1.0 Sonos/85.0-64200 (ZPS29)
-ST: urn:schemas-upnp-org:device:MediaServer:1
-USN: uuid:a4a60994-e188-4dd7-b3f5-3b5c6f47e036::urn:schemas-upnp-org:device:MediaServer:1
-X-RINCON-HOUSEHOLD: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3
-X-RINCON-BOOTSEQ: 6
-BOOTID.UPNP.ORG: 6
-X-RINCON-WIFIMODE: 1
-X-RINCON-VARIANT: 2
-HOUSEHOLD.SMARTSPEAKER.AUDIO: Sonos_J9hfdYcBvSBCyHLo5tPwpI9Cm3.9LpAqreapUbAY1tsy5BF
-LOCATION.SMARTSPEAKER.AUDIO: lc_4e8119cfb08d4c5083b6e0c75e47fe50
-SECURELOCATION.UPNP.ORG: https://192.168.0.84:1443/xml/device_description.xml
-X-SONOS-HHSECURELOCATION: https://192.168.0.84:1843/xml/device_description.xml
-
-"#;
-
-    fn emb_dev_msg() -> Message {
-        EMBEDDED_DEVICE.parse().expect("embedded device message")
     }
 
     #[test]
