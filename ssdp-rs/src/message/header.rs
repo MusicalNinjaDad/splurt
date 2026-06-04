@@ -829,6 +829,7 @@ impl From<UpnpPort> for u16 {
 pub enum Lenient<T> {
     Valid(T),
     // Using an Arc here to be cheap to clone. Optimising for well-formed cases.
+    // TODO change to Invalid(Arc<str>),
     Invalid(Arc<String>),
 }
 
@@ -849,7 +850,8 @@ where
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.parse::<T>() {
             Ok(t) => Ok(Self::Valid(t)),
-            Err(_) => Ok(Self::Invalid(Arc::new(s.to_string()))),
+            // TODO Update all others to this form, then switch to Arc<str> ??
+            Err(_) => Ok(Self::Invalid(s.to_string().into())),
         }
     }
 }
