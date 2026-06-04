@@ -20,7 +20,7 @@ jobs:
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v6.0.2
     - name: install jaq
       uses: taiki-e/install-action@v2.79.7
       with:
@@ -44,7 +44,7 @@ jobs:
       RUSTC_BOOTSTRAP: ${{ matrix.bootstrap }}
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v6.0.2
     - name: update rust
       run: rustup update
     - name: Run tests
@@ -60,7 +60,7 @@ jobs:
       RUSTC_BOOTSTRAP: ${{ matrix.bootstrap }}
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v6.0.2
     - name: update rust
       run: rustup update && rustup component add --toolchain ${{ matrix.channel }} clippy
     - name: clippy
@@ -74,7 +74,7 @@ jobs:
     needs: [test, lint]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v6.0.2
     - name: Create issue on failure
       if: ${{ github.event_name != 'pull_request' && (needs.test.result == 'failure' || needs.lint.result == 'failure') }}
       env:
