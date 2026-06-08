@@ -70,7 +70,7 @@ jobs:
     steps:
     - uses: actions/checkout@v6.0.2
     - name: install cargo-msrv
-      uses: taiki-e/install-action@v2.79.9
+      uses: taiki-e/install-action@v2.79.14
       with:
         tool: cargo-msrv
     - name: check MSRV
