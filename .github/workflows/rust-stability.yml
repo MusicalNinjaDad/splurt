@@ -22,7 +22,7 @@ jobs:
     steps:
     - uses: actions/checkout@v6.0.2
     - name: install jaq
-      uses: taiki-e/install-action@v2.80.0
+      uses: taiki-e/install-action@v2.81.1
       with:
         tool: jaq
     - name: process matrix
