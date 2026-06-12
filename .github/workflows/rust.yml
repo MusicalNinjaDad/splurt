@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v6.0.2
+    - uses: actions/checkout@v6.0.3
     - name: Run tests
       run: cargo test
 
@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v6.0.2
+    - uses: actions/checkout@v6.0.3
     - name: clippy
       run: cargo clippy -- --deny warnings
 
@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v6.0.2
+    - uses: actions/checkout@v6.0.3
     - name: fmt
       run: cargo fmt --check
 
@@ -76,7 +76,7 @@ jobs:
         working-directory: ${{ matrix.crate }}
 
     steps:
-    - uses: actions/checkout@v6.0.2
+    - uses: actions/checkout@v6.0.3
     - name: install cargo-msrv
       uses: taiki-e/install-action@v2.81.2
       with:
