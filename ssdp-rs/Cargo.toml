@@ -10,7 +10,7 @@ homepage = "https://github.com/MusicalNinjaDad/splurt"
 repository = "https://github.com/MusicalNinjaDad/splurt"
 categories = ["Command line utilities", "Network programming"]
 license = "MIT"
-rust-version = "1.90.0"
+rust-version = "1.94.1"
 publish = false
 
 [features]

@@ -176,11 +176,12 @@ mod tests {
 
     use super::*;
 
-    #[cfg(assert_matches_in_root)]
+    #[cfg(assert_matches_location = "root")]
     use std::assert_matches;
 
-    #[cfg(assert_matches_in_module)]
+    #[cfg(assert_matches_location = "module")]
     use std::assert_matches::assert_matches;
+
     use std::{net::SocketAddr, time::Duration};
 
     #[test]

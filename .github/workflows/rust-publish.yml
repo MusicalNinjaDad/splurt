@@ -22,7 +22,7 @@ jobs:
       id-token: write
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v6.0.3
       with:
         ref: ${{ github.event.release.target_commitish }}
     # Install manually as different crates may have custom toolchains defined
