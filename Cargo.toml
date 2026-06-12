@@ -10,7 +10,7 @@ homepage = "https://github.com/MusicalNinjaDad/splurt"
 repository = "https://github.com/MusicalNinjaDad/splurt"
 categories = ["Command line utilities", "Network programming"]
 license = "MIT"
-rust-version = "1.94.1"
+rust-version = "1.95.0"
 exclude = [".github", ".devcontainer"]
 publish = false
 
@@ -20,17 +20,17 @@ default-members = [".", "ssdp-rs"]
 
 [workspace.dependencies]
 async-ready = "3.0.0"
-autocfg = "1.5.0"
+autocfg = "1.5.1"
 clap = { version = "4.6.0", features = ["derive"] }
 clap_builder = "4.6.0"
-clap_complete = "4.6.2"
+clap_complete = "4.6.5"
 clap_mangen = "0.3.0"
-exit_safely = "0.2.1"
+exit_safely = "0.3.1"
 futures = "0.3.32"
 futures-net = "0.6.0"
 futures-udp = "0.1.0"
-ninja-build_rs = "0.1.0"
-try_v2 = "0.4.2"
+ninja-build_rs = "0.1.2"
+try_v2 = "0.8.0"
 
 ssdp_rs = { path = "ssdp-rs" }
 
@@ -47,7 +47,7 @@ futures-util = { version = "0.3.32", default-features = false, features = [
     "async-await",
     "async-await-macro",
 ] }
-uuid = { version = "1.23.1", features = ["v4"] }
+uuid = { version = "1.23.3", features = ["v4"] }
 
 [build-dependencies]
 autocfg = { workspace = true }

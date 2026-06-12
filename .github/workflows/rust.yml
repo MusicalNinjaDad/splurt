@@ -63,9 +63,17 @@ jobs:
     if: needs.skip_check.outputs.should_skip != 'true'
 
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        crate:
+          - "."
+          - "ssdp-rs"
 
     env:
       RUSTC_BOOTSTRAP: 1
+    defaults:
+      run:
+        working-directory: ${{ matrix.crate }}
 
     steps:
     - uses: actions/checkout@v6.0.2
