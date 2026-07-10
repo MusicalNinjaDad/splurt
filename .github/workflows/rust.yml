@@ -66,8 +66,8 @@ jobs:
     strategy:
       matrix:
         crate:
-          - "."
-          - "ssdp-rs"
+          - "crates/upnp2"
+          - "crates/snoop"
 
     env:
       RUSTC_BOOTSTRAP: 1

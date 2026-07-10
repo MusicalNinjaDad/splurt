@@ -20,7 +20,7 @@ use exit_safely::Termination;
 use futures::{FutureExt, SinkExt, StreamExt, channel::mpsc::unbounded, select};
 use try_v2::{Try, Try_ConvertResult};
 
-use ssdp_rs::{
+use upnp2::{
     Listener, Searcher,
     message::{Message, ParseError},
 };
@@ -149,8 +149,8 @@ impl<T: _T> From<futures_util::task::SpawnError> for Exit<T> {
     }
 }
 
-impl<T: _T> From<ssdp_rs::Error> for Exit<T> {
-    fn from(e: ssdp_rs::Error) -> Self {
+impl<T: _T> From<upnp2::Error> for Exit<T> {
+    fn from(e: upnp2::Error) -> Self {
         Self::Error(e.to_string())
     }
 }

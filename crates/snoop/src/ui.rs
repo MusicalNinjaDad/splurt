@@ -14,7 +14,7 @@ use ratatui::{
     text::{Line, Text},
     widgets::{Block, BorderType, Paragraph, StatefulWidget, Widget},
 };
-use ssdp_rs::{
+use upnp2::{
     devicemap::{
         DeviceMap,
         rootdevice::{EmbeddedDevice, IsKnown, RootDevice},
@@ -270,7 +270,7 @@ impl Widget for &ErrorListing {
 mod tests {
 
     use ratatui::style::Style;
-    use ssdp_rs::devicemap::test_fixtures::{emb_dev_msg, root_msg};
+    use upnp2::devicemap::test_fixtures::{emb_dev_msg, root_msg};
 
     use super::*;
 

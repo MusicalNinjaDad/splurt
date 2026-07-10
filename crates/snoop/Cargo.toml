@@ -1,0 +1,37 @@
+[package]
+authors.workspace = true
+categories.workspace = true
+description = "listen for upnp traffic on your network"
+edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+license.workspace = true
+name = "snoop"
+publish = false
+readme = "README.md"
+repository.workspace = true
+rust-version.workspace = true
+version = "0.1.0"
+
+[dependencies]
+clap.workspace = true
+crossterm.workspace = true
+exit_safely.workspace = true
+futures.workspace = true
+futures-util.workspace = true
+ratatui.workspace = true
+try_v2.workspace = true
+url.workspace = true
+uuid.workspace = true
+upnp2.workspace = true
+
+[dev-dependencies]
+upnp2 = { workspace = true, features = ["test_fixtures"] }
+
+[build-dependencies]
+autocfg.workspace = true
+clap = { workspace = true, features = ["derive"] }
+clap_builder.workspace = true
+clap_complete.workspace = true
+clap_mangen.workspace = true
+ninja-build_rs.workspace = true

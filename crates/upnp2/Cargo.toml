@@ -1,0 +1,31 @@
+[package]
+authors.workspace = true
+categories.workspace = true
+description = "SSDP message parsing, service announcement & subscription"
+edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+license.workspace = true
+name = "upnp2"
+publish = false
+readme = "README.md"
+repository.workspace = true
+rust-version = "1.94.1"
+version = "0.0.1"
+
+[features]
+test_fixtures = []
+
+[dependencies]
+chrono.workspace = true
+derive_more.workspace = true
+futures.workspace = true
+futures-timer.workspace = true
+futures-udp.workspace = true
+osinfo.workspace = true
+url.workspace = true
+uuid.workspace = true
+
+[build-dependencies]
+autocfg.workspace = true
+ninja-build_rs.workspace = true
