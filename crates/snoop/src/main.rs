@@ -1,4 +1,3 @@
-#![cfg_attr(unstable_let_chains, feature(let_chains))]
 #![feature(future_join)]
 #![feature(never_type)]
 #![feature(try_blocks_heterogeneous)]

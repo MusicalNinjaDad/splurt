@@ -29,9 +29,8 @@ upnp2.workspace = true
 upnp2 = { workspace = true, features = ["test_fixtures"] }
 
 [build-dependencies]
-autocfg.workspace = true
+build_safely.workspace = true
 clap = { workspace = true, features = ["derive"] }
 clap_builder.workspace = true
 clap_complete.workspace = true
 clap_mangen.workspace = true
-ninja-build_rs.workspace = true

@@ -1,11 +1,8 @@
-use ninja_build_rs::{Result, get_var, nightly::Nightly};
+use build_safely::prelude::*;
 
 include!("./src/cli.rs");
 
 fn main() -> Result<()> {
-    let ac = autocfg::new();
-    ac.emit_unstable_feature("let_chains");
-
     if get_var("PROFILE")? == "release" {
         use clap_builder::{CommandFactory, ValueEnum};
         use clap_complete::Shell;

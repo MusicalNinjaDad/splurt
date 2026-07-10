@@ -10,7 +10,7 @@ name = "upnp2"
 publish = false
 readme = "README.md"
 repository.workspace = true
-rust-version = "1.94.1"
+rust-version = "1.95.0"
 version = "0.0.1"
 
 [features]
@@ -27,5 +27,4 @@ url.workspace = true
 uuid.workspace = true
 
 [build-dependencies]
-autocfg.workspace = true
-ninja-build_rs.workspace = true
+build_safely.workspace = true
