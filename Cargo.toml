@@ -39,5 +39,8 @@ uuid = { version = "1.23.3", features = ["v4"] }
 # workspace crates
 upnp2 = { path = "crates/upnp2" }
 
+[patch.crates-io]
+build_safely = { path = "../build_safely/crates/build_safely" }
+
 [workspace.lints.clippy]
 tests_outside_test_module = "deny"
