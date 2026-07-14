@@ -34,7 +34,7 @@ osinfo = "1.0.0"
 ratatui = "0.30.0"
 try_v2 = "0.8.0"
 url = "2.5.8"
-uuid = { version = "1.23.3", features = ["v4"] }
+uuid = { version = "1.23.5", features = ["v4"] }
 
 # workspace crates
 upnp2 = { path = "crates/upnp2" }
