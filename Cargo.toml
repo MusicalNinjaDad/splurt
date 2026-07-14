@@ -29,7 +29,7 @@ exit_safely = "0.3.1"
 futures = "0.3.32"
 futures-net = "0.6.0"
 futures-udp = "0.1.0"
-ninja-build_rs = "0.1.2"
+ninja-build_rs = "0.4.1"
 try_v2 = "0.8.0"
 
 ssdp_rs = { path = "ssdp-rs" }
