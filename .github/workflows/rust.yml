@@ -78,7 +78,7 @@ jobs:
     steps:
     - uses: actions/checkout@v6.0.3
     - name: install cargo-msrv
-      uses: taiki-e/install-action@v2.81.7
+      uses: taiki-e/install-action@v2.82.9
       with:
         tool: cargo-msrv
     - name: check MSRV
