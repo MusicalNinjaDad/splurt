@@ -18,23 +18,23 @@ version = "0.1.0"
 async-ready = "3.0.0"
 build_safely = "0.5.3"
 chrono = "0.4.44"
-clap = { version = "4.6.0", features = ["derive"] }
-clap_builder = "4.6.0"
-clap_complete = "4.6.5"
+clap = { version = "4.6.5", features = ["derive"] }
+clap_builder = "4.6.5"
+clap_complete = "4.6.8"
 clap_mangen = "0.3.0"
 crossterm = { version = "0.29.0", features = ["event-stream"] }
 derive_more = { version = "2.1.1", features = ["display", "from", "from_str", "into"] }
 exit_safely = "0.3.1"
-futures = "0.3.32"
+futures = "0.3.33"
 futures-net = "0.6.0"
 futures-timer = "3.0.3"
 futures-udp = "0.1.0"
-futures-util = { version = "0.3.32", default-features = false, features = ["async-await", "async-await-macro"] }
+futures-util = { version = "0.3.33", default-features = false, features = ["async-await", "async-await-macro"] }
 osinfo = "1.0.0"
 ratatui = "0.30.0"
 try_v2 = "0.8.0"
 url = "2.5.8"
-uuid = { version = "1.23.5", features = ["v4"] }
+uuid = { version = "1.24.0", features = ["v4"] }
 
 # workspace crates
 upnp2 = { path = "crates/upnp2" }
