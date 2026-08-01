@@ -32,7 +32,7 @@ futures-udp = "0.1.0"
 futures-util = { version = "0.3.33", default-features = false, features = ["async-await", "async-await-macro"] }
 osinfo = "1.0.0"
 ratatui = "0.30.0"
-try_v2 = "0.8.0"
+try_v2 = "0.10.1"
 url = "2.5.8"
 uuid = { version = "1.24.0", features = ["v4"] }
 

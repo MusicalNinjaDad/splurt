@@ -17,7 +17,7 @@ use clap::Parser;
 use crossterm::event::EventStream;
 use exit_safely::Termination;
 use futures::{FutureExt, SinkExt, StreamExt, channel::mpsc::unbounded, select};
-use try_v2::{Try, Try_ConvertResult};
+use try_v2::Try;
 
 use upnp2::{
     Listener, Searcher,
@@ -120,7 +120,8 @@ fn main() -> Exit<()> {
     Exit::Ok(())
 }
 
-#[derive(Debug, Termination, Try, Try_ConvertResult, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Debug, Termination, Try, PartialEq, PartialOrd, Eq, Ord)]
+#[FromResidual(Result<_, Self::Residual>)]
 #[repr(u8)]
 #[must_use]
 pub enum Exit<T: _T> {
