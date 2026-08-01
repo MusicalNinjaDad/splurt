@@ -4,7 +4,7 @@ on:
   push:
     paths: 
     - "**.rs"
-    - "Cargo.toml"
+    - "**/Cargo.toml"
     - "rust-toolchain.toml"
     - ".github/workflows/rust.yml"
   pull_request:
