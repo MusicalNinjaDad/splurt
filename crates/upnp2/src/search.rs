@@ -5,7 +5,7 @@
 //! # // no reply possible so not run as test to avoid endless loop
 //! # use std::net::Ipv4Addr;
 //! use futures::StreamExt;
-//! use ssdp_rs::{Listener, Result, Searcher};
+//! use upnp2::{Listener, Result, Searcher};
 //!
 //! # fn main() -> Result<()> {
 //! // Create a new searcher

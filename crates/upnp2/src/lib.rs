@@ -1,13 +1,11 @@
 #![cfg_attr(all(test, unstable_assert_matches), feature(assert_matches))]
 #![cfg_attr(unstable_adt_const_params, feature(adt_const_params))]
-#![cfg_attr(unstable_if_let_guard, feature(if_let_guard))]
-#![cfg_attr(unstable_let_chains, feature(let_chains))]
+#![cfg_attr(unstable_doc_notable_trait, feature(doc_notable_trait))]
 #![cfg_attr(unstable_never_type, feature(never_type))]
-#![feature(doc_notable_trait)]
-#![feature(strip_circumfix)]
-#![feature(try_blocks_heterogeneous)]
+#![allow(clippy::incompatible_msrv)] // `strip_circumfix` stable from 1.98.0 (beta)
+#![cfg_attr(unstable_strip_circumfix, feature(strip_circumfix))]
 #![allow(incomplete_features)]
-#![feature(unsized_const_params)]
+#![cfg_attr(unstable_unsized_const_params, feature(unsized_const_params))]
 
 //! A runtime-agnostic (known to work with tokio, futures-rs and futures-net executors) async ssdp
 //! library. Including improved async UDP primitives: UDPListener & UDPStream.

@@ -12,9 +12,10 @@
 
 use std::{
     collections::HashMap,
-    fmt::Display,
+    fmt::{Debug, Display},
     net::{AddrParseError, SocketAddr},
     str::FromStr,
+    sync::Arc,
     time::Duration,
 };
 
@@ -22,7 +23,10 @@ use derive_more::{Display, From, FromStr, Into};
 use url::Url;
 use uuid::Uuid;
 
-use crate::{MULTICAST, SSDP_PORT};
+use crate::{
+    MULTICAST, SSDP_PORT,
+    message::{UPNP_VERSION1, notify::NT},
+};
 
 use super::{DeviceDetails, ErrorKind, ParseError, ServiceDetails, SsdpNss, Target, UpnpNss, Uri};
 
@@ -538,7 +542,7 @@ impl<const _FLD: &'static str> FromStr for ProductTokens<_FLD> {
     type Err = ErrorKind;
 
     fn from_str(user_agent: &str) -> Result<Self, Self::Err> {
-        let err = || ErrorKind::InvalidUserAgent(user_agent.to_string());
+        let err = || ErrorKind::InvalidProductTokens(user_agent.to_string());
         let (os_token, rest) = user_agent.split_once("UPnP/").ok_or_else(err)?;
         // TODO: How to handle removing "," while allowing "OS Foo/6.3 (wibblish)"
         // https://datatracker.ietf.org/doc/html/rfc9110#name-server for formal grammar
@@ -633,7 +637,16 @@ impl SecureLocation {
     }
 }
 
-pub type Server = ProductTokens<"SERVER">;
+pub type Server = Lenient<ProductTokens<"SERVER">>;
+
+impl Server {
+    pub fn upnp_version(&self) -> Version {
+        match self {
+            Lenient::Valid(tokens) => tokens.upnp_version,
+            Lenient::Invalid(_) => UPNP_VERSION1,
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// Search Target
@@ -643,7 +656,7 @@ pub enum ST {
     /// `upnp:rootdevice`: Search for root devices only.
     RootDevice,
     /// uuid:device-UUID: Search for a particular device.
-    Uuid(Uuid),
+    Uuid(Lenient<Uuid>),
     /// `urn:schemas-upnp-org:device:deviceType:ver`:
     ///     Search for any device of this type where `deviceType` and `ver` are
     ///     defined by the UPnP Forum working committee.
@@ -676,6 +689,17 @@ impl FromStr for ST {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let uri = s.parse::<Uri>()?;
         Ok(uri.try_into()?)
+    }
+}
+
+impl From<NT> for ST {
+    fn from(nt: NT) -> Self {
+        match nt {
+            NT::RootDevice => Self::RootDevice,
+            NT::Uuid(uuid) => Self::Uuid(uuid),
+            NT::Device(device_details) => Self::Device(device_details),
+            NT::Service(service_details) => Self::Service(service_details),
+        }
     }
 }
 
@@ -720,7 +744,7 @@ impl PartialEq<ST> for Uri {
             Uri::Uuid {
                 uuid: this_uuid,
                 suffix: None,
-            } => matches!(st, ST::Uuid(uuid) if uuid == this_uuid),
+            } => matches!(st, ST::Uuid(uuid) if this_uuid == uuid),
             Uri::Urn(Target::Device(this_device)) => {
                 matches!(st, ST::Device(device) if device == this_device)
             }
@@ -801,24 +825,60 @@ impl From<UpnpPort> for u16 {
     }
 }
 
-pub type UserAgent = ProductTokens<"USER-AGENT">;
-
-/// USN as a type to validate invariances
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Usn<NTST> {
-    pub uuid: Uuid,
-    pub ntst: NTST,
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+pub enum Lenient<T> {
+    Valid(T),
+    // Using an Arc here to be cheap to clone. Optimising for well-formed cases.
+    // TODO change to Invalid(Arc<str>),
+    Invalid(Arc<String>),
 }
 
-impl<_NTST> Header for Usn<_NTST> {
+impl<H> Header for Lenient<H>
+where
+    H: Header,
+{
+    const HEADER_KEY: &'static str = H::HEADER_KEY;
+}
+
+impl<T> FromStr for Lenient<T>
+where
+    T: FromStr,
+{
+    // Should be !, but need to open that pre-RFC for this kind of case
+    type Err = ErrorKind;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.parse::<T>() {
+            Ok(t) => Ok(Self::Valid(t)),
+            // TODO Update all others to this form, then switch to Arc<str> ??
+            Err(_) => Ok(Self::Invalid(s.to_string().into())),
+        }
+    }
+}
+
+impl<T> PartialEq<T> for Lenient<T>
+where
+    T: PartialEq,
+{
+    fn eq(&self, other: &T) -> bool {
+        matches!(self, Self::Valid(t) if t == other)
+    }
+}
+
+pub type UserAgent = Lenient<ProductTokens<"USER-AGENT">>;
+
+/// USN as a type to validate invariances
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Usn {
+    pub uuid: Lenient<Uuid>,
+    pub nt: Option<NT>,
+}
+
+impl Header for Usn {
     const HEADER_KEY: &'static str = "USN";
 }
 
-impl<NTST, E> FromStr for Usn<NTST>
-where
-    NTST: TryFrom<Uri, Error = E>,
-    ParseError: From<E>,
-{
+impl FromStr for Usn {
     type Err = ParseError;
 
     fn from_str(usn: &str) -> Result<Self, Self::Err> {
@@ -829,45 +889,40 @@ where
                 suffix: Some(ntst),
             } => Ok(Self {
                 uuid,
-                ntst: NTST::try_from(*ntst)?,
+                //TODO use map here - single match arm
+                nt: Some(NT::try_from(*ntst)?),
             }),
-            Uri::Uuid { uuid, suffix: None } => Ok(Self {
-                uuid,
-                ntst: NTST::try_from(uri)?,
-            }),
+            Uri::Uuid { uuid, suffix: None } => Ok(Self { uuid, nt: None }),
             _ => Err(ErrorKind::InvalidUsn(usn.to_string()))?,
         }
     }
 }
 
-impl<NTST> Usn<NTST>
-where
-    Self: HeaderExt + Display,
-    NTST: PartialEq,
-{
-    pub fn get_validated(header: &UpnpHeader<'_>, ntst: &NTST) -> Result<Self, ParseError> {
-        let usn = Self::get_from(header)?;
-        if usn.ntst == *ntst {
-            Ok(usn)
-        } else {
-            Err(ErrorKind::InvalidUsn(usn.to_string()))?
+impl Usn {
+    /// If the USN doesn't contain an NT suffix, we store the one from the NT field.
+    /// (Why? Because Philips can't RTFM).
+    ///
+    /// If it does, it must match.
+    pub fn get_validated(header: &UpnpHeader<'_>, ntst: NT) -> Result<Self, ParseError> {
+        let mut usn = Self::get_from(header)?;
+        match usn.nt {
+            Some(ref nt) if nt == &ntst => Ok(usn),
+            // TODO: Trace assumption (USN missing NT)
+            // Handle messages from HueBridge - it sends USN without suffix for all NT
+            None => {
+                usn.nt = Some(ntst);
+                Ok(usn)
+            }
+            Some(_) => Err(ErrorKind::InvalidUsn(usn.to_string()))?,
         }
     }
 }
 
-impl<NTST> Display for Usn<NTST>
-where
-    NTST: Display + PartialEq<Uri>,
-{
+impl Display for Usn {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "uuid:{}", self.uuid)?;
-        if self.ntst
-            != (Uri::Uuid {
-                uuid: self.uuid,
-                suffix: None,
-            })
-        {
-            write!(f, "::{}", self.ntst)?;
+        if let Some(nt) = &self.nt {
+            write!(f, "::{}", nt)?;
         }
         Ok(())
     }
@@ -988,5 +1043,40 @@ CPUUID.UPNP.ORG: 2fac1234-31f8-11b4-a222-08002b34c003"#;
             if loc == "http://192.168.0.15/xml/device_description.xml"
         );
         assert!(err.source().is_none());
+    }
+
+    #[test]
+    fn parse_uuid() {
+        let usn = "uuid:2f402f80-da50-11e1-9b23-ecb5fa15b2c8";
+        usn.parse::<Uri>().expect("valid as URI");
+        usn.parse::<Usn>().expect("valid as USN");
+    }
+
+    #[test]
+    fn lenient_user_agent() {
+        let ms_rtfm = "Microsoft Edge/148.0.3967.54 Windows";
+        let agent: UserAgent = ms_rtfm.parse().expect("parsed leniently");
+        assert_eq!(agent, Lenient::Invalid(Arc::new(ms_rtfm.to_string())));
+    }
+
+    #[test]
+    fn lenient_uuid() {
+        let ikea_rtfm =
+            "uuid:RINCON_38420B91FCD002430::urn:smartspeaker-audio:service:SpeakerGroup:1";
+        let usn: Usn = ikea_rtfm.parse().expect("parsed leniently");
+        assert_eq!(
+            usn.uuid,
+            Lenient::Invalid(Arc::new("RINCON_38420B91FCD002430".to_string()))
+        );
+        assert_eq!(
+            usn.nt,
+            Some(NT::Service(ServiceDetails {
+                vendor: crate::message::Vendor::Custom("smartspeaker-audio".to_string()),
+                service: crate::message::Service::Other {
+                    service_type: "SpeakerGroup".to_string(),
+                    ver: "1".to_string()
+                }
+            }))
+        )
     }
 }
