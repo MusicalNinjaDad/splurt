@@ -6,8 +6,9 @@ use windows_sys::{
     Win32::{
         Foundation::{GENERIC_READ, HANDLE, INVALID_HANDLE_VALUE},
         Storage::FileSystem::{
-            CREATEFILE2_EXTENDED_PARAMETERS, CreateFile2, FILE_SHARE_READ, OPEN_EXISTING,
+            CREATEFILE2_EXTENDED_PARAMETERS, CreateFile2, FILE_SHARE_READ, OPEN_EXISTING, ReadFile,
         },
+        System::IO::OVERLAPPED,
     },
     core::PCWSTR,
 };
@@ -64,5 +65,28 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
         )
     };
     let drive_handle = validate(drive_handle)?;
+    let toc = unsafe {
+        const BYTES_TO_READ: u32 = 2048;
+        // SAFETY:
+        // lpbuffer: This buffer must remain valid for the duration of the read operation.
+        //           The caller must not use this buffer until the read operation is completed.
+        // Buffer created here...
+        let mut lpbuffer = [0u8; BYTES_TO_READ as usize];
+        let mut bytes_read = 0u32;
+        let mut sync = OVERLAPPED::default();
+        if ReadFile(
+            drive_handle,
+            lpbuffer.as_mut_ptr(),
+            BYTES_TO_READ,
+            &mut bytes_read as *mut _,
+            &mut sync as *mut _,
+        ) == 0
+        {
+            todo!("error reading")
+            //If the function fails, or is completing asynchronously, the return value is zero (FALSE). To get extended error information, call the GetLastError function.
+        };
+        lpbuffer
+    };
+    dbg!(toc);
     Ok(())
 }
