@@ -277,6 +277,7 @@ mod tests {
     /// Consume buf and return a new buffer only containing the cells within `overlay`.
     /// Needed as `Buffer`'s API does not respect `x` & `y` coordinates.
     /// See: https://github.com/ratatui/ratatui/issues/2556
+    /// TODO: #121 only copies first row of overlay, breaking multi-row regions
     fn window(buf: Buffer, overlay: Rect) -> Buffer {
         let width = buf.area.width;
         let mut window = Buffer::empty(overlay);
