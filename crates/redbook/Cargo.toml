@@ -1,0 +1,19 @@
+[package]
+authors.workspace = true
+categories.workspace = true
+description = "CDDA CD digital audio as per RedBook"
+edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+license.workspace = true
+name = "redbook"
+publish = false
+readme = "README.md"
+repository.workspace = true
+rust-version = "1.95.0"
+version = "0.0.1"
+
+[dependencies]
+
+[build-dependencies]
+build_safely.workspace = true
