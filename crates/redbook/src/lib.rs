@@ -34,36 +34,6 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
     };
     dbg!(&drive);
     let drive = validate(drive)?;
-    let toc_command = CDROM_READ_TOC_EX::default();
-    let mut toc = CDROM_TOC_FULL_TOC_DATA::default();
-    let mut bytes_returned: u32 = 0;
-    let read_toc = unsafe {
-        // SAFETY: matching input & return buffer types
-        DeviceIoControl(
-            drive,
-            IOCTL_CDROM_READ_TOC_EX,
-            &toc_command as *const _ as *const _,
-            size_of_val(&toc_command) as u32,
-            &mut toc as *mut _ as *mut _,
-            size_of_val(&toc) as u32,
-            &mut bytes_returned as *mut _,
-            null_mut(),
-        )
-    };
-    dbg!(read_toc);
-    dbg!(bytes_returned);
-    dbg!(size_of_val(&toc));
-    dbg!(toc.Length);
-    dbg!(toc.FirstCompleteSession);
-    dbg!(toc.LastCompleteSession);
-    for track in toc.Descriptors {
-        dbg!(track.SessionNumber);
-        dbg!(track.Msf);
-        dbg!(track.MsfExtra);
-        dbg!(track.Point);
-        dbg!(track.Zero);
-        dbg!(track._bitfield);
-    }
     let read_command = RAW_READ_INFO {
         DiskOffset: cdas[0].range_position.offset(),
         SectorCount: 1,
