@@ -3,14 +3,19 @@
 //! CDDA CD digital audio as per RedBook (IEC 60908:1999)
 
 use std::{
-    fs::{self, read_dir}, io, path::PathBuf, ptr::{null, null_mut},
+    fs::{self, read_dir},
+    io,
+    path::PathBuf,
+    ptr::{null, null_mut},
 };
 
 use std::convert::TryFrom;
 
 pub fn read_toc(drive: &str) -> io::Result<()> {
     let drive: PathBuf = drive.into();
-    let cdas: Vec<_> = read_dir(&drive)?.map(|track| Cda::try_from(fs::read(track.unwrap().path()).unwrap()).unwrap()).collect();
+    let cdas: Vec<_> = read_dir(&drive)?
+        .map(|track| Cda::try_from(fs::read(track.unwrap().path()).unwrap()).unwrap())
+        .collect();
     dbg!(&cdas);
     let windrive = format!(r"\\.\{}", drive.display());
     let lpfilename = WinString::from(windrive.as_str());
@@ -44,7 +49,7 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
             &mut bytes_returned as *mut _,
             null_mut(),
         )
-    };  
+    };
     dbg!(read_toc);
     dbg!(bytes_returned);
     dbg!(size_of_val(&toc));
@@ -59,6 +64,27 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
         dbg!(track.Zero);
         dbg!(track._bitfield);
     }
+    let read_command = RAW_READ_INFO {
+        DiskOffset: cdas[0].range_position.offset(),
+        SectorCount: 1,
+        TrackMode: 2,
+    };
+    let mut frame = [0_u8; 2353]; // one frame
+    let mut bytes_read: u32 = 0;
+    let frame1 = unsafe {
+        DeviceIoControl(
+            drive,
+            IOCTL_CDROM_RAW_READ,
+            &read_command as *const _ as *const _,
+            size_of_val(&read_command) as u32,
+            &mut frame as *mut _ as *mut _,
+            size_of_val(&frame) as u32,
+            &mut bytes_read as *mut _,
+            null_mut(),
+        )
+    };
+    dbg!(frame1);
+    dbg!(frame);
     Ok(())
 }
 
@@ -199,15 +225,28 @@ pub struct CdTime {
     pub frame: i8,
 }
 
-// impl CdTime {
-//     fn sector(&self) ->
-// }
+impl CdTime {
+    fn as_frames(&self) -> i64 {
+        let sec: i64 = ((self.min * 60) + self.sec).into();
+        sec * 75
+    }
+
+    fn sector(&self) -> i64 {
+        self.as_frames()
+    }
+
+    /// Contains an offset into the CD-ROM disc where the track starts. You can calculate this offset by multiplying the starting sector number for the request times 2048.
+    /// See https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ns-ntddcdrm-__raw_read_info
+    fn offset(&self) -> i64 {
+        self.sector() * 2048
+    }
+}
 
 use windows_sys::{
     Win32::{
         Devices::Cdrom::{
             CDROM_READ_TOC_EX, CDROM_READ_TOC_EX_FORMAT_FULL_TOC, CDROM_TOC_FULL_TOC_DATA,
-            IOCTL_CDROM_READ_TOC_EX,
+            IOCTL_CDROM_RAW_READ, IOCTL_CDROM_READ_TOC_EX, RAW_READ_INFO, TRACK_MODE_TYPE,
         },
         Foundation::{GENERIC_READ, HANDLE, INVALID_HANDLE_VALUE},
         Storage::FileSystem::{
