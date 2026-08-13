@@ -15,6 +15,7 @@ version = "0.0.1"
 
 [dependencies]
 windows-sys = { version = "0.61.2", features = [
+    "Win32_Devices_Cdrom",
     "Win32_Storage",
     "Win32_Storage_FileSystem",
     "Win32_Security",

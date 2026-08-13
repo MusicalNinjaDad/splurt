@@ -3,7 +3,7 @@
 //! CDDA CD digital audio as per RedBook (IEC 60908:1999)
 
 use std::{
-    fs::{self, Dir, read_dir}, io, path::PathBuf, ptr::null,
+    fs::{self, Dir, read_dir}, io, path::PathBuf, ptr::{null, null_mut},
 };
 
 use std::convert::TryFrom;
@@ -36,7 +36,36 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
     };
     dbg!(&drive);
     let drive = validate(drive)?;
-    
+    let toc_command = CDROM_READ_TOC_EX::default();
+    let mut toc = CDROM_TOC_FULL_TOC_DATA::default();
+    let mut bytes_returned: u32 = 0;
+    let read_toc = unsafe {
+        // SAFETY: matching input & return buffer types
+        DeviceIoControl(
+            drive,
+            IOCTL_CDROM_READ_TOC_EX,
+            &toc_command as *const _ as *const _,
+            size_of_val(&toc_command) as u32,
+            &mut toc as *mut _ as *mut _,
+            size_of_val(&toc) as u32,
+            &mut bytes_returned as *mut _,
+            null_mut(),
+        )
+    };  
+    dbg!(read_toc);
+    dbg!(bytes_returned);
+    dbg!(size_of_val(&toc));
+    dbg!(toc.Length);
+    dbg!(toc.FirstCompleteSession);
+    dbg!(toc.LastCompleteSession);
+    for track in toc.Descriptors {
+        dbg!(track.SessionNumber);
+        dbg!(track.Msf);
+        dbg!(track.MsfExtra);
+        dbg!(track.Point);
+        dbg!(track.Zero);
+        dbg!(track._bitfield);
+    }
     Ok(())
 }
 
@@ -59,7 +88,11 @@ impl TryFrom<Vec<u8>> for Cda {
         if data.len() < MIN_LEN {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("CDA file too short: expected at least {} bytes, got {}", MIN_LEN, data.len()),
+                format!(
+                    "CDA file too short: expected at least {} bytes, got {}",
+                    MIN_LEN,
+                    data.len()
+                ),
             ));
         }
 
@@ -101,7 +134,10 @@ impl TryFrom<Vec<u8>> for Cda {
         if fmt_chunk_size != 24 {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("Invalid fmt chunk size: expected 24, got {}", fmt_chunk_size),
+                format!(
+                    "Invalid fmt chunk size: expected 24, got {}",
+                    fmt_chunk_size
+                ),
             ));
         }
 
@@ -115,8 +151,10 @@ impl TryFrom<Vec<u8>> for Cda {
         }
 
         let track_number = u16::from_le_bytes([data[0x16], data[0x17]]);
-        let windows_identifier = u32::from_le_bytes([data[0x18], data[0x19], data[0x1A], data[0x1B]]);
-        let range_offset_frames = u32::from_le_bytes([data[0x1C], data[0x1D], data[0x1E], data[0x1F]]);
+        let windows_identifier =
+            u32::from_le_bytes([data[0x18], data[0x19], data[0x1A], data[0x1B]]);
+        let range_offset_frames =
+            u32::from_le_bytes([data[0x1C], data[0x1D], data[0x1E], data[0x1F]]);
         let duration_frames = u32::from_le_bytes([data[0x20], data[0x21], data[0x22], data[0x23]]);
 
         // Parse range position
@@ -170,11 +208,15 @@ pub struct CdTime {
 
 use windows_sys::{
     Win32::{
+        Devices::Cdrom::{
+            CDROM_READ_TOC_EX, CDROM_READ_TOC_EX_FORMAT_FULL_TOC, CDROM_TOC_FULL_TOC_DATA,
+            IOCTL_CDROM_READ_TOC_EX,
+        },
         Foundation::{GENERIC_READ, HANDLE, INVALID_HANDLE_VALUE},
         Storage::FileSystem::{
             CREATEFILE2_EXTENDED_PARAMETERS, CreateFile2, FILE_SHARE_READ, OPEN_EXISTING, ReadFile,
         },
-        System::IO::OVERLAPPED,
+        System::IO::{DeviceIoControl, OVERLAPPED},
     },
     core::PCWSTR,
 };
