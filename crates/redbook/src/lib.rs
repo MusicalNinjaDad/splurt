@@ -1,24 +1,17 @@
-#![feature(dirfd)]
+#![feature(iterator_try_collect)]
 
 //! CDDA CD digital audio as per RedBook (IEC 60908:1999)
 
 use std::{
-    fs::{self, Dir, read_dir}, io, path::PathBuf, ptr::{null, null_mut},
+    fs::{self, read_dir}, io, path::PathBuf, ptr::{null, null_mut},
 };
 
 use std::convert::TryFrom;
 
 pub fn read_toc(drive: &str) -> io::Result<()> {
     let drive: PathBuf = drive.into();
-    let dir = Dir::open(&drive)?;
-    dbg!(&dir);
-    let metadata = dir.metadata()?;
-    dbg!(&metadata);
-    for track in read_dir(&drive)? {
-        dbg!(&track);
-        let cda = Cda::try_from(fs::read(track?.path())?)?;
-        dbg!(&cda);
-    }
+    let cdas: Vec<_> = read_dir(&drive)?.map(|track| Cda::try_from(fs::read(track.unwrap().path()).unwrap()).unwrap()).collect();
+    dbg!(&cdas);
     let windrive = format!(r"\\.\{}", drive.display());
     let lpfilename = WinString::from(windrive.as_str());
     let dwdesiredaccess = GENERIC_READ;
@@ -205,6 +198,10 @@ pub struct CdTime {
     pub sec: i8,
     pub frame: i8,
 }
+
+// impl CdTime {
+//     fn sector(&self) ->
+// }
 
 use windows_sys::{
     Win32::{
