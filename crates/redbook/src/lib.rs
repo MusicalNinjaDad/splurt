@@ -3,7 +3,7 @@
 //! CDDA CD digital audio as per RedBook (IEC 60908:1999)
 
 use std::{
-    fs::{self, Dir, read_dir}, io, path::PathBuf,
+    fs::{self, Dir, read_dir}, io, path::PathBuf, ptr::null,
 };
 
 use std::convert::TryFrom;
@@ -19,6 +19,24 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
         let cda = Cda::try_from(fs::read(track?.path())?)?;
         dbg!(&cda);
     }
+    let windrive = format!(r"\\.\{}", drive.display());
+    let lpfilename = WinString::from(windrive.as_str());
+    let dwdesiredaccess = GENERIC_READ;
+    let dwsharemode = FILE_SHARE_READ;
+    let dwcreationdisposition = OPEN_EXISTING;
+    let drive: HANDLE = unsafe {
+        // SAFETY - lpfilename & pcreateexparams remain valid while raw pointers are in use
+        CreateFile2(
+            lpfilename.as_pcwstr(),
+            dwdesiredaccess,
+            dwsharemode,
+            dwcreationdisposition,
+            null(),
+        )
+    };
+    dbg!(&drive);
+    let drive = validate(drive)?;
+    
     Ok(())
 }
 
@@ -148,4 +166,50 @@ pub struct CdTime {
     pub min: i8,
     pub sec: i8,
     pub frame: i8,
+}
+
+use windows_sys::{
+    Win32::{
+        Foundation::{GENERIC_READ, HANDLE, INVALID_HANDLE_VALUE},
+        Storage::FileSystem::{
+            CREATEFILE2_EXTENDED_PARAMETERS, CreateFile2, FILE_SHARE_READ, OPEN_EXISTING, ReadFile,
+        },
+        System::IO::OVERLAPPED,
+    },
+    core::PCWSTR,
+};
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// A somewhat sane way of dealing with `PWSTR/PCWSTR`: A pointer to a null terminated string
+/// consisting of 'wide chars' (u16), encoded using UTF-16.
+///
+/// Construct via `WinString::from(&str)`
+struct WinString {
+    words: Vec<u16>,
+}
+
+impl From<&str> for WinString {
+    fn from(utf8: &str) -> Self {
+        // see https://kennykerr.ca/rust-getting-started/string-tutorial.html
+        let words = utf8.encode_utf16().chain(Some(0)).collect();
+        Self { words }
+    }
+}
+
+impl WinString {
+    /// Create a `PCWSTR` - note this is a raw pointer.
+    ///
+    /// SAFETY: You must ensure that the returned `PCWSTR` is not used after self is dropped.
+    /// It is recommended to call this directly in the call to a WinAPI unsafe function
+    unsafe fn as_pcwstr(&self) -> PCWSTR {
+        self.words.as_ptr()
+    }
+}
+
+fn validate(handle: HANDLE) -> io::Result<HANDLE> {
+    if handle == INVALID_HANDLE_VALUE {
+        // If the function fails, the return value is INVALID_HANDLE_VALUE. To get extended error information, call GetLastError.
+        return Err(io::Error::last_os_error());
+    };
+    Ok(handle)
 }
