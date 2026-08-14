@@ -1,7 +1,6 @@
 use redbook::grab_track;
 use std::{
-    env,
-    io::{self, Write},
+    env, fs::File, io::{self, Write},
 };
 
 fn main() {
@@ -19,12 +18,12 @@ fn main() {
             std::process::exit(1);
         }
         Ok(data) => match args.get(2) {
-            Some(_filename) => {
-                todo!("dump to file");
+            Some(filename) => {
+                let mut dump = File::create_new(filename).unwrap();
+                dbg!(dump.write(&data));
             }
             None => {
                 dbg!(data.len());
-                let _ = io::stdout().write_all(&data);
             }
         },
     }
