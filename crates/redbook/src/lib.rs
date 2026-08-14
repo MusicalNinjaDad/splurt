@@ -3,12 +3,17 @@
 //! CDDA CD digital audio as per RedBook (IEC 60908:1999)
 
 use std::{
-    cmp::min, fs::{self, read_dir}, io, path::PathBuf, ptr::{null, null_mut},
+    cmp::min,
+    fs::{self, read_dir},
+    io,
+    path::PathBuf,
+    ptr::{null, null_mut},
 };
 
 use std::convert::TryFrom;
 
-const FRAME_SIZE: usize = 2352;
+const FRAME_SIZE: u32 = 2352;
+const MAX_CHUNK_FRAMES: u32 = 64 * 1024 / FRAME_SIZE;
 
 pub fn read_toc(drive: &str) -> io::Result<()> {
     let drive: PathBuf = drive.into();
@@ -33,8 +38,10 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
     };
     dbg!(&drive);
     let drive = validate(drive)?;
-    let frames_to_read = min(cdas[0].duration_frames, 2);
-    let bytes_to_read= usize::try_from(frames_to_read).unwrap().strict_mul(FRAME_SIZE);
+    let frames_to_read = min(cdas[0].duration_frames, MAX_CHUNK_FRAMES);
+    let bytes_to_read = usize::try_from(frames_to_read)
+        .unwrap()
+        .strict_mul(FRAME_SIZE.try_into().unwrap());
     dbg!(bytes_to_read);
     let read_command = RAW_READ_INFO {
         DiskOffset: cdas[0].offset(),
@@ -76,7 +83,7 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
     dbg!(bytes_read);
     dbg!(&frame1);
     if frame1 == 0 {
-        return Err(io::Error::last_os_error())
+        return Err(io::Error::last_os_error());
     }
     Ok(())
 }
