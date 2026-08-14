@@ -12,7 +12,7 @@ use std::{
 
 use windows_sys::{
     Win32::{
-        Devices::Cdrom::{IOCTL_CDROM_RAW_READ, RAW_READ_INFO},
+        Devices::Cdrom::{IOCTL_CDROM_RAW_READ, RAW_READ_INFO, TRACK_MODE_TYPE},
         Foundation::{GENERIC_READ, HANDLE, INVALID_HANDLE_VALUE},
         Storage::FileSystem::{CreateFile2, FILE_SHARE_READ, OPEN_EXISTING},
         System::IO::DeviceIoControl,
@@ -28,6 +28,9 @@ const FRAME_SIZE: usize = 2352;
 // TODO: research max chunk size. Guessing 64k for now based on something I saw in cd_da_reader but with no references given
 const MAX_CHUNK_FRAMES: usize = 64 * 1024 / FRAME_SIZE;
 const MAX_CHUNK_BYTES: usize = MAX_CHUNK_FRAMES * FRAME_SIZE;
+
+//(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
+const TRACK_MODE_CDDA: TRACK_MODE_TYPE = 2;
 
 pub fn read_toc(drive: &str) -> io::Result<()> {
     let drive: PathBuf = drive.into();
@@ -127,7 +130,7 @@ fn read_chunk(
     let read_command = RAW_READ_INFO {
         DiskOffset: offset,
         SectorCount: frames_to_read,
-        TrackMode: 2, // CDDA(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
+        TrackMode: TRACK_MODE_CDDA,
     };
 
     let mut bytes_read: u32 = 0;
