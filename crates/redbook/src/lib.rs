@@ -2,12 +2,7 @@
 
 //! CDDA CD digital audio as per RedBook (IEC 60908:1999)
 
-use std::{
-    convert::TryFrom,
-    fs::{self, read_dir},
-    io,
-    path::PathBuf,
-};
+use std::{convert::TryFrom, io, path::PathBuf};
 
 pub mod win;
 use win::*;
@@ -24,19 +19,12 @@ const MAX_CHUNK_BYTES: usize = MAX_CHUNK_FRAMES * FRAME_SIZE;
 pub fn grab_track(drive: &str) -> io::Result<Vec<u8>> {
     let drive: PathBuf = drive.into();
 
-    // Windows already helpfully decodes the TOC for us. Parsing .cda files avoids calling
-    // ugly & unsafe ffi functions and wrangling the returned, nested structs.
-    let cdas: Vec<_> = read_dir(&drive)?
-        .map(|track| Cda::try_from(fs::read(track.unwrap().path()).unwrap()).unwrap())
-        .collect();
-    dbg!(&cdas);
-
     // Need to use ffi to raw read data. No API found to "get track audio data".
-    let drive = AudioCd::new(drive)?;
-    dbg!(&drive);
+    let cd = AudioCd::new(drive)?;
+    dbg!(&cd);
 
     // For now just grab whichever track I want on the CD I have in right now (manually identified)
-    let track = cdas[8];
+    let track = cd.track(8).unwrap();
     dbg!(track);
     let track_size = usize::try_from(track.duration_frames)
         .unwrap()
@@ -63,7 +51,7 @@ pub fn grab_track(drive: &str) -> io::Result<Vec<u8>> {
         );
         let pseudo_sectors = bytes_read_so_far.strict_div(FRAME_SIZE.try_into().unwrap());
         let offset = track.offset().strict_add(pseudo_sectors * 2048);
-        let bytes_read = drive.read_chunk(offset, bytes_to_read, frames_to_read, buf)?;
+        let bytes_read = cd.read_chunk(offset, bytes_to_read, frames_to_read, buf)?;
         bytes_read_so_far += i64::from(bytes_read);
     }
 
@@ -88,7 +76,7 @@ pub fn grab_track(drive: &str) -> io::Result<Vec<u8>> {
     );
 
     let offset = track.offset().strict_add(bytes_read_so_far);
-    let bytes_read = drive.read_chunk(offset, bytes_to_read, frames_to_read, last_buf)?;
+    let bytes_read = cd.read_chunk(offset, bytes_to_read, frames_to_read, last_buf)?;
     bytes_read_so_far += i64::from(bytes_read);
 
     dbg!(bytes_read_so_far);
@@ -126,7 +114,7 @@ pub fn into_wav(pcm: Vec<u8>) -> Vec<u8> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Cda {
+pub struct Track {
     pub track_number: u16,
     pub windows_identifier: u32,
     /// First frame *relative to end of lead-in* (150 frames less than starting_time)
@@ -179,125 +167,6 @@ pub struct Cda {
     pub duration: CdTime,
 }
 
-/// Parsing based on https://en.wikipedia.org/wiki/.cda_file
-impl TryFrom<Vec<u8>> for Cda {
-    type Error = io::Error;
-
-    fn try_from(data: Vec<u8>) -> Result<Self, Self::Error> {
-        const MIN_LEN: usize = 44;
-        if data.len() < MIN_LEN {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!(
-                    "CDA file too short: expected at least {} bytes, got {}",
-                    MIN_LEN,
-                    data.len()
-                ),
-            ));
-        }
-
-        // Validate RIFF header
-        if &data[0..4] != b"RIFF" {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Missing or invalid RIFF header",
-            ));
-        }
-
-        // Validate chunk size (always 36)
-        let chunk_size = u32::from_le_bytes([data[4], data[5], data[6], data[7]]);
-        if chunk_size != 36 {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("Invalid chunk size: expected 36, got {}", chunk_size),
-            ));
-        }
-
-        // Validate CDDA identifier
-        if &data[8..12] != b"CDDA" {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Missing or invalid CDDA identifier",
-            ));
-        }
-
-        // Validate fmt chunk identifier
-        if &data[12..16] != b"fmt " {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Missing or invalid fmt chunk identifier",
-            ));
-        }
-
-        // Validate fmt chunk size (always 24)
-        let fmt_chunk_size = u32::from_le_bytes([data[16], data[17], data[18], data[19]]);
-        if fmt_chunk_size != 24 {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!(
-                    "Invalid fmt chunk size: expected 24, got {}",
-                    fmt_chunk_size
-                ),
-            ));
-        }
-
-        // Parse version (always 1)
-        let version = u16::from_le_bytes([data[0x14], data[0x15]]);
-        if version != 1 {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("Invalid version: expected 1, got {}", version),
-            ));
-        }
-
-        let track_number = u16::from_le_bytes([data[0x16], data[0x17]]);
-        let windows_identifier =
-            u32::from_le_bytes([data[0x18], data[0x19], data[0x1A], data[0x1B]]);
-        let range_offset_frames =
-            u32::from_le_bytes([data[0x1C], data[0x1D], data[0x1E], data[0x1F]]);
-        let duration_frames = u32::from_le_bytes([data[0x20], data[0x21], data[0x22], data[0x23]]);
-
-        // Parse range position
-        let range_position = CdTime {
-            frame: data[0x24] as i8,
-            sec: data[0x25] as i8,
-            min: data[0x26] as i8,
-        };
-
-        // Validate null byte after range position
-        if data[0x27] != 0 {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Expected null byte after range position",
-            ));
-        }
-
-        // Parse duration time
-        let duration = CdTime {
-            frame: data[0x28] as i8,
-            sec: data[0x29] as i8,
-            min: data[0x2A] as i8,
-        };
-
-        // Validate null byte after duration
-        if data[0x2B] != 0 {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Expected null byte after duration",
-            ));
-        }
-
-        Ok(Cda {
-            track_number,
-            windows_identifier,
-            starting_frame: range_offset_frames,
-            duration_frames,
-            starting_time: range_position,
-            duration,
-        })
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CdTime {
     pub min: i8,
@@ -305,7 +174,7 @@ pub struct CdTime {
     pub frame: i8,
 }
 
-impl Cda {
+impl Track {
     /// Contains an offset into the CD-ROM disc where the track starts in 2048-byte pseudo-sectors.
     fn offset(&self) -> i64 {
         (self.starting_frame as i64 + 150) * 2048_i64
