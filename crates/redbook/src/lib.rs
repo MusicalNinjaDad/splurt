@@ -88,7 +88,8 @@ pub fn grab_track(drive: &str) -> io::Result<Vec<u8>> {
             i.strict_mul(MAX_CHUNK_BYTES).try_into().unwrap(),
             "now reading chunk {i} but have only read {bytes_read_so_far} bytes so far"
         );
-        let offset = track.offset().strict_add(bytes_read_so_far);
+        let pseudo_sectors = bytes_read_so_far.strict_div(FRAME_SIZE.try_into().unwrap());
+        let offset = track.offset().strict_add(pseudo_sectors * 2048);
         let bytes_read = read_chunk(drive, offset, bytes_to_read, frames_to_read, buf)?;
         bytes_read_so_far += i64::from(bytes_read);
     }
