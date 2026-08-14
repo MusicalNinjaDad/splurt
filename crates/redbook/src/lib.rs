@@ -36,20 +36,23 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
     };
     dbg!(&drive);
     let drive = validate(drive)?;
-    let sectors_to_read: u32 = cdas[0].duration_frames * u32::try_from(FRAME_SIZE).expect("FRAME_SIZE is small");
-    dbg!(sectors_to_read);
+    let bytes_to_read= usize::try_from(cdas[0].duration_frames).unwrap().strict_mul(FRAME_SIZE);
+    dbg!(bytes_to_read);
     let read_command = RAW_READ_INFO {
         DiskOffset: cdas[0].offset(),
         // SAFETY - must match size of buffer
-        SectorCount: sectors_to_read,
+        SectorCount: cdas[0].duration_frames,
         TrackMode: 2, // CDDA(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
     };
     // SAFETY - must have at least capacity for SectorCount
-    let mut frame = Vec::<u8>::with_capacity(usize::try_from(sectors_to_read).unwrap());
+    let mut frame = Vec::<u8>::with_capacity(bytes_to_read);
+    dbg!(frame.len());
     let mut bytes_read: u32 = 0;
     let frame1 = unsafe {
+        debug_assert_eq!(frame.len(), 0);
+        let frame_buffer_size: u32 = bytes_to_read.try_into().unwrap();
         // SAFETY - inline based on https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ni-ntddcdrm-ioctl_cdrom_raw_read
-        DeviceIoControl(
+        let res = DeviceIoControl(
             drive,
             IOCTL_CDROM_RAW_READ,
             // If the IOCTL is from user mode, Irp->AssociatedIrp.SystemBuffer contains a RAW_READ_INFO
@@ -59,13 +62,17 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
             // Parameters.DeviceIoControl.InputBufferLength specifies the size, in bytes, of the
             // structure, which must be >= sizeof(RAW_READ_INFO)
             size_of_val(&read_command) as u32,
-            // must be >= sizeof(SectorCount * RAW_SECTOR_SIZE), cannot reallocate without risking 
-            //invalidating pointer. We create frame with capacity equal to read_command.SectorCount.
+            // Cannot reallocate without risking invalidating pointer. We create frame with capacity
+            // equal to read_command.SectorCount * Sectorsize.
             frame.as_mut_ptr() as *mut _,
-            size_of_val(&frame) as u32,
+            // Parameters.DeviceIoControl.OutputBufferLength
+            // specifies the size of the buffer to be read, which must be >= sizeof(SectorCount * RAW_SECTOR_SIZE)
+            frame_buffer_size,
             &mut bytes_read as *mut _,
             null_mut(),
-        )
+        );
+        frame.set_len(usize::try_from(bytes_read).unwrap());
+        res
     };
     dbg!(frame.len());
     dbg!(bytes_read);
