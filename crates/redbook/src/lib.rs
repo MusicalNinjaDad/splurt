@@ -24,7 +24,8 @@ pub fn grab_track(drive: &str) -> io::Result<Vec<u8>> {
     dbg!(&cd);
 
     // For now just grab whichever track I want on the CD I have in right now (manually identified)
-    let track = cd.track(8).unwrap();
+    let track_num = 8;
+    let track = cd.track(track_num).unwrap();
     dbg!(track);
     let track_size = usize::try_from(track.duration_frames)
         .unwrap()
@@ -40,43 +41,40 @@ pub fn grab_track(drive: &str) -> io::Result<Vec<u8>> {
     let mut bytes_read_so_far = 0_i64;
 
     for (i, buf) in bufs.iter_mut().enumerate() {
-        // SAFETY note - must match each other and size of buffer
         let frames_to_read: u32 = MAX_CHUNK_FRAMES.try_into().unwrap();
-        let bytes_to_read: u32 = MAX_CHUNK_BYTES.try_into().unwrap();
 
         debug_assert_eq!(
             bytes_read_so_far,
             i.strict_mul(MAX_CHUNK_BYTES).try_into().unwrap(),
             "now reading chunk {i} but have only read {bytes_read_so_far} bytes so far"
         );
-        let pseudo_sectors = bytes_read_so_far.strict_div(FRAME_SIZE.try_into().unwrap());
-        let offset = track.offset().strict_add(pseudo_sectors * 2048);
-        let bytes_read = cd.read_chunk(offset, bytes_to_read, frames_to_read, buf)?;
+
+        let frame_offset = i * MAX_CHUNK_FRAMES;
+        debug_assert_eq!(
+            i64::try_from(frame_offset)
+                .unwrap()
+                .strict_mul(FRAME_SIZE.try_into().unwrap()),
+            bytes_read_so_far,
+            "about to read chunk {i}. We have read {frame_offset} frames, but only {bytes_read_so_far} bytes so far"
+        );
+
+        let bytes_read = cd.read_chunk(track_num, frame_offset, frames_to_read, buf)?;
         bytes_read_so_far += i64::from(bytes_read);
     }
 
-    let frames_read_so_far = bufs.len().strict_mul(MAX_CHUNK_FRAMES);
+    let frame_offset = bufs.len().strict_mul(MAX_CHUNK_FRAMES);
     debug_assert_eq!(
-        i64::try_from(frames_read_so_far)
+        i64::try_from(frame_offset)
             .unwrap()
             .strict_mul(FRAME_SIZE.try_into().unwrap()),
         bytes_read_so_far,
-        "about to read last frame. We have read {frames_read_so_far} frames, but only {bytes_read_so_far} bytes so far"
+        "about to read last chunk. We have read {frame_offset} frames, but only {bytes_read_so_far} bytes so far"
     );
     let frames_to_read = track
         .duration_frames
         .strict_rem(MAX_CHUNK_FRAMES.try_into().unwrap());
-    let bytes_to_read = last_buf.len().try_into().unwrap();
-    debug_assert_eq!(
-        i64::from(bytes_to_read),
-        i64::from(track.duration_frames)
-            .strict_mul(FRAME_SIZE.try_into().unwrap())
-            .strict_sub(bytes_read_so_far),
-        "about to read last frame. {bytes_to_read} bytes remaining, this seems does not match number of frames read so far"
-    );
 
-    let offset = track.offset().strict_add(bytes_read_so_far);
-    let bytes_read = cd.read_chunk(offset, bytes_to_read, frames_to_read, last_buf)?;
+    let bytes_read = cd.read_chunk(track_num, frame_offset, frames_to_read, last_buf)?;
     bytes_read_so_far += i64::from(bytes_read);
 
     dbg!(bytes_read_so_far);

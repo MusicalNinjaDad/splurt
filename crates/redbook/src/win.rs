@@ -80,18 +80,22 @@ impl AudioCd {
         self.tracks.get(track)
     }
 
+    /// Reads `frames_to_read` worth of data starting at `track` + `frame_offset` into `buf`
     pub fn read_chunk(
         &self,
-        offset: i64,
-        bytes_to_read: u32,
+        track: usize,
+        frame_offset: usize,
         frames_to_read: u32,
         buf: &mut [u8],
     ) -> io::Result<u32> {
+        let offset = self.tracks.get(track).unwrap().offset() + (frame_offset as i64 * 2048);
         let read_command = RAW_READ_INFO {
             DiskOffset: offset,
             SectorCount: frames_to_read,
             TrackMode: TRACK_MODE_CDDA,
         };
+
+        let bytes_to_read = frames_to_read * FRAME_SIZE as u32;
 
         let mut bytes_read: u32 = 0;
         dbg!(offset);
