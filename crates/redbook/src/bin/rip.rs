@@ -1,4 +1,4 @@
-use redbook::grab_track;
+use redbook::{grab_track, into_wav};
 use std::{
     env, fs::File, io::{self, Write},
 };
@@ -17,13 +17,14 @@ fn main() {
 
             std::process::exit(1);
         }
-        Ok(data) => match args.get(2) {
+        Ok(pcm) => match args.get(2) {
             Some(filename) => {
                 let mut dump = File::create_new(filename).unwrap();
-                dbg!(dump.write(&data));
+                let wav = into_wav(pcm);
+                dbg!(dump.write(&wav));
             }
             None => {
-                dbg!(data.len());
+                dbg!(pcm.len());
             }
         },
     }

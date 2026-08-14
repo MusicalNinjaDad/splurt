@@ -179,29 +179,32 @@ fn read_chunk(
     Ok(bytes_read)
 }
 
-pub fn create_wav_header(pcm_data_size: u32) -> Vec<u8> {
-    let mut header = Vec::with_capacity(44);
+pub fn into_wav(pcm: Vec<u8>) -> Vec<u8> {
+    // based on cd_da_reader
+    let pcm_data_size = pcm.len();
+    let mut wav = Vec::with_capacity(44 + pcm_data_size);
 
     // RIFF header
-    header.extend_from_slice(b"RIFF");
-    header.extend_from_slice(&(pcm_data_size + 36).to_le_bytes()); // file size - 8
-    header.extend_from_slice(b"WAVE");
+    wav.extend_from_slice(b"RIFF");
+    wav.extend_from_slice(&(pcm_data_size + 36).to_le_bytes()); // file size - 8
+    wav.extend_from_slice(b"WAVE");
 
     // fmt chunk
-    header.extend_from_slice(b"fmt ");
-    header.extend_from_slice(&16u32.to_le_bytes()); // fmt chunk size
-    header.extend_from_slice(&1u16.to_le_bytes()); // PCM format
-    header.extend_from_slice(&2u16.to_le_bytes()); // channels
-    header.extend_from_slice(&44100u32.to_le_bytes()); // sample rate
-    header.extend_from_slice(&176400u32.to_le_bytes()); // byte rate
-    header.extend_from_slice(&4u16.to_le_bytes()); // block align
-    header.extend_from_slice(&16u16.to_le_bytes()); // bits per sample
+    wav.extend_from_slice(b"fmt ");
+    wav.extend_from_slice(&16u32.to_le_bytes()); // fmt chunk size
+    wav.extend_from_slice(&1u16.to_le_bytes()); // PCM format
+    wav.extend_from_slice(&2u16.to_le_bytes()); // channels
+    wav.extend_from_slice(&44100u32.to_le_bytes()); // sample rate
+    wav.extend_from_slice(&176400u32.to_le_bytes()); // byte rate
+    wav.extend_from_slice(&4u16.to_le_bytes()); // block align
+    wav.extend_from_slice(&16u16.to_le_bytes()); // bits per sample
 
     // data chunk header
-    header.extend_from_slice(b"data");
-    header.extend_from_slice(&pcm_data_size.to_le_bytes());
+    wav.extend_from_slice(b"data");
+    wav.extend_from_slice(&pcm_data_size.to_le_bytes());
 
-    header
+    wav.extend(&pcm);
+    wav
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -210,7 +213,7 @@ pub struct Cda {
     pub windows_identifier: u32,
     /// First frame *relative to end of lead-in* (150 frames less than starting_time)
     /// Assuming Windows does it this way, which appears backwards, for historical reasons!
-    /// 
+    ///
     /// For example dbg!() from a real Cda gives:
     /// ```text
     /// Cda {
@@ -234,7 +237,7 @@ pub struct Cda {
     pub duration_frames: u32,
     /// *Absolute* starting time, track 1 will be >= 2sec due to lead-in
     /// Assuming Windows does it this way, which appears backwards, for historical reasons!
-    /// 
+    ///
     /// For example dbg!() from a real Cda gives:
     /// ```text
     /// Cda {
