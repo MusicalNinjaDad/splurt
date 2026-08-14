@@ -1,3 +1,5 @@
+#![allow(unsafe_code)]
+
 //! Safe and sane wrappers around windows APIs
 
 // RULES for this file:

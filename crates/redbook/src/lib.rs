@@ -1,5 +1,10 @@
 #![feature(exact_div)]
 
+// Unsafe restricted to dedicated wrapper modules
+#![deny(unsafe_code)]
+#![forbid(unsafe_op_in_unsafe_fn)]
+#![forbid(unsafe_attr_outside_unsafe)]
+
 //! CDDA CD digital audio as per RedBook (IEC 60908:1999)
 //!
 //! Frame IDs are always *absolute* and *include* the lead-in (150 frames)
