@@ -184,10 +184,50 @@ pub struct Cda {
     pub windows_identifier: u32,
     /// First frame *relative to end of lead-in* (150 frames less than starting_time)
     /// Assuming Windows does it this way, which appears backwards, for historical reasons!
+    /// 
+    /// For example dbg!() from a real Cda gives:
+    /// ```text
+    /// Cda {
+    ///     track_number: 1,
+    ///     windows_identifier: 17596852,
+    ///     starting_frame: 33,
+    ///     duration_frames: 24242,
+    ///     starting_time: CdTime {
+    ///         min: 0,
+    ///         sec: 2,
+    ///         frame: 33,
+    ///     },
+    ///     duration: CdTime {
+    ///         min: 5,
+    ///         sec: 23,
+    ///         frame: 17,
+    ///     },
+    /// }
+    /// ```
     pub starting_frame: u32,
     pub duration_frames: u32,
-    /// *Absolute* starting time, track 1 will be >= 2mins due to lead-in
+    /// *Absolute* starting time, track 1 will be >= 2sec due to lead-in
     /// Assuming Windows does it this way, which appears backwards, for historical reasons!
+    /// 
+    /// For example dbg!() from a real Cda gives:
+    /// ```text
+    /// Cda {
+    ///     track_number: 1,
+    ///     windows_identifier: 17596852,
+    ///     starting_frame: 33,
+    ///     duration_frames: 24242,
+    ///     starting_time: CdTime {
+    ///         min: 0,
+    ///         sec: 2,
+    ///         frame: 33,
+    ///     },
+    ///     duration: CdTime {
+    ///         min: 5,
+    ///         sec: 23,
+    ///         frame: 17,
+    ///     },
+    /// }
+    /// ```
     pub starting_time: CdTime,
     pub duration: CdTime,
 }
