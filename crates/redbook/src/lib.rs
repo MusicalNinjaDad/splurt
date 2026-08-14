@@ -62,8 +62,8 @@ pub fn grab_track(drive: &str) -> io::Result<Vec<u8>> {
     dbg!(&drive);
     let drive = validate(drive)?;
 
-    // For now just grab whichever track is shortest on the CD I have in right now (manually identified)
-    let track = cdas[0];
+    // For now just grab whichever track I want on the CD I have in right now (manually identified)
+    let track = cdas[8];
     dbg!(track);
     let track_size = usize::try_from(track.duration_frames)
         .unwrap()
@@ -391,10 +391,9 @@ pub struct CdTime {
 }
 
 impl Cda {
-    /// Contains an offset into the CD-ROM disc where the track starts in [`FRAME_SIZE`]-byte sectors.
+    /// Contains an offset into the CD-ROM disc where the track starts in 2048-byte pseudo-sectors.
     fn offset(&self) -> i64 {
-        (self.starting_frame as i64 + 150)
-            * i64::try_from(FRAME_SIZE).expect("FRAME_SIZE is positive")
+        (self.starting_frame as i64 + 150) * 2048_i64
     }
 }
 
