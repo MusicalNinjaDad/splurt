@@ -1,9 +1,8 @@
-#![feature(iterator_try_collect)]
+#![feature(exact_div)]
 
 //! CDDA CD digital audio as per RedBook (IEC 60908:1999)
 
 use std::{
-    cmp::min,
     fs::{self, read_dir},
     io,
     path::PathBuf,
@@ -12,8 +11,9 @@ use std::{
 
 use std::convert::TryFrom;
 
-const FRAME_SIZE: u32 = 2352;
-const MAX_CHUNK_FRAMES: u32 = 64 * 1024 / FRAME_SIZE;
+const FRAME_SIZE: usize = 2352;
+const MAX_CHUNK_FRAMES: usize = 64 * 1024 / FRAME_SIZE;
+const MAX_CHUNK_BYTES: usize = MAX_CHUNK_FRAMES * FRAME_SIZE;
 
 pub fn read_toc(drive: &str) -> io::Result<()> {
     let drive: PathBuf = drive.into();
@@ -39,89 +39,113 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
     dbg!(&drive);
     let drive = validate(drive)?;
 
-    let track_size = usize::try_from(cdas[0].duration_frames)
+    let track1 = cdas[0];
+    let track_size = usize::try_from(track1.duration_frames)
         .unwrap()
-        .strict_mul(FRAME_SIZE.try_into().unwrap());
+        .strict_mul(FRAME_SIZE);
     debug_assert!(track_size > 0);
-    // SAFETY - must have at least capacity for SectorCount
-    let mut frame = Vec::<u8>::with_capacity(track_size);
+    let mut frame = vec![0_u8; track_size];
     dbg!(frame.len());
-    let chunks_to_read = track_size.div_ceil(MAX_CHUNK_FRAMES.try_into().unwrap());
-    let mut bytes_read_so_far: usize = 0;
 
-    for i in 0..chunks_to_read {
-        let frames_read_so_far = i.strict_mul(MAX_CHUNK_FRAMES.try_into().unwrap());
+    let (bufs, last_buf) = frame.as_chunks_mut::<MAX_CHUNK_BYTES>();
+    // last_buf SAFETY - must have at least capacity for SectorCount
+
+    let mut bytes_read_so_far = 0_i64;
+    for (i, buf) in bufs.iter_mut().enumerate() {
+        // SAFETY - must match size of buffer
+        let frames_to_read: u32 = MAX_CHUNK_FRAMES.try_into().unwrap();
+        let bytes_to_read: u32 = MAX_CHUNK_BYTES.try_into().unwrap();
+
         debug_assert_eq!(
             bytes_read_so_far,
-            frames_read_so_far.strict_mul(FRAME_SIZE.try_into().unwrap())
+            i.strict_mul(MAX_CHUNK_BYTES).try_into().unwrap(),
         );
-        let frames_to_read = min(
-            cdas[0]
-                .duration_frames
-                .strict_sub(frames_read_so_far.try_into().unwrap()),
-            MAX_CHUNK_FRAMES,
-        );
-        let bytes_to_read = usize::try_from(frames_to_read)
-            .unwrap()
-            .strict_mul(FRAME_SIZE.try_into().unwrap());
-        let offset = cdas[0]
-            .offset()
-            .strict_add(bytes_read_so_far.try_into().unwrap());
-        dbg!(
-            "reading chunk {} ({} frames at offset {}). Already read {} of {} frames...",
-            i + 1,
-            frames_to_read,
-            offset,
-            frames_read_so_far,
-            frames_read_so_far,
-            cdas[0].duration_frames
-        );
-        let read_command = RAW_READ_INFO {
-            DiskOffset: offset,
-            // SAFETY - must match size of bufferyy
-            SectorCount: frames_to_read,
-            TrackMode: 2, // CDDA(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
-        };
-        let mut bytes_read: u32 = 0;
-        let read_chunk = unsafe {
-            debug_assert_eq!(frame.len(), bytes_read_so_far);
-            let frame_buffer_size: u32 = bytes_to_read.try_into().unwrap();
-            let buf = &mut frame[bytes_read_so_far..bytes_read_so_far + bytes_to_read];
-            debug_assert_eq!(frame_buffer_size, buf.len().try_into().unwrap());
-            // SAFETY - inline based on https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ni-ntddcdrm-ioctl_cdrom_raw_read
-            let res = DeviceIoControl(
-                drive,
-                IOCTL_CDROM_RAW_READ,
-                // If the IOCTL is from user mode, Irp->AssociatedIrp.SystemBuffer contains a RAW_READ_INFO
-                // structure that specifies the starting disk offset, the sector count, and the track mode
-                // (XA or CDDA) for the read.
-                &read_command as *const _ as *const _,
-                // Parameters.DeviceIoControl.InputBufferLength specifies the size, in bytes, of the
-                // structure, which must be >= sizeof(RAW_READ_INFO)
-                size_of_val(&read_command) as u32,
-                // Cannot reallocate without risking invalidating pointer. We create frame with capacity
-                // equal to read_command.SectorCount * Sectorsize.
-                buf as *mut _ as *mut _,
-                // Parameters.DeviceIoControl.OutputBufferLength
-                // specifies the size of the buffer to be read, which must be >= sizeof(SectorCount * RAW_SECTOR_SIZE)
-                frame_buffer_size,
-                &mut bytes_read as *mut _,
-                null_mut(),
-            );
-            debug_assert_eq!(bytes_read, bytes_to_read.try_into().unwrap());
-            bytes_read_so_far = bytes_read_so_far.strict_add(bytes_read.try_into().unwrap());
-            frame.set_len(bytes_read_so_far);
-            res
-        };
-        if read_chunk == 0 {
-            return Err(io::Error::last_os_error());
-        }
+        let offset = track1.offset().strict_add(bytes_read_so_far);
+        let bytes_read = read_chunk(drive, offset, bytes_to_read, frames_to_read, buf)?;
+        bytes_read_so_far += &bytes_read.into();
     }
 
-    dbg!(frame.len());
+    let frames_read_so_far = bufs.len().strict_mul(MAX_CHUNK_FRAMES);
+    debug_assert_eq!(
+        i64::try_from(frames_read_so_far)
+            .unwrap()
+            .strict_mul(FRAME_SIZE.try_into().unwrap()),
+        bytes_read_so_far
+    );
+    let frames_to_read = track1
+        .duration_frames
+        .strict_rem(frames_read_so_far.try_into().unwrap());
+    let bytes_to_read = last_buf.len().try_into().unwrap();
+    debug_assert_eq!(
+        i64::from(bytes_to_read),
+        i64::from(track1.duration_frames)
+            .strict_mul(FRAME_SIZE.try_into().unwrap())
+            .strict_sub(bytes_read_so_far)
+    );
+
+    let offset = track1.offset().strict_add(bytes_read_so_far);
+    let bytes_read = read_chunk(drive, offset, bytes_to_read, frames_to_read, last_buf)?;
+    bytes_read_so_far += &bytes_read.into();
+
+    dbg!(bytes_read_so_far);
     Ok(())
 }
 
+fn read_chunk(
+    drive: HANDLE,
+    offset: i64,
+    bytes_to_read: u32,
+    frames_to_read: u32,
+    buf: &mut [u8],
+) -> io::Result<u32> {
+    let read_command = RAW_READ_INFO {
+        DiskOffset: offset,
+        SectorCount: frames_to_read,
+        TrackMode: 2, // CDDA(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
+    };
+
+    let mut bytes_read: u32 = 0;
+    dbg!(offset);
+
+    // SAFETY - inline based on https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ni-ntddcdrm-ioctl_cdrom_raw_read
+    let read_chunk = unsafe {
+        // SAFETY: Buffer is expected size
+        debug_assert_eq!(bytes_to_read, buf.len().try_into().unwrap());
+        // SAFETY: Buffer is exact size for Sector count
+        debug_assert_eq!(
+            read_command.SectorCount,
+            bytes_to_read
+                .div_exact(FRAME_SIZE.try_into().unwrap())
+                .expect("no remainder")
+        );
+
+        DeviceIoControl(
+            drive,
+            IOCTL_CDROM_RAW_READ,
+            // If the IOCTL is from user mode, Irp->AssociatedIrp.SystemBuffer contains a RAW_READ_INFO
+            // structure that specifies the starting disk offset, the sector count, and the track mode
+            // (XA or CDDA) for the read.
+            &read_command as *const _ as *const _,
+            // Parameters.DeviceIoControl.InputBufferLength specifies the size, in bytes, of the
+            // structure, which must be >= sizeof(RAW_READ_INFO)
+            size_of_val(&read_command) as u32,
+            // Cannot reallocate without risking invalidating pointer. We create frame with capacity
+            // equal to read_command.SectorCount * Sectorsize.
+            buf as *mut _ as *mut _,
+            // Parameters.DeviceIoControl.OutputBufferLength
+            // specifies the size of the buffer to be read, which must be >= sizeof(SectorCount * RAW_SECTOR_SIZE)
+            bytes_to_read,
+            &mut bytes_read as *mut _,
+            null_mut(),
+        )
+    };
+    if read_chunk == 0 {
+        dbg!(bytes_read);
+        return Err(io::Error::last_os_error());
+    }
+    debug_assert_eq!(bytes_read, bytes_to_read);
+    Ok(bytes_read)
+}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Cda {
     pub version: u16,
