@@ -62,8 +62,8 @@ pub fn grab_track(drive: &str) -> io::Result<Vec<u8>> {
     dbg!(&drive);
     let drive = validate(drive)?;
 
-    // For now just grab whichever track is first in the Vec
-    let track = cdas[0];
+    // For now just grab whichever track is shortest on the CD I have in right now (manually identified)
+    let track = cdas[8];
     let track_size = usize::try_from(track.duration_frames)
         .unwrap()
         .strict_mul(FRAME_SIZE);
