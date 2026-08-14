@@ -3,31 +3,51 @@
 //! CDDA CD digital audio as per RedBook (IEC 60908:1999)
 
 use std::{
+    convert::TryFrom,
     fs::{self, read_dir},
     io,
     path::PathBuf,
     ptr::{null, null_mut},
 };
 
-use std::convert::TryFrom;
+use windows_sys::{
+    Win32::{
+        Devices::Cdrom::{IOCTL_CDROM_RAW_READ, RAW_READ_INFO},
+        Foundation::{GENERIC_READ, HANDLE, INVALID_HANDLE_VALUE},
+        Storage::FileSystem::{CreateFile2, FILE_SHARE_READ, OPEN_EXISTING},
+        System::IO::DeviceIoControl,
+    },
+    core::PCWSTR,
+};
 
+/// One cdda audio frame in bytes
 const FRAME_SIZE: usize = 2352;
+
+// If chunks are too large DeviceIoControl(.., IOCTL_CDROM_RAW_READ,..) fails.
+// Calc frames first, then reverse calc bytes as we need an exact number of frames.
+// TODO: research max chunk size. Guessing 64k for now based on something I saw in cd_da_reader but with no references given
 const MAX_CHUNK_FRAMES: usize = 64 * 1024 / FRAME_SIZE;
 const MAX_CHUNK_BYTES: usize = MAX_CHUNK_FRAMES * FRAME_SIZE;
 
 pub fn read_toc(drive: &str) -> io::Result<()> {
     let drive: PathBuf = drive.into();
+
+    // Windows already helpfully decodes the TOC for us. Parsing .cda files avoids calling
+    // ugly & unsafe ffi functions and wrangling the returned, nested structs.
     let cdas: Vec<_> = read_dir(&drive)?
         .map(|track| Cda::try_from(fs::read(track.unwrap().path()).unwrap()).unwrap())
         .collect();
     dbg!(&cdas);
+
+    // Need to use ffi to raw read data. No API found to "get track audio data".
+    // Using .strict_... for all conversions; liberal application of debug_asserts.
     let windrive = format!(r"\\.\{}", drive.display());
     let lpfilename = WinString::from(windrive.as_str());
     let dwdesiredaccess = GENERIC_READ;
     let dwsharemode = FILE_SHARE_READ;
     let dwcreationdisposition = OPEN_EXISTING;
     let drive: HANDLE = unsafe {
-        // SAFETY - lpfilename & pcreateexparams remain valid while raw pointers are in use
+        // SAFETY - lpfilename remains valid while raw pointer is in use
         CreateFile2(
             lpfilename.as_pcwstr(),
             dwdesiredaccess,
@@ -39,28 +59,31 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
     dbg!(&drive);
     let drive = validate(drive)?;
 
-    let track1 = cdas[0];
-    let track_size = usize::try_from(track1.duration_frames)
+    // For now just grab whichever track is first in the Vec
+    let track = cdas[0];
+    let track_size = usize::try_from(track.duration_frames)
         .unwrap()
         .strict_mul(FRAME_SIZE);
     debug_assert!(track_size > 0);
+
+    // Vec needs to be initialised to split into chunks. Performance cost insignificant vs IO.
     let mut frame = vec![0_u8; track_size];
     dbg!(frame.len());
 
     let (bufs, last_buf) = frame.as_chunks_mut::<MAX_CHUNK_BYTES>();
-    // last_buf SAFETY - must have at least capacity for SectorCount
-
     let mut bytes_read_so_far = 0_i64;
+
     for (i, buf) in bufs.iter_mut().enumerate() {
-        // SAFETY - must match size of buffer
+        // SAFETY note - must match each other and size of buffer
         let frames_to_read: u32 = MAX_CHUNK_FRAMES.try_into().unwrap();
         let bytes_to_read: u32 = MAX_CHUNK_BYTES.try_into().unwrap();
 
         debug_assert_eq!(
             bytes_read_so_far,
             i.strict_mul(MAX_CHUNK_BYTES).try_into().unwrap(),
+            "now reading chunk {i} but have only read {bytes_read_so_far} bytes so far"
         );
-        let offset = track1.offset().strict_add(bytes_read_so_far);
+        let offset = track.offset().strict_add(bytes_read_so_far);
         let bytes_read = read_chunk(drive, offset, bytes_to_read, frames_to_read, buf)?;
         bytes_read_so_far += &bytes_read.into();
     }
@@ -70,20 +93,22 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
         i64::try_from(frames_read_so_far)
             .unwrap()
             .strict_mul(FRAME_SIZE.try_into().unwrap()),
-        bytes_read_so_far
+        bytes_read_so_far,
+        "about to read last frame. We have read {frames_read_so_far} frames, but only {bytes_read_so_far} bytes so far"
     );
-    let frames_to_read = track1
+    let frames_to_read = track
         .duration_frames
         .strict_rem(frames_read_so_far.try_into().unwrap());
     let bytes_to_read = last_buf.len().try_into().unwrap();
     debug_assert_eq!(
         i64::from(bytes_to_read),
-        i64::from(track1.duration_frames)
+        i64::from(track.duration_frames)
             .strict_mul(FRAME_SIZE.try_into().unwrap())
-            .strict_sub(bytes_read_so_far)
+            .strict_sub(bytes_read_so_far),
+        "about to read last frame. {bytes_to_read} bytes remaining, this seems does not match number of frames read so far"
     );
 
-    let offset = track1.offset().strict_add(bytes_read_so_far);
+    let offset = track.offset().strict_add(bytes_read_so_far);
     let bytes_read = read_chunk(drive, offset, bytes_to_read, frames_to_read, last_buf)?;
     bytes_read_so_far += &bytes_read.into();
 
@@ -143,7 +168,10 @@ fn read_chunk(
         dbg!(bytes_read);
         return Err(io::Error::last_os_error());
     }
-    debug_assert_eq!(bytes_read, bytes_to_read);
+    debug_assert_eq!(
+        bytes_read, bytes_to_read,
+        "intended to read {bytes_to_read} bytes from offset {offset} but only got {bytes_read}"
+    );
     Ok(bytes_read)
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -291,21 +319,6 @@ impl Cda {
             * i64::try_from(FRAME_SIZE).expect("FRAME_SIZE is positive")
     }
 }
-
-use windows_sys::{
-    Win32::{
-        Devices::Cdrom::{
-            CDROM_READ_TOC_EX, CDROM_READ_TOC_EX_FORMAT_FULL_TOC, CDROM_TOC_FULL_TOC_DATA,
-            IOCTL_CDROM_RAW_READ, IOCTL_CDROM_READ_TOC_EX, RAW_READ_INFO, TRACK_MODE_TYPE,
-        },
-        Foundation::{GENERIC_READ, HANDLE, INVALID_HANDLE_VALUE},
-        Storage::FileSystem::{
-            CREATEFILE2_EXTENDED_PARAMETERS, CreateFile2, FILE_SHARE_READ, OPEN_EXISTING, ReadFile,
-        },
-        System::IO::{DeviceIoControl, OVERLAPPED},
-    },
-    core::PCWSTR,
-};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// A somewhat sane way of dealing with `PWSTR/PCWSTR`: A pointer to a null terminated string
