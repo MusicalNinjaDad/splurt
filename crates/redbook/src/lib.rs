@@ -3,10 +3,7 @@
 //! CDDA CD digital audio as per RedBook (IEC 60908:1999)
 
 use std::{
-    fs::{self, read_dir},
-    io,
-    path::PathBuf,
-    ptr::{null, null_mut},
+    cmp::min, fs::{self, read_dir}, io, path::PathBuf, ptr::{null, null_mut},
 };
 
 use std::convert::TryFrom;
@@ -36,12 +33,13 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
     };
     dbg!(&drive);
     let drive = validate(drive)?;
-    let bytes_to_read= usize::try_from(cdas[0].duration_frames).unwrap().strict_mul(FRAME_SIZE);
+    let frames_to_read = min(cdas[0].duration_frames, 2);
+    let bytes_to_read= usize::try_from(frames_to_read).unwrap().strict_mul(FRAME_SIZE);
     dbg!(bytes_to_read);
     let read_command = RAW_READ_INFO {
         DiskOffset: cdas[0].offset(),
         // SAFETY - must match size of buffer
-        SectorCount: cdas[0].duration_frames,
+        SectorCount: frames_to_read,
         TrackMode: 2, // CDDA(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
     };
     // SAFETY - must have at least capacity for SectorCount
