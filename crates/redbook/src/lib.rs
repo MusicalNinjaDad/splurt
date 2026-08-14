@@ -38,53 +38,87 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
     };
     dbg!(&drive);
     let drive = validate(drive)?;
-    let frames_to_read = min(cdas[0].duration_frames, MAX_CHUNK_FRAMES);
-    let bytes_to_read = usize::try_from(frames_to_read)
+
+    let track_size = usize::try_from(cdas[0].duration_frames)
         .unwrap()
         .strict_mul(FRAME_SIZE.try_into().unwrap());
-    dbg!(bytes_to_read);
-    let read_command = RAW_READ_INFO {
-        DiskOffset: cdas[0].offset(),
-        // SAFETY - must match size of buffer
-        SectorCount: frames_to_read,
-        TrackMode: 2, // CDDA(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
-    };
+    debug_assert!(track_size > 0);
     // SAFETY - must have at least capacity for SectorCount
-    let mut frame = Vec::<u8>::with_capacity(bytes_to_read);
+    let mut frame = Vec::<u8>::with_capacity(track_size);
     dbg!(frame.len());
-    let mut bytes_read: u32 = 0;
-    let frame1 = unsafe {
-        debug_assert_eq!(frame.len(), 0);
-        let frame_buffer_size: u32 = bytes_to_read.try_into().unwrap();
-        // SAFETY - inline based on https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ni-ntddcdrm-ioctl_cdrom_raw_read
-        let res = DeviceIoControl(
-            drive,
-            IOCTL_CDROM_RAW_READ,
-            // If the IOCTL is from user mode, Irp->AssociatedIrp.SystemBuffer contains a RAW_READ_INFO
-            // structure that specifies the starting disk offset, the sector count, and the track mode
-            // (XA or CDDA) for the read.
-            &read_command as *const _ as *const _,
-            // Parameters.DeviceIoControl.InputBufferLength specifies the size, in bytes, of the
-            // structure, which must be >= sizeof(RAW_READ_INFO)
-            size_of_val(&read_command) as u32,
-            // Cannot reallocate without risking invalidating pointer. We create frame with capacity
-            // equal to read_command.SectorCount * Sectorsize.
-            frame.as_mut_ptr() as *mut _,
-            // Parameters.DeviceIoControl.OutputBufferLength
-            // specifies the size of the buffer to be read, which must be >= sizeof(SectorCount * RAW_SECTOR_SIZE)
-            frame_buffer_size,
-            &mut bytes_read as *mut _,
-            null_mut(),
+    let chunks_to_read = track_size.div_ceil(MAX_CHUNK_FRAMES.try_into().unwrap());
+    let mut bytes_read_so_far: usize = 0;
+
+    for i in 0..chunks_to_read {
+        let frames_read_so_far = i.strict_mul(MAX_CHUNK_FRAMES.try_into().unwrap());
+        debug_assert_eq!(
+            bytes_read_so_far,
+            frames_read_so_far.strict_mul(FRAME_SIZE.try_into().unwrap())
         );
-        frame.set_len(usize::try_from(bytes_read).unwrap());
-        res
-    };
-    dbg!(frame.len());
-    dbg!(bytes_read);
-    dbg!(&frame1);
-    if frame1 == 0 {
-        return Err(io::Error::last_os_error());
+        let frames_to_read = min(
+            cdas[0]
+                .duration_frames
+                .strict_sub(frames_read_so_far.try_into().unwrap()),
+            MAX_CHUNK_FRAMES,
+        );
+        let bytes_to_read = usize::try_from(frames_to_read)
+            .unwrap()
+            .strict_mul(FRAME_SIZE.try_into().unwrap());
+        let offset = cdas[0]
+            .offset()
+            .strict_add(bytes_read_so_far.try_into().unwrap());
+        dbg!(
+            "reading chunk {} ({} frames at offset {}). Already read {} of {} frames...",
+            i + 1,
+            frames_to_read,
+            offset,
+            frames_read_so_far,
+            frames_read_so_far,
+            cdas[0].duration_frames
+        );
+        let read_command = RAW_READ_INFO {
+            DiskOffset: offset,
+            // SAFETY - must match size of bufferyy
+            SectorCount: frames_to_read,
+            TrackMode: 2, // CDDA(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
+        };
+        let mut bytes_read: u32 = 0;
+        let read_chunk = unsafe {
+            debug_assert_eq!(frame.len(), bytes_read_so_far);
+            let frame_buffer_size: u32 = bytes_to_read.try_into().unwrap();
+            let buf = &mut frame[bytes_read_so_far..bytes_read_so_far + bytes_to_read];
+            debug_assert_eq!(frame_buffer_size, buf.len().try_into().unwrap());
+            // SAFETY - inline based on https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ni-ntddcdrm-ioctl_cdrom_raw_read
+            let res = DeviceIoControl(
+                drive,
+                IOCTL_CDROM_RAW_READ,
+                // If the IOCTL is from user mode, Irp->AssociatedIrp.SystemBuffer contains a RAW_READ_INFO
+                // structure that specifies the starting disk offset, the sector count, and the track mode
+                // (XA or CDDA) for the read.
+                &read_command as *const _ as *const _,
+                // Parameters.DeviceIoControl.InputBufferLength specifies the size, in bytes, of the
+                // structure, which must be >= sizeof(RAW_READ_INFO)
+                size_of_val(&read_command) as u32,
+                // Cannot reallocate without risking invalidating pointer. We create frame with capacity
+                // equal to read_command.SectorCount * Sectorsize.
+                buf as *mut _ as *mut _,
+                // Parameters.DeviceIoControl.OutputBufferLength
+                // specifies the size of the buffer to be read, which must be >= sizeof(SectorCount * RAW_SECTOR_SIZE)
+                frame_buffer_size,
+                &mut bytes_read as *mut _,
+                null_mut(),
+            );
+            debug_assert_eq!(bytes_read, bytes_to_read.try_into().unwrap());
+            bytes_read_so_far = bytes_read_so_far.strict_add(bytes_read.try_into().unwrap());
+            frame.set_len(bytes_read_so_far);
+            res
+        };
+        if read_chunk == 0 {
+            return Err(io::Error::last_os_error());
+        }
     }
+
+    dbg!(frame.len());
     Ok(())
 }
 
