@@ -70,6 +70,7 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
     let mut frame = vec![0_u8; track_size];
     dbg!(frame.len());
 
+    // TODO: Handle very short tracks < MAX_CHUNK_FRAMES
     let (bufs, last_buf) = frame.as_chunks_mut::<MAX_CHUNK_BYTES>();
     let mut bytes_read_so_far = 0_i64;
 
@@ -98,7 +99,7 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
     );
     let frames_to_read = track
         .duration_frames
-        .strict_rem(frames_read_so_far.try_into().unwrap());
+        .strict_rem(MAX_CHUNK_FRAMES.try_into().unwrap());
     let bytes_to_read = last_buf.len().try_into().unwrap();
     debug_assert_eq!(
         i64::from(bytes_to_read),
