@@ -23,6 +23,7 @@ fn main() {
                 todo!("dump to file");
             }
             None => {
+                dbg!(data.len());
                 let _ = io::stdout().write_all(&data);
             }
         },
