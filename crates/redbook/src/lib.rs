@@ -185,6 +185,7 @@ pub struct Cda {
     pub duration: CdTime,
 }
 
+/// Parsing based on https://en.wikipedia.org/wiki/.cda_file
 impl TryFrom<Vec<u8>> for Cda {
     type Error = io::Error;
 
