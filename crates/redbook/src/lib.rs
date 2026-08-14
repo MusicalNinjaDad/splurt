@@ -1,5 +1,4 @@
 #![feature(exact_div)]
-
 // Unsafe restricted to dedicated wrapper modules
 #![deny(unsafe_code)]
 #![forbid(unsafe_op_in_unsafe_fn)]

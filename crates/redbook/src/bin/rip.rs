@@ -1,6 +1,8 @@
 use redbook::{grab_track, into_wav};
 use std::{
-    env, fs::File, io::{self, Write},
+    env,
+    fs::File,
+    io::{self, Write},
 };
 
 fn main() {
