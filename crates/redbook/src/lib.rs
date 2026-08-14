@@ -132,3 +132,9 @@ pub struct CdTime {
     pub sec: i8,
     pub frame: i8,
 }
+
+impl CdTime {
+    pub fn to_frames(&self) -> u32 {
+        (((self.min as u32 * 60) + self.sec as u32) * 75) + self.frame as u32
+    }
+}

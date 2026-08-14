@@ -263,6 +263,9 @@ impl TryFrom<CdaFile> for Track {
             ));
         }
 
+        debug_assert_eq!(starting_frame, starting_time.to_frames() + 150);
+        debug_assert_eq!(duration_frames, duration.to_frames());
+
         Ok(Track {
             track_number,
             windows_identifier,
@@ -278,14 +281,20 @@ impl TryFrom<CdaFile> for Track {
 ///
 /// Windows DeviceIoControl wants offsets which pretend a [FRAME_SIZE]-byte frame is a 2048-byte
 /// sector.
+/// 
+/// Internally stores the relative frame (excluding 150 lead-in frames)
 pub struct Sector(i64);
 
 impl Sector {
     /// Construct from an absolute frame number (including lead-in)
     pub fn from_frame(frame: u32) -> Self {
-        Self(frame as i64)
+        Self(frame as i64 - 150)
     }
 
+    /// For passing to `DeviceIoControl(..,IOCTL_CDROM_RAW_READ,..)`
+    /// 
+    /// - Pretends that each frame is a 2048-byte sector.
+    /// - Returned offset is relative to start of audio data
     pub fn offset(&self) -> i64 {
         self.0 * 2048
     }
