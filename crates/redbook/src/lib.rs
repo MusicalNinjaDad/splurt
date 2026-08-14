@@ -36,12 +36,16 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
     };
     dbg!(&drive);
     let drive = validate(drive)?;
+    let sectors_to_read: u32 = cdas[0].duration_frames * u32::try_from(FRAME_SIZE).expect("FRAME_SIZE is small");
+    dbg!(sectors_to_read);
     let read_command = RAW_READ_INFO {
         DiskOffset: cdas[0].offset(),
-        SectorCount: 1,
+        // SAFETY - must match size of buffer
+        SectorCount: sectors_to_read,
         TrackMode: 2, // CDDA(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
     };
-    let mut frame = [0_u8; FRAME_SIZE]; // one frame
+    // SAFETY - must have at least capacity for SectorCount
+    let mut frame = Vec::<u8>::with_capacity(usize::try_from(sectors_to_read).unwrap());
     let mut bytes_read: u32 = 0;
     let frame1 = unsafe {
         // SAFETY - inline based on https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ni-ntddcdrm-ioctl_cdrom_raw_read
@@ -55,18 +59,20 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
             // Parameters.DeviceIoControl.InputBufferLength specifies the size, in bytes, of the
             // structure, which must be >= sizeof(RAW_READ_INFO)
             size_of_val(&read_command) as u32,
-            // must be >= sizeof(SectorCount * RAW_SECTOR_SIZE)
-            &mut frame as *mut _ as *mut _,
+            // must be >= sizeof(SectorCount * RAW_SECTOR_SIZE), cannot reallocate without risking 
+            //invalidating pointer. We create frame with capacity equal to read_command.SectorCount.
+            frame.as_mut_ptr() as *mut _,
             size_of_val(&frame) as u32,
             &mut bytes_read as *mut _,
             null_mut(),
         )
     };
+    dbg!(frame.len());
+    dbg!(bytes_read);
     dbg!(&frame1);
     if frame1 == 0 {
-        todo!("error handling")
+        return Err(io::Error::last_os_error())
     }
-    dbg!(frame.len());
     Ok(())
 }
 
