@@ -88,7 +88,10 @@ impl AudioCd {
         frames_to_read: u32,
         buf: &mut [u8],
     ) -> io::Result<u32> {
-        let offset = self.tracks.get(track).unwrap().offset() + (frame_offset as i64 * 2048);
+        let offset = Sector::from_frame(
+            self.tracks.get(track).unwrap().starting_frame + frame_offset as u32,
+        )
+        .offset();
         let read_command = RAW_READ_INFO {
             DiskOffset: offset,
             SectorCount: frames_to_read,
@@ -226,12 +229,14 @@ impl TryFrom<CdaFile> for Track {
             u32::from_le_bytes([data[0x18], data[0x19], data[0x1A], data[0x1B]]);
         let range_offset_frames =
             u32::from_le_bytes([data[0x1C], data[0x1D], data[0x1E], data[0x1F]]);
+        // For inexplicable, probably historical, reasons Windows stores the relative frame in cda
+        let starting_frame = range_offset_frames + 150;
         let duration_frames = u32::from_le_bytes([data[0x20], data[0x21], data[0x22], data[0x23]]);
 
-        // Parse range position
-        let range_position = CdTime {
+        // For inexplicable, probably historical, reasons Windows stores the absolute time in cda
+        let starting_time = CdTime {
             frame: data[0x24] as i8,
-            sec: data[0x25] as i8,
+            sec: data[0x25] as i8 - 2,
             min: data[0x26] as i8,
         };
 
@@ -261,11 +266,28 @@ impl TryFrom<CdaFile> for Track {
         Ok(Track {
             track_number,
             windows_identifier,
-            starting_frame: range_offset_frames,
+            starting_frame,
             duration_frames,
-            starting_time: range_position,
+            starting_time,
             duration,
         })
+    }
+}
+
+/// A pseudo-sector on an AudioCd
+///
+/// Windows DeviceIoControl wants offsets which pretend a [FRAME_SIZE]-byte frame is a 2048-byte
+/// sector.
+pub struct Sector(i64);
+
+impl Sector {
+    /// Construct from an absolute frame number (including lead-in)
+    pub fn from_frame(frame: u32) -> Self {
+        Self(frame as i64)
+    }
+
+    pub fn offset(&self) -> i64 {
+        self.0 * 2048
     }
 }
 

@@ -1,6 +1,9 @@
 #![feature(exact_div)]
 
 //! CDDA CD digital audio as per RedBook (IEC 60908:1999)
+//!
+//! Frame IDs are always *absolute* and *include* the lead-in (150 frames)
+//! Timestamps are always *relative* to the start of the audio and *exclude* the lead-in (2s)
 
 use std::{convert::TryFrom, io, path::PathBuf};
 
@@ -115,52 +118,10 @@ pub fn into_wav(pcm: Vec<u8>) -> Vec<u8> {
 pub struct Track {
     pub track_number: u16,
     pub windows_identifier: u32,
-    /// First frame *relative to end of lead-in* (150 frames less than starting_time)
-    /// Assuming Windows does it this way, which appears backwards, for historical reasons!
-    ///
-    /// For example dbg!() from a real Cda gives:
-    /// ```text
-    /// Cda {
-    ///     track_number: 1,
-    ///     windows_identifier: 17596852,
-    ///     starting_frame: 33,
-    ///     duration_frames: 24242,
-    ///     starting_time: CdTime {
-    ///         min: 0,
-    ///         sec: 2,
-    ///         frame: 33,
-    ///     },
-    ///     duration: CdTime {
-    ///         min: 5,
-    ///         sec: 23,
-    ///         frame: 17,
-    ///     },
-    /// }
-    /// ```
+    /// Absolute value, including lead-in (150 frames)
     pub starting_frame: u32,
     pub duration_frames: u32,
-    /// *Absolute* starting time, track 1 will be >= 2sec due to lead-in
-    /// Assuming Windows does it this way, which appears backwards, for historical reasons!
-    ///
-    /// For example dbg!() from a real Cda gives:
-    /// ```text
-    /// Cda {
-    ///     track_number: 1,
-    ///     windows_identifier: 17596852,
-    ///     starting_frame: 33,
-    ///     duration_frames: 24242,
-    ///     starting_time: CdTime {
-    ///         min: 0,
-    ///         sec: 2,
-    ///         frame: 33,
-    ///     },
-    ///     duration: CdTime {
-    ///         min: 5,
-    ///         sec: 23,
-    ///         frame: 17,
-    ///     },
-    /// }
-    /// ```
+    /// Relative value, excluding lead-in (2s)
     pub starting_time: CdTime,
     pub duration: CdTime,
 }
@@ -170,11 +131,4 @@ pub struct CdTime {
     pub min: i8,
     pub sec: i8,
     pub frame: i8,
-}
-
-impl Track {
-    /// Contains an offset into the CD-ROM disc where the track starts in 2048-byte pseudo-sectors.
-    fn offset(&self) -> i64 {
-        (self.starting_frame as i64 + 150) * 2048_i64
-    }
 }
