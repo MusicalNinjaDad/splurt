@@ -176,12 +176,15 @@ fn read_chunk(
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Cda {
-    pub version: u16,
     pub track_number: u16,
     pub windows_identifier: u32,
-    pub range_offset_frames: u32,
+    /// First frame *relative to end of lead-in* (150 frames less than starting_time)
+    /// Assuming Windows does it this way, which appears backwards, for historical reasons!
+    pub starting_frame: u32,
     pub duration_frames: u32,
-    pub range_position: CdTime,
+    /// *Absolute* starting time, track 1 will be >= 2mins due to lead-in
+    /// Assuming Windows does it this way, which appears backwards, for historical reasons!
+    pub starting_time: CdTime,
     pub duration: CdTime,
 }
 
@@ -294,12 +297,11 @@ impl TryFrom<Vec<u8>> for Cda {
         }
 
         Ok(Cda {
-            version,
             track_number,
             windows_identifier,
-            range_offset_frames,
+            starting_frame: range_offset_frames,
             duration_frames,
-            range_position,
+            starting_time: range_position,
             duration,
         })
     }
@@ -313,10 +315,9 @@ pub struct CdTime {
 }
 
 impl Cda {
-    /// Contains an offset into the CD-ROM disc where the track starts. You can calculate this offset by multiplying the starting sector number for the request times 2048.
-    /// See https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ns-ntddcdrm-__raw_read_info
+    /// Contains an offset into the CD-ROM disc where the track starts in [`FRAME_SIZE`]-byte sectors.
     fn offset(&self) -> i64 {
-        (self.range_offset_frames as i64 + 150)
+        (self.starting_frame as i64 + 150)
             * i64::try_from(FRAME_SIZE).expect("FRAME_SIZE is positive")
     }
 }
