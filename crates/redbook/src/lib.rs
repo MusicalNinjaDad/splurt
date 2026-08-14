@@ -89,7 +89,7 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
         );
         let offset = track.offset().strict_add(bytes_read_so_far);
         let bytes_read = read_chunk(drive, offset, bytes_to_read, frames_to_read, buf)?;
-        bytes_read_so_far += &bytes_read.into();
+        bytes_read_so_far += i64::from(bytes_read);
     }
 
     let frames_read_so_far = bufs.len().strict_mul(MAX_CHUNK_FRAMES);
@@ -114,7 +114,7 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
 
     let offset = track.offset().strict_add(bytes_read_so_far);
     let bytes_read = read_chunk(drive, offset, bytes_to_read, frames_to_read, last_buf)?;
-    bytes_read_so_far += &bytes_read.into();
+    bytes_read_so_far += i64::from(bytes_read);
 
     dbg!(bytes_read_so_far);
     Ok(())
