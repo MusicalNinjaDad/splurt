@@ -11,6 +11,8 @@ use std::{
 
 use std::convert::TryFrom;
 
+const FRAME_SIZE: usize = 2352;
+
 pub fn read_toc(drive: &str) -> io::Result<()> {
     let drive: PathBuf = drive.into();
     let cdas: Vec<_> = read_dir(&drive)?
@@ -35,26 +37,36 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
     dbg!(&drive);
     let drive = validate(drive)?;
     let read_command = RAW_READ_INFO {
-        DiskOffset: cdas[0].range_position.offset(),
+        DiskOffset: cdas[0].offset(),
         SectorCount: 1,
-        TrackMode: 2,
+        TrackMode: 2, // CDDA(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
     };
-    let mut frame = [0_u8; 2353]; // one frame
+    let mut frame = [0_u8; FRAME_SIZE]; // one frame
     let mut bytes_read: u32 = 0;
     let frame1 = unsafe {
+        // SAFETY - inline based on https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ni-ntddcdrm-ioctl_cdrom_raw_read
         DeviceIoControl(
             drive,
             IOCTL_CDROM_RAW_READ,
+            // If the IOCTL is from user mode, Irp->AssociatedIrp.SystemBuffer contains a RAW_READ_INFO
+            // structure that specifies the starting disk offset, the sector count, and the track mode
+            // (XA or CDDA) for the read.
             &read_command as *const _ as *const _,
+            // Parameters.DeviceIoControl.InputBufferLength specifies the size, in bytes, of the
+            // structure, which must be >= sizeof(RAW_READ_INFO)
             size_of_val(&read_command) as u32,
+            // must be >= sizeof(SectorCount * RAW_SECTOR_SIZE)
             &mut frame as *mut _ as *mut _,
             size_of_val(&frame) as u32,
             &mut bytes_read as *mut _,
             null_mut(),
         )
     };
-    dbg!(frame1);
-    dbg!(frame);
+    dbg!(&frame1);
+    if frame1 == 0 {
+        todo!("error handling")
+    }
+    dbg!(frame.len());
     Ok(())
 }
 
@@ -195,20 +207,12 @@ pub struct CdTime {
     pub frame: i8,
 }
 
-impl CdTime {
-    fn as_frames(&self) -> i64 {
-        let sec: i64 = ((self.min * 60) + self.sec).into();
-        sec * 75
-    }
-
-    fn sector(&self) -> i64 {
-        self.as_frames()
-    }
-
+impl Cda {
     /// Contains an offset into the CD-ROM disc where the track starts. You can calculate this offset by multiplying the starting sector number for the request times 2048.
     /// See https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ns-ntddcdrm-__raw_read_info
     fn offset(&self) -> i64 {
-        self.sector() * 2048
+        (self.range_offset_frames as i64 + 150)
+            * i64::try_from(FRAME_SIZE).expect("FRAME_SIZE is positive")
     }
 }
 
