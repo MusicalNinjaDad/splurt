@@ -32,7 +32,7 @@ const MAX_CHUNK_BYTES: usize = MAX_CHUNK_FRAMES * FRAME_SIZE;
 //(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
 const TRACK_MODE_CDDA: TRACK_MODE_TYPE = 2;
 
-pub fn read_toc(drive: &str) -> io::Result<()> {
+pub fn grab_track(drive: &str) -> io::Result<Vec<u8>> {
     let drive: PathBuf = drive.into();
 
     // Windows already helpfully decodes the TOC for us. Parsing .cda files avoids calling
@@ -70,11 +70,11 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
     debug_assert!(track_size > 0);
 
     // Vec needs to be initialised to split into chunks. Performance cost insignificant vs IO.
-    let mut frame = vec![0_u8; track_size];
-    dbg!(frame.len());
+    let mut data = vec![0_u8; track_size];
+    dbg!(data.len());
 
     // TODO: Handle very short tracks < MAX_CHUNK_FRAMES
-    let (bufs, last_buf) = frame.as_chunks_mut::<MAX_CHUNK_BYTES>();
+    let (bufs, last_buf) = data.as_chunks_mut::<MAX_CHUNK_BYTES>();
     let mut bytes_read_so_far = 0_i64;
 
     for (i, buf) in bufs.iter_mut().enumerate() {
@@ -117,7 +117,7 @@ pub fn read_toc(drive: &str) -> io::Result<()> {
     bytes_read_so_far += i64::from(bytes_read);
 
     dbg!(bytes_read_so_far);
-    Ok(())
+    Ok(data)
 }
 
 fn read_chunk(
@@ -178,6 +178,32 @@ fn read_chunk(
     );
     Ok(bytes_read)
 }
+
+pub fn create_wav_header(pcm_data_size: u32) -> Vec<u8> {
+    let mut header = Vec::with_capacity(44);
+
+    // RIFF header
+    header.extend_from_slice(b"RIFF");
+    header.extend_from_slice(&(pcm_data_size + 36).to_le_bytes()); // file size - 8
+    header.extend_from_slice(b"WAVE");
+
+    // fmt chunk
+    header.extend_from_slice(b"fmt ");
+    header.extend_from_slice(&16u32.to_le_bytes()); // fmt chunk size
+    header.extend_from_slice(&1u16.to_le_bytes()); // PCM format
+    header.extend_from_slice(&2u16.to_le_bytes()); // channels
+    header.extend_from_slice(&44100u32.to_le_bytes()); // sample rate
+    header.extend_from_slice(&176400u32.to_le_bytes()); // byte rate
+    header.extend_from_slice(&4u16.to_le_bytes()); // block align
+    header.extend_from_slice(&16u16.to_le_bytes()); // bits per sample
+
+    // data chunk header
+    header.extend_from_slice(b"data");
+    header.extend_from_slice(&pcm_data_size.to_le_bytes());
+
+    header
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Cda {
     pub track_number: u16,
