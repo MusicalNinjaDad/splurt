@@ -63,9 +63,9 @@ pub fn grab_track(drive: &str) -> io::Result<Vec<u8>> {
     let drive = validate(drive)?;
 
     // For now just grab whichever track I want on the CD I have in right now (manually identified)
-    let track = cdas[2];
+    let track = cdas[8];
     dbg!(track);
-    let track_size = usize::try_from(track.frames())
+    let track_size = usize::try_from(track.duration_frames)
         .unwrap()
         .strict_mul(FRAME_SIZE);
     debug_assert!(track_size > 0);
@@ -103,12 +103,12 @@ pub fn grab_track(drive: &str) -> io::Result<Vec<u8>> {
         "about to read last frame. We have read {frames_read_so_far} frames, but only {bytes_read_so_far} bytes so far"
     );
     let frames_to_read = track
-        .frames()
+        .duration_frames
         .strict_rem(MAX_CHUNK_FRAMES.try_into().unwrap());
     let bytes_to_read = last_buf.len().try_into().unwrap();
     debug_assert_eq!(
         i64::from(bytes_to_read),
-        i64::from(track.frames())
+        i64::from(track.duration_frames)
             .strict_mul(FRAME_SIZE.try_into().unwrap())
             .strict_sub(bytes_read_so_far),
         "about to read last frame. {bytes_to_read} bytes remaining, this seems does not match number of frames read so far"
@@ -136,7 +136,7 @@ fn read_chunk(
     };
 
     let mut bytes_read: u32 = 0;
-    // dbg!(offset);
+    dbg!(offset);
 
     // SAFETY - inline based on https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ni-ntddcdrm-ioctl_cdrom_raw_read
     let read_chunk = unsafe {
@@ -238,7 +238,7 @@ pub struct Cda {
     /// }
     /// ```
     pub starting_frame: u32,
-    duration_frames: u32,
+    pub duration_frames: u32,
     /// *Absolute* starting time, track 1 will be >= 2sec due to lead-in
     /// Assuming Windows does it this way, which appears backwards, for historical reasons!
     ///
@@ -392,16 +392,9 @@ pub struct CdTime {
 }
 
 impl Cda {
-    /// Contains an offset into the CD-ROM disc where the track starts in 2048-byte pseudo-sectors
-    /// relative to the start of the data area. This appears to be the format needed for calling
-    /// `DeviceIoControl(.., IOCTL_CDROM_RAW_READ,..)`
+    /// Contains an offset into the CD-ROM disc where the track starts in 2048-byte pseudo-sectors.
     fn offset(&self) -> i64 {
-        (self.starting_frame as i64) * 2048
-    }
-
-    /// Number of frames for this track *excluding* the 2s gap before the following track.
-    fn frames(&self) -> u32 {
-        self.duration_frames - 150
+        (self.starting_frame as i64 + 150) * 2048_i64
     }
 }
 
