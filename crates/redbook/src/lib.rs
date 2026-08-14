@@ -180,9 +180,11 @@ fn read_chunk(
 }
 
 pub fn into_wav(pcm: Vec<u8>) -> Vec<u8> {
-    // based on cd_da_reader
+    // based on https://github.com/Bloomca/rust-cd-da-reader/blob/fd71208262c199dc44d8a012731be298a848ea79/src/lib.rs#L226
+    // & https://github.com/Bloomca/rust-cd-da-reader/blob/main/src/utils.rs#L49
     let pcm_data_size = pcm.len();
     let mut wav = Vec::with_capacity(44 + pcm_data_size);
+    let pcm_data_size = pcm_data_size as u32;
 
     // RIFF header
     wav.extend_from_slice(b"RIFF");
