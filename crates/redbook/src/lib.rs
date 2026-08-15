@@ -23,6 +23,11 @@ const FRAME_SIZE: usize = 2352;
 const MAX_CHUNK_FRAMES: usize = 64 * 1024 / FRAME_SIZE;
 const MAX_CHUNK_BYTES: usize = MAX_CHUNK_FRAMES * FRAME_SIZE;
 
+/// Extract raw data from a track as a `Vec` of bytes.
+pub fn read_track(cd: AudioCd, track_number: usize) -> io::Result<Vec<u8>> {
+    todo!()
+}
+
 pub fn grab_track(drive: &str, track_number: usize) -> io::Result<Vec<u8>> {
     let drive: PathBuf = drive.into();
 
