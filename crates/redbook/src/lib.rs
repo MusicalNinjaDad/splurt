@@ -29,6 +29,9 @@ pub trait AudioCdExt {
     /// Obtain Track details
     fn track(&self, track_number: usize) -> Option<&Track>;
 
+    /// Frame address for leadout
+    fn leadout(&self) -> u32;
+
     /// Reads `frames_to_read` worth of data starting at `track` + `frame_offset` into `buf`
     ///
     /// Returns the number of bytes read

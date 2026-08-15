@@ -42,6 +42,7 @@ pub struct AudioCd {
     drive: HANDLE,
     /// sorted by position on disc (starting frame)
     tracks: Vec<Track>,
+    leadout_starting_frame: u32,
 }
 
 impl AudioCd {
@@ -110,6 +111,16 @@ impl AudioCd {
             dbg!(bytes_read);
             return Err(io::Error::last_os_error());
         }
+        debug_assert_eq!(toc.FirstTrack, tracks.first().unwrap().track_number as u8);
+        debug_assert_eq!(toc.LastTrack, tracks.last().unwrap().track_number as u8);
+        let leadout_address = toc
+            .TrackData
+            .iter()
+            .find(|track| track.TrackNumber == 170)
+            .expect("leadout")
+            .Address;
+        let leadout_starting_frame = u32::from_be_bytes(leadout_address) + 150;
+        dbg!(leadout_starting_frame);
         dbg!(toc.FirstTrack);
         dbg!(toc.LastTrack);
         dbg!(toc.Length);
@@ -120,7 +131,11 @@ impl AudioCd {
                 dbg!(track.Address);
             }
         }
-        Ok(Self { drive, tracks })
+        Ok(Self {
+            drive,
+            tracks,
+            leadout_starting_frame,
+        })
     }
 }
 
@@ -129,6 +144,10 @@ impl AudioCdExt for AudioCd {
         self.tracks
             .iter()
             .find(|track| track.track_number == track_number as u16)
+    }
+
+    fn leadout(&self) -> u32 {
+        self.leadout_starting_frame
     }
 
     fn toc(&self) -> Result<cdtoc::Toc, cdtoc::TocError> {
