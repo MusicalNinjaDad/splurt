@@ -34,7 +34,8 @@ pub trait AudioCdExt {
     /// Returns the number of bytes read
     fn read_chunk(
         &self,
-        track: Track,
+        track: &Track,
+        frame_offset: usize,
         frames_to_read: u32,
         buf: &mut [u8],
     ) -> io::Result<u32>;
@@ -85,7 +86,7 @@ pub fn grab_track(drive: &str, track_number: usize) -> io::Result<Vec<u8>> {
             "about to read chunk {i}. We have read {frame_offset} frames, but only {bytes_read_so_far} bytes so far"
         );
 
-        let bytes_read = cd.read_chunk(track_number, frame_offset, frames_to_read, buf)?;
+        let bytes_read = cd.read_chunk(track, frame_offset, frames_to_read, buf)?;
         bytes_read_so_far += i64::from(bytes_read);
     }
 
@@ -101,7 +102,7 @@ pub fn grab_track(drive: &str, track_number: usize) -> io::Result<Vec<u8>> {
         .duration_frames
         .strict_rem(MAX_CHUNK_FRAMES.try_into().unwrap());
 
-    let bytes_read = cd.read_chunk(track_number, frame_offset, frames_to_read, last_buf)?;
+    let bytes_read = cd.read_chunk(track, frame_offset, frames_to_read, last_buf)?;
     bytes_read_so_far += i64::from(bytes_read);
 
     dbg!(bytes_read_so_far);

@@ -30,7 +30,7 @@ use windows_sys::Win32::{
     Storage::FileSystem::{FILE_SHARE_READ, OPEN_EXISTING},
 };
 
-use crate::{CdTime, FRAME_SIZE, Track};
+use crate::{AudioCdExt, CdTime, FRAME_SIZE, Track};
 
 //(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
 pub const TRACK_MODE_CDDA: TRACK_MODE_TYPE = 2;
@@ -76,23 +76,24 @@ impl AudioCd {
         };
         Ok(Self { drive, tracks })
     }
+}
 
-    pub fn track(&self, track_number: usize) -> Option<&Track> {
+impl AudioCdExt for AudioCd {
+    fn track(&self, track_number: usize) -> Option<&Track> {
         self.tracks
             .iter()
             .find(|track| track.track_number == track_number as u16)
     }
 
-    /// Reads `frames_to_read` worth of data starting at `track` + `frame_offset` into `buf`
-    pub fn read_chunk(
+    fn read_chunk(
         &self,
-        track: usize,
+        track: &Track,
         frame_offset: usize,
         frames_to_read: u32,
         buf: &mut [u8],
     ) -> io::Result<u32> {
         let offset = Sector::from_frame(
-            self.tracks.get(track).unwrap().starting_frame + frame_offset as u32,
+            track.starting_frame + frame_offset as u32,
         )
         .offset();
         let read_command = RAW_READ_INFO {
