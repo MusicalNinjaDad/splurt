@@ -4,7 +4,7 @@
 
 use clap::Parser;
 use exit_safely::Termination;
-use redbook::{grab_track, into_wav};
+use redbook::{into_wav, rip};
 use std::{
     fs::File,
     io::{self, Write},
@@ -18,13 +18,13 @@ use cli::Rip;
 use clap::Error as ClapError;
 
 fn main() -> Exit<()> {
-    let rip = Rip::parse();
+    let ripper = Rip::parse();
 
-    let drive = &rip.drive;
-    let track_number = rip.track_number;
-    let output_filename = rip.output_filename();
+    let drive = &ripper.drive;
+    let track_number = ripper.track_number;
+    let output_filename = ripper.output_filename();
 
-    let pcm = grab_track(drive, track_number)?;
+    let pcm = rip(drive, track_number)?;
     let mut dump = File::create_new(&output_filename)?;
     let wav = into_wav(pcm);
     dump.write_all(&wav)?;

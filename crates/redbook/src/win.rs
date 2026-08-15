@@ -92,10 +92,7 @@ impl AudioCdExt for AudioCd {
         frames_to_read: u32,
         buf: &mut [u8],
     ) -> io::Result<u32> {
-        let offset = Sector::from_frame(
-            track.starting_frame + frame_offset as u32,
-        )
-        .offset();
+        let offset = Sector::from_frame(track.starting_frame + frame_offset as u32).offset();
         let read_command = RAW_READ_INFO {
             DiskOffset: offset,
             SectorCount: frames_to_read,
