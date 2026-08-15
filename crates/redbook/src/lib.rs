@@ -101,7 +101,6 @@ pub trait AudioCdExt {
 pub fn rip(drive: &str, track_number: usize) -> io::Result<Vec<u8>> {
     let drive: PathBuf = drive.into();
 
-    // Need to use ffi to raw read data. No API found to "get track audio data".
     let cd = AudioCd::new(drive)?;
     dbg!(&cd);
 
