@@ -23,15 +23,14 @@ const FRAME_SIZE: usize = 2352;
 const MAX_CHUNK_FRAMES: usize = 64 * 1024 / FRAME_SIZE;
 const MAX_CHUNK_BYTES: usize = MAX_CHUNK_FRAMES * FRAME_SIZE;
 
-pub fn grab_track(drive: &str, track_num: usize) -> io::Result<Vec<u8>> {
-    let track_num = track_num - 1; // convert to 0 indexing
+pub fn grab_track(drive: &str, track_number: usize) -> io::Result<Vec<u8>> {
     let drive: PathBuf = drive.into();
 
     // Need to use ffi to raw read data. No API found to "get track audio data".
     let cd = AudioCd::new(drive)?;
     dbg!(&cd);
 
-    let track = cd.track(track_num).unwrap();
+    let track = cd.track(track_number).unwrap();
     dbg!(track);
     let track_size = usize::try_from(track.duration_frames)
         .unwrap()
@@ -64,7 +63,7 @@ pub fn grab_track(drive: &str, track_num: usize) -> io::Result<Vec<u8>> {
             "about to read chunk {i}. We have read {frame_offset} frames, but only {bytes_read_so_far} bytes so far"
         );
 
-        let bytes_read = cd.read_chunk(track_num, frame_offset, frames_to_read, buf)?;
+        let bytes_read = cd.read_chunk(track_number, frame_offset, frames_to_read, buf)?;
         bytes_read_so_far += i64::from(bytes_read);
     }
 
@@ -80,7 +79,7 @@ pub fn grab_track(drive: &str, track_num: usize) -> io::Result<Vec<u8>> {
         .duration_frames
         .strict_rem(MAX_CHUNK_FRAMES.try_into().unwrap());
 
-    let bytes_read = cd.read_chunk(track_num, frame_offset, frames_to_read, last_buf)?;
+    let bytes_read = cd.read_chunk(track_number, frame_offset, frames_to_read, last_buf)?;
     bytes_read_so_far += i64::from(bytes_read);
 
     dbg!(bytes_read_so_far);

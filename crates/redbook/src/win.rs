@@ -77,9 +77,10 @@ impl AudioCd {
         Ok(Self { drive, tracks })
     }
 
-    pub fn track(&self, track: usize) -> Option<&Track> {
-        // TODO: replace with find TrackNumber
-        self.tracks.get(track)
+    pub fn track(&self, track_number: usize) -> Option<&Track> {
+        self.tracks
+            .iter()
+            .find(|track| track.track_number == track_number as u16)
     }
 
     /// Reads `frames_to_read` worth of data starting at `track` + `frame_offset` into `buf`
