@@ -23,14 +23,13 @@ const FRAME_SIZE: usize = 2352;
 const MAX_CHUNK_FRAMES: usize = 64 * 1024 / FRAME_SIZE;
 const MAX_CHUNK_BYTES: usize = MAX_CHUNK_FRAMES * FRAME_SIZE;
 
-
 /// Functions common to redbook audio CDs.
 pub trait AudioCdExt {
     /// Obtain Track details
     fn track(&self, track_number: usize) -> Option<&Track>;
 
     /// Reads `frames_to_read` worth of data starting at `track` + `frame_offset` into `buf`
-    /// 
+    ///
     /// Returns the number of bytes read
     fn read_chunk(
         &self,
@@ -41,8 +40,61 @@ pub trait AudioCdExt {
     ) -> io::Result<u32>;
 
     /// Read a full track, returning the raw data as a `Vec` of bytes.
-    fn read_track(&self, _track_number: usize) -> io::Result<Vec<u8>> {
-        todo!()
+    fn read_track(&self, track_number: usize) -> io::Result<Vec<u8>> {
+        let track = self.track(track_number).unwrap();
+        dbg!(track);
+        let track_size = usize::try_from(track.duration_frames)
+            .unwrap()
+            .strict_mul(FRAME_SIZE);
+        debug_assert!(track_size > 0);
+
+        // Vec needs to be initialised to split into chunks. Performance cost insignificant vs IO.
+        let mut data = vec![0_u8; track_size];
+        dbg!(data.len());
+
+        // TODO: Handle very short tracks < MAX_CHUNK_FRAMES
+        let (bufs, last_buf) = data.as_chunks_mut::<MAX_CHUNK_BYTES>();
+        let mut bytes_read_so_far = 0_i64;
+
+        for (i, buf) in bufs.iter_mut().enumerate() {
+            let frames_to_read: u32 = MAX_CHUNK_FRAMES.try_into().unwrap();
+
+            debug_assert_eq!(
+                bytes_read_so_far,
+                i.strict_mul(MAX_CHUNK_BYTES).try_into().unwrap(),
+                "now reading chunk {i} but have only read {bytes_read_so_far} bytes so far"
+            );
+
+            let frame_offset = i * MAX_CHUNK_FRAMES;
+            debug_assert_eq!(
+                i64::try_from(frame_offset)
+                    .unwrap()
+                    .strict_mul(FRAME_SIZE.try_into().unwrap()),
+                bytes_read_so_far,
+                "about to read chunk {i}. We have read {frame_offset} frames, but only {bytes_read_so_far} bytes so far"
+            );
+
+            let bytes_read = self.read_chunk(track, frame_offset, frames_to_read, buf)?;
+            bytes_read_so_far += i64::from(bytes_read);
+        }
+
+        let frame_offset = bufs.len().strict_mul(MAX_CHUNK_FRAMES);
+        debug_assert_eq!(
+            i64::try_from(frame_offset)
+                .unwrap()
+                .strict_mul(FRAME_SIZE.try_into().unwrap()),
+            bytes_read_so_far,
+            "about to read last chunk. We have read {frame_offset} frames, but only {bytes_read_so_far} bytes so far"
+        );
+        let frames_to_read = track
+            .duration_frames
+            .strict_rem(MAX_CHUNK_FRAMES.try_into().unwrap());
+
+        let bytes_read = self.read_chunk(track, frame_offset, frames_to_read, last_buf)?;
+        bytes_read_so_far += i64::from(bytes_read);
+
+        dbg!(bytes_read_so_far);
+        Ok(data)
     }
 }
 
@@ -53,60 +105,7 @@ pub fn grab_track(drive: &str, track_number: usize) -> io::Result<Vec<u8>> {
     let cd = AudioCd::new(drive)?;
     dbg!(&cd);
 
-    let track = cd.track(track_number).unwrap();
-    dbg!(track);
-    let track_size = usize::try_from(track.duration_frames)
-        .unwrap()
-        .strict_mul(FRAME_SIZE);
-    debug_assert!(track_size > 0);
-
-    // Vec needs to be initialised to split into chunks. Performance cost insignificant vs IO.
-    let mut data = vec![0_u8; track_size];
-    dbg!(data.len());
-
-    // TODO: Handle very short tracks < MAX_CHUNK_FRAMES
-    let (bufs, last_buf) = data.as_chunks_mut::<MAX_CHUNK_BYTES>();
-    let mut bytes_read_so_far = 0_i64;
-
-    for (i, buf) in bufs.iter_mut().enumerate() {
-        let frames_to_read: u32 = MAX_CHUNK_FRAMES.try_into().unwrap();
-
-        debug_assert_eq!(
-            bytes_read_so_far,
-            i.strict_mul(MAX_CHUNK_BYTES).try_into().unwrap(),
-            "now reading chunk {i} but have only read {bytes_read_so_far} bytes so far"
-        );
-
-        let frame_offset = i * MAX_CHUNK_FRAMES;
-        debug_assert_eq!(
-            i64::try_from(frame_offset)
-                .unwrap()
-                .strict_mul(FRAME_SIZE.try_into().unwrap()),
-            bytes_read_so_far,
-            "about to read chunk {i}. We have read {frame_offset} frames, but only {bytes_read_so_far} bytes so far"
-        );
-
-        let bytes_read = cd.read_chunk(track, frame_offset, frames_to_read, buf)?;
-        bytes_read_so_far += i64::from(bytes_read);
-    }
-
-    let frame_offset = bufs.len().strict_mul(MAX_CHUNK_FRAMES);
-    debug_assert_eq!(
-        i64::try_from(frame_offset)
-            .unwrap()
-            .strict_mul(FRAME_SIZE.try_into().unwrap()),
-        bytes_read_so_far,
-        "about to read last chunk. We have read {frame_offset} frames, but only {bytes_read_so_far} bytes so far"
-    );
-    let frames_to_read = track
-        .duration_frames
-        .strict_rem(MAX_CHUNK_FRAMES.try_into().unwrap());
-
-    let bytes_read = cd.read_chunk(track, frame_offset, frames_to_read, last_buf)?;
-    bytes_read_so_far += i64::from(bytes_read);
-
-    dbg!(bytes_read_so_far);
-    Ok(data)
+    cd.read_track(track_number)
 }
 
 pub fn into_wav(pcm: Vec<u8>) -> Vec<u8> {
