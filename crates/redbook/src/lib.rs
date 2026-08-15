@@ -114,9 +114,6 @@ pub fn rip(drive: &str, track_number: usize) -> io::Result<Vec<u8>> {
     let brainz = cd.toc().unwrap().musicbrainz_url();
     dbg!(brainz);
 
-    let ctdb = cd.toc().unwrap().ctdb_url();
-    dbg!(ctdb);
-
     cd.read_track(track_number)
 }
 
