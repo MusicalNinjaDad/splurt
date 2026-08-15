@@ -31,6 +31,7 @@ futures-net = "0.6.0"
 futures-timer = "3.0.3"
 futures-udp = "0.1.0"
 futures-util = { version = "0.3.33", default-features = false, features = ["async-await", "async-await-macro"] }
+musicbrainz_rs = "0.13.0"
 osinfo = "1.0.0"
 ratatui = "0.30.0"
 try_v2 = "0.10.1"
