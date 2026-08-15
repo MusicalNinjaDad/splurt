@@ -1,0 +1,21 @@
+# TODO for Redbook & Ripper
+
+- [ ] Fix time manipulation
+  - [ ] struct FrameDuration
+  - [ ] Track stores only absolute starting_frame
+  - [ ] Accessor method start()
+  - [ ] impl FrameDuration: as_relative_position(), to_msf(), from_msf()
+  - [ ] rename CdTime to Msf (min, sec, frame) with display mm::ss/ff (unless any std format ever used in ISO redbook)
+  - [ ] impl From Duration for Msf & FrameDuration, From Msf & FrameDuration for Duration, FromStr for Msf
+- [ ] clap app to rip one track
+- [ ] mod linux
+  - [ ] tidy API surface mod win
+  - [ ] ensure all symbols available for people coding on any platform (no `#![cfg(...)]` or `cfg` above `pub (use)`)
+  [ ] - [ ] create trait crate::AudioCd, keep struct win::AudioCd, add struct linux::AudioCd
+- [ ] flac encoding
+- [ ] rip entire CD
+- [ ] create TOC & query online directories
+  - [ ] From Vec Tracks
+  - [ ] use cdtoc = "0.13.2" where possible
+  - [ ] incl artwork
+- [ ] GUI with slint
