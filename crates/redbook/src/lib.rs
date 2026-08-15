@@ -23,15 +23,14 @@ const FRAME_SIZE: usize = 2352;
 const MAX_CHUNK_FRAMES: usize = 64 * 1024 / FRAME_SIZE;
 const MAX_CHUNK_BYTES: usize = MAX_CHUNK_FRAMES * FRAME_SIZE;
 
-pub fn grab_track(drive: &str) -> io::Result<Vec<u8>> {
+pub fn grab_track(drive: &str, track_num: usize) -> io::Result<Vec<u8>> {
+    let track_num = track_num - 1; // convert to 0 indexing
     let drive: PathBuf = drive.into();
 
     // Need to use ffi to raw read data. No API found to "get track audio data".
     let cd = AudioCd::new(drive)?;
     dbg!(&cd);
 
-    // For now just grab whichever track I want on the CD I have in right now (manually identified)
-    let track_num = 8;
     let track = cd.track(track_num).unwrap();
     dbg!(track);
     let track_size = usize::try_from(track.duration_frames)
