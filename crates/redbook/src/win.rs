@@ -38,6 +38,7 @@ pub const TRACK_MODE_CDDA: TRACK_MODE_TYPE = 2;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AudioCd {
     drive: HANDLE,
+    /// sorted by position on disc (starting frame)
     tracks: Vec<Track>,
 }
 
@@ -45,7 +46,7 @@ impl AudioCd {
     pub fn new<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         // Windows already helpfully decodes the TOC for us. Parsing .cda files avoids calling
         // ugly & unsafe ffi functions and wrangling the returned, nested structs.
-        let tracks: Vec<_> = read_dir(&path)?
+        let mut tracks: Vec<_> = read_dir(&path)?
             .map(|track| {
                 Track::try_from(CdaFile {
                     raw: fs::read(track.unwrap().path()).unwrap(),
@@ -53,6 +54,7 @@ impl AudioCd {
                 .unwrap()
             })
             .collect();
+        tracks.sort_by_key(|track| track.starting_frame);
 
         // Need to use ffi to raw read data. No API found to "get track audio data".
         let windrive = format!(r"\\.\{}", path.as_ref().display());
@@ -83,6 +85,18 @@ impl AudioCdExt for AudioCd {
         self.tracks
             .iter()
             .find(|track| track.track_number == track_number as u16)
+    }
+
+    fn toc(&self) -> Result<cdtoc::Toc, cdtoc::TocError> {
+        let audio: Vec<_> = self
+            .tracks
+            .iter()
+            .map(|track| track.starting_frame)
+            .collect();
+        let data = None;
+        let last_track = self.tracks.last().unwrap();
+        let leadout = last_track.starting_frame + last_track.duration_frames;
+        cdtoc::Toc::from_parts(audio, data, leadout)
     }
 
     fn read_chunk(

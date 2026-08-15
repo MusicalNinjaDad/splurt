@@ -12,6 +12,7 @@
 use std::{convert::TryFrom, io, path::PathBuf};
 
 pub mod win;
+use cdtoc::{Toc, TocError};
 use win::*;
 
 /// One cdda audio frame in bytes
@@ -38,6 +39,9 @@ pub trait AudioCdExt {
         frames_to_read: u32,
         buf: &mut [u8],
     ) -> io::Result<u32>;
+
+    /// Return a [Toc] for the Cd
+    fn toc(&self) -> Result<Toc, TocError>;
 
     /// Read a full track, returning the raw data as a `Vec` of bytes.
     fn read_track(&self, track_number: usize) -> io::Result<Vec<u8>> {
