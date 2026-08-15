@@ -23,9 +23,26 @@ const FRAME_SIZE: usize = 2352;
 const MAX_CHUNK_FRAMES: usize = 64 * 1024 / FRAME_SIZE;
 const MAX_CHUNK_BYTES: usize = MAX_CHUNK_FRAMES * FRAME_SIZE;
 
-/// Extract raw data from a track as a `Vec` of bytes.
-pub fn read_track(cd: AudioCd, track_number: usize) -> io::Result<Vec<u8>> {
-    todo!()
+
+/// Functions common to redbook audio CDs.
+pub trait AudioCdExt {
+    /// Obtain Track details
+    fn track(&self, track_number: usize) -> Option<&Track>;
+
+    /// Reads `frames_to_read` worth of data starting at `track` + `frame_offset` into `buf`
+    /// 
+    /// Returns the number of bytes read
+    fn read_chunk(
+        &self,
+        track: Track,
+        frames_to_read: u32,
+        buf: &mut [u8],
+    ) -> io::Result<u32>;
+
+    /// Read a full track, returning the raw data as a `Vec` of bytes.
+    fn read_track(&self, _track_number: usize) -> io::Result<Vec<u8>> {
+        todo!()
+    }
 }
 
 pub fn grab_track(drive: &str, track_number: usize) -> io::Result<Vec<u8>> {
