@@ -157,8 +157,7 @@ impl AudioCdExt for AudioCd {
             .map(|track| track.starting_frame)
             .collect();
         let data = None;
-        let last_track = self.tracks.last().unwrap();
-        let leadout = last_track.starting_frame + last_track.duration_frames;
+        let leadout = self.leadout();
         cdtoc::Toc::from_parts(audio, data, leadout)
     }
 
