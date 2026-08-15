@@ -15,6 +15,8 @@ pub struct Rip {
 
 impl Rip {
     pub fn output_filename(&self) -> String {
-        self.output.clone().unwrap_or_else(|| format!("Track{}.wav", self.track_number))
+        self.output
+            .clone()
+            .unwrap_or_else(|| format!("Track{}.wav", self.track_number))
     }
 }

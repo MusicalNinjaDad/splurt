@@ -1,6 +1,6 @@
 use build_safely::prelude::*;
 
-include!("./src/cli.rs");
+include!("./src/bin/rip/cli.rs");
 
 fn main() -> Result<()> {
     if get_var("PROFILE")? == "release" {

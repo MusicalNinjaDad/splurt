@@ -4,13 +4,16 @@
 
 use clap::Parser;
 use exit_safely::Termination;
-use redbook::{cli::Rip, grab_track, into_wav};
+use redbook::{grab_track, into_wav};
 use std::{
     fs::File,
     io::{self, Write},
     process::Termination as _T,
 };
 use try_v2::Try;
+
+mod cli;
+use cli::Rip;
 
 use clap::Error as ClapError;
 
