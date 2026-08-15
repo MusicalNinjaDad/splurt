@@ -16,7 +16,9 @@ use std::{
 
 use windows_sys::{
     Win32::{
-        Devices::Cdrom::{RAW_READ_INFO, TRACK_MODE_TYPE},
+        Devices::Cdrom::{
+            CDROM_READ_TOC_EX, CDROM_TOC, IOCTL_CDROM_READ_TOC_EX, RAW_READ_INFO, TRACK_MODE_TYPE,
+        },
         Foundation::HANDLE,
         Storage::FileSystem::CreateFile2,
         System::IO::DeviceIoControl,
@@ -76,6 +78,48 @@ impl AudioCd {
             // If the function fails, the return value is INVALID_HANDLE_VALUE. To get extended error information, call GetLastError.
             return Err(io::Error::last_os_error());
         };
+
+        let toc_command = CDROM_READ_TOC_EX {
+            SessionTrack: 1,
+            ..Default::default()
+        };
+        let mut toc: CDROM_TOC = CDROM_TOC::default();
+        let mut bytes_read: u32 = 0;
+
+        let read_toc = unsafe {
+            // SAFETY: inline based on
+            // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ni-ntddcdrm-ioctl_cdrom_read_toc_ex
+            DeviceIoControl(
+                drive,
+                IOCTL_CDROM_READ_TOC_EX,
+                // points to a buffer of type CDROM_READ_TOC_EX
+                &toc_command as *const _ as *const _,
+                // indicates the size, in bytes, of the input buffer,
+                // which must be >= sizeof(CDROM_READ_TOC_EX).
+                size_of_val(&toc_command) as u32,
+                // CDROM_READ_TOC_EX does not allow setting `Format`.
+                // `CDROM_READ_TOC_EX_FORMAT_TOC` is `0` (default) whereby
+                // The output data is reported in a CDROM_TOC structure.
+                &mut toc as *mut _ as *mut _,
+                size_of_val(&toc) as u32,
+                &mut bytes_read as *mut _,
+                null_mut(),
+            )
+        };
+        if read_toc == 0 {
+            dbg!(bytes_read);
+            return Err(io::Error::last_os_error());
+        }
+        dbg!(toc.FirstTrack);
+        dbg!(toc.LastTrack);
+        dbg!(toc.Length);
+        for track in toc.TrackData {
+            if track.TrackNumber != 0 {
+                // LeadOut is 170
+                dbg!(track.TrackNumber);
+                dbg!(track.Address);
+            }
+        }
         Ok(Self { drive, tracks })
     }
 }
