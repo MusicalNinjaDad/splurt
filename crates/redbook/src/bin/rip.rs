@@ -1,36 +1,31 @@
+use clap::Parser;
 use redbook::{grab_track, into_wav};
 use std::{
-    env,
     fs::File,
-    io::{self, Write},
+    io::Write,
+    process,
 };
 
+mod cli;
+use cli::Rip;
+
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let default_drive = "E:".to_string();
-    let drive = args.get(1).unwrap_or(&default_drive);
-    match grab_track(drive) {
+    let rip = Rip::parse();
+
+    let drive = &rip.drive;
+    let track_number = rip.track_number;
+    let output_filename = rip.output_filename();
+
+    match grab_track(drive, track_number) {
         Err(e) => {
             eprintln!("Error: {}", e);
-
-            println!("Press Enter to exit...");
-            let mut input = String::new();
-            std::io::stdin().read_line(&mut input).ok();
-
-            std::process::exit(1);
+            process::exit(1);
         }
-        Ok(pcm) => match args.get(2) {
-            Some(filename) => {
-                let mut dump = File::create_new(filename).unwrap();
-                let wav = into_wav(pcm);
-                dbg!(dump.write(&wav));
-            }
-            None => {
-                dbg!(pcm.len());
-            }
-        },
+        Ok(pcm) => {
+            let mut dump = File::create_new(&output_filename).unwrap();
+            let wav = into_wav(pcm);
+            dump.write_all(&wav).unwrap();
+            println!("Track {} ripped to {}", track_number, output_filename);
+        }
     }
-    println!("All OK - Press Enter to exit...");
-    let mut input = String::new();
-    std::io::stdin().read_line(&mut input).ok();
 }
