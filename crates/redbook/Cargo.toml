@@ -23,6 +23,12 @@ windows-sys = { version = "0.61.2", features = [
     "Win32_System_IO",
 ] }
 clap.workspace = true
+exit_safely.workspace = true
+try_v2.workspace = true
 
 [build-dependencies]
 build_safely.workspace = true
+clap = { workspace = true, features = ["derive"] }
+clap_builder.workspace = true
+clap_complete.workspace = true
+clap_mangen.workspace = true

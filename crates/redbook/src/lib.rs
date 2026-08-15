@@ -11,6 +11,7 @@
 
 use std::{convert::TryFrom, io, path::PathBuf};
 
+pub mod cli;
 pub mod win;
 use win::*;
 
