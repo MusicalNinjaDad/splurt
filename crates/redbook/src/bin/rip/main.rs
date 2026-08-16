@@ -29,39 +29,43 @@ fn main() -> Exit<()> {
     let track_number = ripper.track_number;
     let use_latest = ripper.non_interactive;
 
-    let mb_data = cd.disc().musicbrainz.as_ref();
-    
-    if let Some(mb_data) = mb_data {
-        if mb_data.releases.len() > 1 {
-            let releases = mb_data.releases.clone();
+    cd.disc_mut().get_or_select_release(|releases| {
+        if use_latest {
+            Ok(releases
+                .iter()
+                .enumerate()
+                .max_by(|(_, a), (_, b)| {
+                    a.date
+                        .as_deref()
+                        .partial_cmp(&b.date.as_deref())
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .map(|(i, _)| i)
+                .unwrap_or(0))
+        } else {
+            // Interactive selection - prompt user
+            println!("Multiple releases found. Please select one:");
+            releases.iter().enumerate().for_each(|(i, release)| {
+                let date = release.date.as_deref().unwrap_or("unknown");
+                let country = release.country.as_deref().unwrap_or("unknown");
+                let barcode = release.barcode.as_deref().unwrap_or("none");
+                println!("{}. Date: {}, Country: {}, Barcode: {}", i + 1, date, country, barcode);
+            });
             
-            if use_latest {
-                cd.disc_mut().use_latest_release();
+            let mut input = String::new();
+            println!("Enter the number of the release to use (1-{}):", releases.len());
+            io::stdin().read_line(&mut input)?;
+            
+            let choice = input.trim().parse::<usize>()
+                .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "Invalid selection"))?;
+            
+            if choice > 0 && choice <= releases.len() {
+                Ok(choice - 1)
             } else {
-                // Interactive selection - prompt user
-                println!("Multiple releases found. Please select one:");
-                releases.iter().enumerate().for_each(|(i, release)| {
-                    let date = release.date.as_deref().unwrap_or("unknown");
-                    let country = release.country.as_deref().unwrap_or("unknown");
-                    let barcode = release.barcode.as_deref().unwrap_or("none");
-                    println!("{}. Date: {}, Country: {}, Barcode: {}", i + 1, date, country, barcode);
-                });
-                
-                let mut input = String::new();
-                println!("Enter the number of the release to use (1-{}):", releases.len());
-                io::stdin().read_line(&mut input)?;
-                
-                let choice = input.trim().parse::<usize>()
-                    .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "Invalid selection"))?;
-                
-                if choice > 0 && choice <= releases.len() {
-                    cd.disc_mut().release_id = Some(releases[choice - 1].id.clone());
-                }
+                Err(io::Error::new(io::ErrorKind::InvalidInput, "Selection out of range"))
             }
-        } else if mb_data.releases.len() == 1 {
-            cd.disc_mut().release_id = Some(mb_data.releases[0].id.clone());
         }
-    }
+    })?;
 
     let (track_name, pcm, cover_art) = rip(&mut cd, track_number)?;
     let output_filename = ripper.output_filename(track_name);

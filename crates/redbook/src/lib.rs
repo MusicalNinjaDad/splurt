@@ -212,8 +212,8 @@ impl CdTime {
 pub struct Disc {
     pub toc: Toc,
     pub musicbrainz: Option<DiscId>,
-    /// Selected release_id from musicbrainz.releases, if multiple exist
-    pub release_id: Option<String>,
+    /// Selected release index from musicbrainz.releases, if multiple exist
+    pub release_index: Option<usize>,
     /// Cached coverart: None if musicbrainz is None
     coverart: Option<Vec<u8>>,
 }
@@ -239,7 +239,7 @@ impl Disc {
         Self {
             toc,
             musicbrainz,
-            release_id: None,
+            release_index: None,
             coverart: None,
         }
     }
@@ -276,14 +276,12 @@ impl Disc {
     /// Get the selected release, or the first one if none selected
     pub fn selected_release(&self) -> Option<&musicbrainz::Release> {
         let mb_data = self.musicbrainz.as_ref()?;
-        self.release_id
-            .as_ref()
-            .and_then(|id| mb_data.releases.iter().find(|r| r.id == *id))
+        self.release_index
+            .and_then(|i| mb_data.releases.get(i))
             .or(mb_data.releases.first())
     }
 
-    /// Select the release with the latest date
-    /// Returns the index of the latest release
+    /// Get the index of the release with the latest date
     pub fn latest_release_index(&self) -> Option<usize> {
         let mb_data = self.musicbrainz.as_ref()?;
         mb_data
@@ -299,10 +297,33 @@ impl Disc {
             .map(|(i, _)| i)
     }
 
-    /// Use the latest release
+    /// Use the release at the given index
+    pub fn select_release(&mut self, index: usize) {
+        self.release_index = Some(index);
+    }
+
+    /// Use the latest release, or first if only one exists
     pub fn use_latest_release(&mut self) {
-        self.release_id = self
-            .latest_release_index()
-            .and_then(|i| self.musicbrainz.as_ref()?.releases.get(i).map(|r| r.id.clone()));
+        self.release_index = self.latest_release_index().or_else(|| {
+            self.musicbrainz.as_ref()?.releases.first().map(|_| 0)
+        });
+    }
+
+    /// Select a release: if multiple exist, use closure to pick; otherwise use the only one
+    pub fn get_or_select_release<F>(&mut self, selector: F) -> io::Result<()>
+    where
+        F: FnOnce(&[musicbrainz::Release]) -> io::Result<usize>,
+    {
+        let mb_data = self.musicbrainz.as_ref().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::NotFound, "No MusicBrainz data")
+        })?;
+        
+        if mb_data.releases.len() > 1 {
+            let index = selector(&mb_data.releases)?;
+            self.select_release(index);
+        } else {
+            self.release_index = Some(0);
+        }
+        Ok(())
     }
 }
