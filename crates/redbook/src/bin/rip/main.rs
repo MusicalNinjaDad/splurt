@@ -70,7 +70,7 @@ fn main() -> Exit<()> {
                     println!("oops ... I can't find release number {choice}");
                 });
 
-                Some(index)
+                return Some(index);
             };
         }
     });
