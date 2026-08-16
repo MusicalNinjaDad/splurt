@@ -20,5 +20,5 @@
   - [x] use cdtoc = "0.13.2" where possible
   - [x] name file
   - [ ] incl artwork
-  - [ ] open bug with musicbrainz_rs re ring (commit b51ab9c31c45f11c2c86e884621d625e1bb786dc)
+  - [x] open bug with musicbrainz_rs re ring (commit b51ab9c31c45f11c2c86e884621d625e1bb786dc)
 - [ ] GUI with slint
