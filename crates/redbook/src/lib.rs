@@ -114,8 +114,13 @@ pub trait AudioCdExt {
         dbg!(&discid);
         let url = format!("https://musicbrainz.org/ws/2/discid/{discid}?inc=recordings&fmt=json");
         dbg!(&url);
-        let details = reqwest::blocking::get(url)
+        let client = reqwest::blocking::Client::new();
+        let details = client
+            .get(url)
+            .header("User-Agent", "splurt/0.1.0")
+            .send()
             .map_err(io::Error::other)?;
+        dbg!(&details);
         Ok(details)
     }
 }
@@ -126,7 +131,7 @@ pub fn rip(drive: &str, track_number: usize) -> io::Result<Vec<u8>> {
     let cd = AudioCd::new(drive)?;
     dbg!(&cd);
 
-    let _ = dbg!(cd.musicbrainz());
+    dbg!(cd.musicbrainz().unwrap().text());
 
     cd.read_track(track_number)
 }
