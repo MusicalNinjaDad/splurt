@@ -78,5 +78,5 @@
 ### Closure Patterns
 
 - Use closure-based selection for map-like patterns (e.g., `get_or_select_release`)
-- Closures should return `Result<T>` to propagate errors
+- Carefully consider whether closures should return `T`, `Option<T>` or `Result<T>`
 - Use closures to encapsulate complex selection logic
