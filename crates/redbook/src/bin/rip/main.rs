@@ -5,7 +5,7 @@
 
 use clap::Parser;
 use exit_safely::Termination;
-use redbook::{AudioCd, AudioCdExt, into_wav, rip};
+use redbook::{AudioCd, AudioCdExt, into_wav};
 use std::{
     convert::Infallible,
     fs::File,
@@ -27,7 +27,6 @@ fn main() -> Exit<()> {
     let drive = PathBuf::from_str(&ripper.drive)?;
     let mut cd = AudioCd::new(drive)?;
 
-    let track_number = ripper.track_number;
     let use_latest = ripper.non_interactive;
 
     if use_latest {
@@ -75,16 +74,87 @@ fn main() -> Exit<()> {
         }
     });
 
-    let (track_name, pcm, cover_art) = rip(&mut cd, track_number)?;
-    let output_filename = ripper.output_filename(track_name);
+    // Determine track number - prompt if not provided
+    let track_number = if let Some(n) = ripper.track_number {
+        n
+    } else {
+        // No track number provided - prompt user
+        let release = cd.disc()
+            .selected_release()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No releases found"))?;
+        
+        let tracks = release
+            .media
+            .as_ref()
+            .unwrap()
+            .first()
+            .unwrap()
+            .tracks
+            .as_ref()
+            .unwrap();
 
-    let mut cover = File::create_new("front.jpeg")?;
-    cover.write_all(&cover_art)?;
+        println!("\nAvailable tracks:");
+        println!("0. All tracks");
+        for track in tracks.iter() {
+            let track_number: usize = track.number.as_ref().and_then(|n| n.parse().ok()).unwrap();
+            let track_name = track.title.as_deref().unwrap_or("Unknown");
+            println!("{}. {} - {}", track_number, track_number, track_name);
+        }
 
-    let mut dump = File::create_new(&output_filename)?;
-    let wav = into_wav(pcm);
-    dump.write_all(&wav)?;
-    println!("Track {} ripped to {}", track_number, output_filename);
+        loop {
+            let mut input = String::new();
+            println!("\nEnter the track number to rip (0 for all):");
+
+            io::stdin().read_line(&mut input).map_err(|error| {
+                Exit::IO(format!("Problem reading input: {error}"))
+            })?;
+
+            let choice: usize = input.trim().parse().map_err(|_| {
+                Exit::InvocationError(format!("Invalid track number: {}", input.trim()))
+            })?;
+
+            // Validate choice - 0 is valid (all), otherwise must be a valid track
+            if choice == 0 || tracks.iter().any(|t| t.number.as_ref().and_then(|n| n.parse().ok()) == Some(choice)) {
+                break choice;
+            } else {
+                println!("oops ... I can't find track number {choice}");
+                continue;
+            }
+        }
+    };
+
+    // Handle rip all or single track
+    let cover_art = cd.disc_mut().cover_art()?.clone().unwrap_or_default();
+    
+    if track_number == 0 {
+        // Rip all tracks
+        let ripped_tracks = cd.rip_all()?;
+        
+        for track in &ripped_tracks {
+            let output_filename = ripper.output_filename(track.track_name.clone());
+            let mut dump = File::create_new(&output_filename)?;
+            let wav = into_wav(track.raw_data.clone());
+            dump.write_all(&wav)?;
+            println!("Track {} ripped to {}", track.track_number, output_filename);
+        }
+        
+        // Save cover art once
+        let mut cover = File::create_new("front.jpeg")?;
+        cover.write_all(&cover_art)?;
+        println!("Cover art saved to front.jpeg");
+    } else {
+        // Rip single track
+        let ripped_track = cd.rip(track_number)?;
+        let output_filename = ripper.output_filename(ripped_track.track_name.clone());
+
+        let mut cover = File::create_new("front.jpeg")?;
+        cover.write_all(&cover_art)?;
+
+        let mut dump = File::create_new(&output_filename)?;
+        let wav = into_wav(ripped_track.raw_data);
+        dump.write_all(&wav)?;
+        println!("Track {} ripped to {}", ripped_track.track_number, output_filename);
+    }
 
     Exit::Ok(())
 }

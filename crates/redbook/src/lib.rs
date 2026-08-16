@@ -119,38 +119,85 @@ pub trait AudioCdExt {
     fn musicbrainz(&self) -> Option<&DiscId> {
         self.disc().musicbrainz.as_ref()
     }
+
+    /// Rip a single track, returning track info and raw data.
+    /// Cover art is downloaded once and cached in the Disc.
+    fn rip(&mut self, track_number: usize) -> io::Result<RippedTrack> {
+        // Ensure cover art is downloaded first (cached in Disc)
+        let _ = self.disc_mut().cover_art()?;
+        
+        let release = self
+            .disc()
+            .selected_release()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No releases found"))?;
+
+        let track_name = release
+            .media
+            .as_ref()
+            .unwrap()
+            .first()
+            .unwrap()
+            .tracks
+            .as_ref()
+            .unwrap()
+            .iter()
+            .find(|track| {
+                track.number.as_ref().and_then(|number| number.parse().ok()) == Some(track_number)
+            })
+            .unwrap()
+            .title
+            .as_ref()
+            .unwrap()
+            .clone();
+
+        Ok(RippedTrack {
+            track_number,
+            track_name,
+            raw_data: self.read_track(track_number)?,
+        })
+    }
+
+    /// Rip all tracks, returning a vector of RippedTrack.
+    /// Cover art is downloaded once and cached in the Disc.
+    fn rip_all(&mut self) -> io::Result<Vec<RippedTrack>> {
+        // Ensure cover art is downloaded first (cached in Disc)
+        let _ = self.disc_mut().cover_art()?;
+        
+        let release = self
+            .disc()
+            .selected_release()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No releases found"))?;
+
+        let tracks = release
+            .media
+            .as_ref()
+            .unwrap()
+            .first()
+            .unwrap()
+            .tracks
+            .as_ref()
+            .unwrap();
+
+        let mut result = Vec::new();
+        for track in tracks {
+            let track_number: usize = track.number.as_ref().and_then(|n| n.parse().ok()).unwrap();
+            let track_name = track.title.as_ref().unwrap().clone();
+            result.push(RippedTrack {
+                track_number,
+                track_name,
+                raw_data: self.read_track(track_number)?,
+            });
+        }
+        Ok(result)
+    }
 }
 
-pub fn rip(cd: &mut AudioCd, track_number: usize) -> io::Result<(String, Vec<u8>, Vec<u8>)> {
-    let release = cd
-        .disc()
-        .selected_release()
-        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No releases found"))?;
-
-    let track_name = release
-        .media
-        .as_ref()
-        .unwrap()
-        .first()
-        .unwrap()
-        .tracks
-        .as_ref()
-        .unwrap()
-        .iter()
-        .find(|track| {
-            track.number.as_ref().and_then(|number| number.parse().ok()) == Some(track_number)
-        })
-        .unwrap()
-        .title
-        .as_ref()
-        .unwrap()
-        .clone();
-    dbg!(&track_name);
-
-    // Get cover art from the Disc's cached/managed cover art
-    let cover_art = cd.disc_mut().cover_art()?.clone().unwrap();
-
-    Ok((track_name, cd.read_track(track_number)?, cover_art))
+/// A ripped CD audio track
+#[derive(Debug, Clone)]
+pub struct RippedTrack {
+    pub track_number: usize,
+    pub track_name: String,
+    pub raw_data: Vec<u8>,
 }
 
 pub fn into_wav(pcm: Vec<u8>) -> Vec<u8> {
@@ -249,7 +296,7 @@ impl Disc {
     /// - Will return None if no musicbrainz data is available
     /// - Will cache the image to avoid spamming API on repeat calls
     /// - Will not attempt to identify the MusicBrainz ID to avoid spamming API
-    fn cover_art(&mut self) -> io::Result<&Option<Vec<u8>>> {
+    pub fn cover_art(&mut self) -> io::Result<&Option<Vec<u8>>> {
         if self.coverart.is_none() {
             let release_mbid = self
                 .selected_release()
