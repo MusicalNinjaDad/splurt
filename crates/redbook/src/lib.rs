@@ -154,6 +154,10 @@ pub fn rip(cd: AudioCd, track_number: usize) -> io::Result<(String, Vec<u8>)> {
         .unwrap();
     dbg!(track_name);
 
+    let mbid = mb_data.releases.first().unwrap().id.clone();
+    let cover_url = format!("https://coverartarchive.org/release/{mbid}/front");
+    dbg!(cover_url);
+
     Ok((track_name.clone(), cd.read_track(track_number)?))
 }
 
