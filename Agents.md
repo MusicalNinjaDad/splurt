@@ -1,6 +1,6 @@
-# Ignore this file
+# Agents.md
 
-## Coding Standards Inferred from Staged Changes
+## Coding Standards
 
 ### Language Features
 
