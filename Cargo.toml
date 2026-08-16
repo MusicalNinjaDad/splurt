@@ -39,10 +39,9 @@ futures-util = { version = "0.3.33", default-features = false, features = [
     "async-await",
     "async-await-macro",
 ] }
-musicbrainz_rs = { version = "0.13.0", features = ["sync"] }
 osinfo = "1.0.0"
 ratatui = "0.30.0"
-reqwest = "0.13.4"
+reqwest = { version = "0.13.4", default-features = false }
 try_v2 = "0.10.1"
 url = "2.5.8"
 uuid = { version = "1.24.0", features = ["v4"] }

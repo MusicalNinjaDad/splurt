@@ -10,12 +10,12 @@
 //! Timestamps are always *relative* to the start of the audio and *exclude* the lead-in (2s)
 
 pub mod win;
+use reqwest::blocking::Response;
 use win::*;
 
 use std::{convert::TryFrom, io, path::PathBuf};
 
 use cdtoc::{Toc, TocError};
-use musicbrainz_rs::entity::discid::Discid;
 
 /// One cdda audio frame in bytes
 const FRAME_SIZE: usize = 2352;
@@ -106,7 +106,7 @@ pub trait AudioCdExt {
         Ok(data)
     }
 
-    fn musicbrainz(&self) -> io::Result<Discid> {
+    fn musicbrainz(&self) -> io::Result<Response> {
         let brainz = self.toc().unwrap().musicbrainz_url();
         dbg!(brainz);
 
@@ -116,9 +116,10 @@ pub trait AudioCdExt {
         let url = format!("https://musicbrainz.org/ws/2/discid/{discid}?inc=recordings&fmt=json");
         dbg!(&url);
         let details = reqwest::blocking::get(url)
-            .map_err(io::Error::other)?
-            .json()
             .map_err(io::Error::other)?;
+            // can't even use the entity as mb_rs feature native_tls doesn't disable default features on api_bindium ;(
+            // .json()
+            // .map_err(io::Error::other)?;
         Ok(details)
     }
 }

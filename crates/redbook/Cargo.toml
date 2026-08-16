@@ -25,7 +25,6 @@ windows-sys = { version = "0.61.2", features = [
 cdtoc.workspace = true
 clap.workspace = true
 exit_safely.workspace = true
-musicbrainz_rs.workspace = true
 reqwest = { workspace = true, features = ["blocking", "json"] }
 try_v2.workspace = true
 
