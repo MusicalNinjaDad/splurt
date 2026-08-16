@@ -114,6 +114,7 @@ pub trait AudioCdExt {
 
         let discid = self.toc().unwrap().musicbrainz_id().to_string();
         dbg!(&discid);
+        // TODO set the Accept header to "application/json" or add fmt=json to the query string (if both are set, fmt= takes precedence).
         let url = format!("https://musicbrainz.org/ws/2/discid/{discid}?inc=recordings&fmt=json");
         dbg!(&url);
         let client = reqwest::blocking::Client::new();
