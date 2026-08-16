@@ -121,7 +121,7 @@ pub trait AudioCdExt {
     }
 
     /// Get all tracks from the CD
-    fn tracks(&self) -> &[Track];
+    fn tracks(&self) -> impl Iterator<Item = &Track>;
 
     /// Rip a single track, returning track info and raw data.
     fn rip(&mut self, track_number: usize) -> io::Result<RippedTrack> {

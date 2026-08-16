@@ -40,7 +40,7 @@ fn main() -> Exit<()> {
     }
 
     // closure is only called if release not set / obvious
-    let release = cd.disc_mut().get_or_select_release(|releases| {
+    let _release = cd.disc_mut().get_or_select_release(|releases| {
         // Interactive selection - prompt user and loop on invalid input
         println!("Multiple releases found. Please select one:");
         releases.iter().enumerate().for_each(|(i, release)| {
@@ -80,10 +80,6 @@ fn main() -> Exit<()> {
         }
     });
 
-    if release.is_none() {
-        return Exit::InvocationError("No MusicBrainz release found".to_string());
-    }
-
     // Determine what to rip
     let selected_track = match (ripper.all, ripper.track_number) {
         (true, Some(_)) => return Exit::InvocationError("Cannot specify both --all and a track number".to_string()),
@@ -92,28 +88,10 @@ fn main() -> Exit<()> {
         (false, None) => {
             // Interactive track selection using AudioCd tracks
             println!("\nAvailable tracks:");
-            for track in cd.tracks().iter() {
+            for track in cd.tracks() {
                 println!("{}. Unknown", track.track_number);
             }
             println!("a. All tracks");
-
-            // Also show track names from MusicBrainz if available
-            if let Some(release) = cd.disc().selected_release() {
-                if let Some(media) = release.media.as_ref().and_then(|m| m.first()) {
-                    if let Some(tracks) = media.tracks.as_ref() {
-                        println!("\nTrack names from MusicBrainz:");
-                        for mb_track in tracks.iter() {
-                            if let (Some(n), Some(title)) = (mb_track.number.as_ref(), mb_track.title.as_ref()) {
-                                if let Ok(track_num) = n.parse::<usize>() {
-                                    if let Some(track) = cd.tracks().iter().find(|t| t.track_number as usize == track_num) {
-                                        println!("{}. {}", track.track_number, title);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
 
             loop {
                 #[expect(unused, reason = "loop on error")]
@@ -134,7 +112,7 @@ fn main() -> Exit<()> {
                         println!("oops ... try again {input_trimmed} is not a number");
                     })?;
 
-                    let valid = cd.tracks().iter().any(|t| t.track_number as usize == choice);
+                    let valid = cd.tracks().into_iter().any(|t| t.track_number as usize == choice);
                     valid.ok_or_else(|| {
                         println!("oops ... I can't find track number {choice}");
                     })?;
@@ -158,27 +136,21 @@ fn main() -> Exit<()> {
     };
 
     // Write WAV files
-    let release = cd.disc().selected_release();
     for track in &ripped_tracks {
-        let track_name = if release.is_none() {
-            ""
-        } else {
-            release
-                .unwrap()
-                .media
-                .as_ref()
-                .unwrap()
-                .first()
-                .unwrap()
-                .tracks
-                .as_ref()
-                .unwrap()
-                .iter()
-                .find(|t| t.number.as_ref().and_then(|n| n.parse().ok()) == Some(track.track_number))
-                .and_then(|t| t.title.as_ref())
-                .map(|t| t.as_str())
-                .unwrap_or_default()
-        };
+        let track_name = cd
+            .disc()
+            .selected_release()
+            .and_then(|release| release.media.as_ref())
+            .and_then(|all_media| all_media.first())
+            .and_then(|media| media.tracks.as_ref())
+            .and_then(|tracks| {
+                tracks
+                    .iter()
+                    .find(|trk| trk.number.as_ref().and_then(|number| number.parse().ok()) == Some(track.track_number))
+                    .and_then(|trk| trk.title.as_ref())
+            })
+            .map(|title| title.as_str())
+            .unwrap_or_default();
 
         let output_filename = [format!("{:02}", track.track_number), track_name.to_string()]
             .join(" ")
