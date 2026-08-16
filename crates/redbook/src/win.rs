@@ -32,17 +32,18 @@ use windows_sys::Win32::{
     Storage::FileSystem::{FILE_SHARE_READ, OPEN_EXISTING},
 };
 
-use crate::{AudioCdExt, CdTime, FRAME_SIZE, Track};
+use crate::{AudioCdExt, CdTime, Disc, FRAME_SIZE, Track};
 
 //(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
 pub const TRACK_MODE_CDDA: TRACK_MODE_TYPE = 2;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct AudioCd {
     drive: HANDLE,
     /// sorted by position on disc (starting frame)
     tracks: Vec<Track>,
     leadout_starting_frame: u32,
+    disc: Disc,
 }
 
 impl AudioCd {
@@ -131,10 +132,18 @@ impl AudioCd {
                 dbg!(track.Address);
             }
         }
+        
+        // Create the Toc and Disc
+        let audio: Vec<_> = tracks.iter().map(|track| track.starting_frame).collect();
+        let data = None;
+        let toc = cdtoc::Toc::from_parts(audio, data, leadout_starting_frame).unwrap();
+        let disc = Disc::from_toc(toc);
+        
         Ok(Self {
             drive,
             tracks,
             leadout_starting_frame,
+            disc,
         })
     }
 }
@@ -159,6 +168,10 @@ impl AudioCdExt for AudioCd {
         let data = None;
         let leadout = self.leadout();
         cdtoc::Toc::from_parts(audio, data, leadout)
+    }
+
+    fn disc(&self) -> &Disc {
+        &self.disc
     }
 
     fn read_chunk(

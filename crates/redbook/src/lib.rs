@@ -14,7 +14,7 @@ pub mod win;
 
 pub use win::AudioCd;
 
-use std::{convert::TryFrom, io};
+use std::{cell::RefCell, convert::TryFrom, io};
 
 use cdtoc::{Toc, TocError};
 use musicbrainz::DiscId;
@@ -49,6 +49,9 @@ pub trait AudioCdExt {
 
     /// Return a [Toc] for the Cd
     fn toc(&self) -> Result<Toc, TocError>;
+
+    /// Return a reference to the cached Disc data
+    fn disc(&self) -> &Disc;
 
     /// Read a full track, returning the raw data as a `Vec` of bytes.
     fn read_track(&self, track_number: usize) -> io::Result<Vec<u8>> {
@@ -108,29 +111,17 @@ pub trait AudioCdExt {
         Ok(data)
     }
 
-    fn musicbrainz(&self) -> io::Result<DiscId> {
-        let brainz = self.toc().unwrap().musicbrainz_url();
-        dbg!(brainz);
-
-        let discid = self.toc().unwrap().musicbrainz_id().to_string();
-        dbg!(&discid);
-        // TODO set the Accept header to "application/json" or add fmt=json to the query string (if both are set, fmt= takes precedence).
-        let url = format!("https://musicbrainz.org/ws/2/discid/{discid}?inc=recordings&fmt=json");
-        dbg!(&url);
-        let client = reqwest::blocking::Client::new();
-        let response = client
-            .get(url)
-            .header("User-Agent", "splurt/0.1.0")
-            .send()
-            .map_err(io::Error::other)?;
-        dbg!(&response);
-        let details = response.json().map_err(io::Error::other)?;
-        Ok(details)
+    /// Get cached MusicBrainz data, if available
+    fn musicbrainz(&self) -> Option<&DiscId> {
+        self.disc().musicbrainz.as_ref()
     }
 }
 
 pub fn rip(cd: AudioCd, track_number: usize) -> io::Result<(String, Vec<u8>, Vec<u8>)> {
-    let mb_data = cd.musicbrainz()?;
+    let mb_data = cd.musicbrainz().ok_or(io::Error::new(
+        io::ErrorKind::NotFound,
+        "No MusicBrainz data available"
+    ))?;
     // dbg!(&mb_data);
     let track_name = mb_data
         .releases
@@ -154,28 +145,13 @@ pub fn rip(cd: AudioCd, track_number: usize) -> io::Result<(String, Vec<u8>, Vec
         .unwrap();
     dbg!(track_name);
 
-    let mbid = mb_data.releases.first().unwrap().id.clone();
-    let cover_art = download_cover_art(&mbid)?;
+    // Get cover art from the Disc's cached/managed cover art
+    let cover_art = cd.disc().cover_art().ok_or(io::Error::new(
+        io::ErrorKind::NotFound,
+        "No MusicBrainz data available for cover art"
+    ))??;
 
     Ok((track_name.clone(), cd.read_track(track_number)?, cover_art))
-}
-
-/// Download cover art from the Cover Art Archive for a given MusicBrainz release ID.
-///
-/// Returns the image as a Vec of bytes (typically JPEG format) that can be written to disk.
-pub fn download_cover_art(mbid: &str) -> io::Result<Vec<u8>> {
-    let url = format!("https://coverartarchive.org/release/{mbid}/front");
-    dbg!(&url);
-    let client = reqwest::blocking::Client::new();
-    let response = client
-        .get(url)
-        .header("User-Agent", "splurt/0.1.0")
-        .send()
-        .map_err(io::Error::other)?;
-    response
-        .bytes()
-        .map_err(io::Error::other)
-        .map(|b| b.to_vec())
 }
 
 pub fn into_wav(pcm: Vec<u8>) -> Vec<u8> {
@@ -233,12 +209,12 @@ impl CdTime {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Disc {
     pub toc: Toc,
     pub musicbrainz: Option<DiscId>,
     /// Cached coverart: None if musicbrainz is None
-    coverart: Option<Vec<u8>>,
+    coverart: RefCell<Option<Vec<u8>>>,
 }
 
 impl Disc {
@@ -246,11 +222,35 @@ impl Disc {
     /// 
     /// Will only call MusicBrainz API once to avoid spamming the API
     fn from_toc(toc: Toc) -> Self {
-        // TODO as part of implementation
-        // remove default impl AudioCdExt::musicbrainz, leaving the function in the trait
-        // change signature of AudioCdExt::musicbrainz to return an Option
-        // store a Disc in win::AudioCd and retrieve cached musicbrainz data in impl AudioCdExt
-        todo!()
+        let discid = toc.musicbrainz_id().to_string();
+        let url = format!("https://musicbrainz.org/ws/2/discid/{discid}?inc=recordings&fmt=json");
+        
+        let client = reqwest::blocking::Client::new();
+        let response = match client
+            .get(url)
+            .header("User-Agent", "splurt/0.1.0")
+            .send()
+        {
+            Ok(r) => r,
+            Err(_) => return Self {
+                toc,
+                musicbrainz: None,
+                coverart: RefCell::new(None),
+            },
+        };
+        
+        match response.json::<DiscId>() {
+            Ok(details) => Self {
+                toc,
+                musicbrainz: Some(details),
+                coverart: RefCell::new(None),
+            },
+            Err(_) => Self {
+                toc,
+                musicbrainz: None,
+                coverart: RefCell::new(None),
+            },
+        }
     }
 
     /// Attempt to get the front cover art from the CoverArtArchive.
@@ -259,8 +259,40 @@ impl Disc {
     /// - Will cache the image to avoid spamming API on repeat calls
     /// - Will not attempt to identify the MusicBrainz ID to avoid spamming API
     fn cover_art(&self) -> Option<io::Result<Vec<u8>>> {
-        // TODO as part of implementation
-        // remove pub fn download_cover_art and replace with this
-        todo!()
+        // If we have cached cover art, return it
+        if let Some(art) = &*self.coverart.borrow() {
+            return Some(Ok(art.clone()));
+        }
+        
+        // If no musicbrainz data, return None
+        let mb_data = self.musicbrainz.as_ref()?;
+        
+        // Get the first release's MBID
+        let mbid = mb_data.releases.first()?.id.clone();
+        
+        // Try to download cover art
+        let client = reqwest::blocking::Client::new();
+        let url = format!("https://coverartarchive.org/release/{mbid}/front");
+        
+        let result = match client
+            .get(url)
+            .header("User-Agent", "splurt/0.1.0")
+            .send()
+        {
+            Ok(response) => {
+                match response.bytes() {
+                    Ok(bytes) => {
+                        let art = bytes.to_vec();
+                        // Cache the art
+                        *self.coverart.borrow_mut() = Some(art.clone());
+                        Ok(art)
+                    }
+                    Err(e) => Err(io::Error::other(e)),
+                }
+            }
+            Err(e) => Err(io::Error::other(e)),
+        };
+        
+        Some(result)
     }
 }
