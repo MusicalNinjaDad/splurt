@@ -9,13 +9,14 @@
 //! Frame IDs are always *absolute* and *include* the lead-in (150 frames)
 //! Timestamps are always *relative* to the start of the audio and *exclude* the lead-in (2s)
 
+pub mod musicbrainz;
 pub mod win;
-use reqwest::blocking::Response;
 use win::*;
 
 use std::{convert::TryFrom, io, path::PathBuf};
 
 use cdtoc::{Toc, TocError};
+use musicbrainz::DiscId;
 
 /// One cdda audio frame in bytes
 const FRAME_SIZE: usize = 2352;
@@ -106,7 +107,7 @@ pub trait AudioCdExt {
         Ok(data)
     }
 
-    fn musicbrainz(&self) -> io::Result<Response> {
+    fn musicbrainz(&self) -> io::Result<DiscId> {
         let brainz = self.toc().unwrap().musicbrainz_url();
         dbg!(brainz);
 
@@ -115,12 +116,13 @@ pub trait AudioCdExt {
         let url = format!("https://musicbrainz.org/ws/2/discid/{discid}?inc=recordings&fmt=json");
         dbg!(&url);
         let client = reqwest::blocking::Client::new();
-        let details = client
+        let response = client
             .get(url)
             .header("User-Agent", "splurt/0.1.0")
             .send()
             .map_err(io::Error::other)?;
-        dbg!(&details);
+        dbg!(&response);
+        let details = response.json().map_err(io::Error::other)?;
         Ok(details)
     }
 }
@@ -131,7 +133,8 @@ pub fn rip(drive: &str, track_number: usize) -> io::Result<Vec<u8>> {
     let cd = AudioCd::new(drive)?;
     dbg!(&cd);
 
-    dbg!(cd.musicbrainz().unwrap().text());
+    let mb_data = cd.musicbrainz()?;
+    dbg!(&mb_data);
 
     cd.read_track(track_number)
 }
