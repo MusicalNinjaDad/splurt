@@ -9,11 +9,13 @@
 //! Frame IDs are always *absolute* and *include* the lead-in (150 frames)
 //! Timestamps are always *relative* to the start of the audio and *exclude* the lead-in (2s)
 
+pub mod win;
+use win::*;
+
 use std::{convert::TryFrom, io, path::PathBuf};
 
-pub mod win;
 use cdtoc::{Toc, TocError};
-use win::*;
+use musicbrainz_rs::entity::discid::Discid;
 
 /// One cdda audio frame in bytes
 const FRAME_SIZE: usize = 2352;
@@ -68,7 +70,7 @@ pub trait AudioCdExt {
 
             debug_assert_eq!(
                 bytes_read_so_far,
-                i.strict_mul(MAX_CHUNK_BYTES).try_into().unwrap(),
+                (i as i64).strict_mul(MAX_CHUNK_BYTES as i64),
                 "now reading chunk {i} but have only read {bytes_read_so_far} bytes so far"
             );
 
@@ -103,6 +105,22 @@ pub trait AudioCdExt {
         dbg!(bytes_read_so_far);
         Ok(data)
     }
+
+    fn musicbrainz(&self) -> io::Result<Discid> {
+        let brainz = self.toc().unwrap().musicbrainz_url();
+        dbg!(brainz);
+
+        let discid = self.toc().unwrap().musicbrainz_id().to_string();
+        dbg!(&discid);
+        // Have to make reqwest ourselves as musicbrainz_rs uses ring which won't x-compile nicely
+        let url = format!("https://musicbrainz.org/ws/2/discid/{discid}?inc=recordings&fmt=json");
+        dbg!(&url);
+        let details = reqwest::blocking::get(url)
+            .map_err(io::Error::other)?
+            .json()
+            .map_err(io::Error::other)?;
+        Ok(details)
+    }
 }
 
 pub fn rip(drive: &str, track_number: usize) -> io::Result<Vec<u8>> {
@@ -111,8 +129,7 @@ pub fn rip(drive: &str, track_number: usize) -> io::Result<Vec<u8>> {
     let cd = AudioCd::new(drive)?;
     dbg!(&cd);
 
-    let brainz = cd.toc().unwrap().musicbrainz_url();
-    dbg!(brainz);
+    let _ = dbg!(cd.musicbrainz());
 
     cd.read_track(track_number)
 }

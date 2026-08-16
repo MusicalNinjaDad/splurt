@@ -24,16 +24,25 @@ clap_builder = "4.6.5"
 clap_complete = "4.6.8"
 clap_mangen = "0.3.0"
 crossterm = { version = "0.29.0", features = ["event-stream"] }
-derive_more = { version = "2.1.1", features = ["display", "from", "from_str", "into"] }
+derive_more = { version = "2.1.1", features = [
+    "display",
+    "from",
+    "from_str",
+    "into",
+] }
 exit_safely = "0.3.1"
 futures = "0.3.33"
 futures-net = "0.6.0"
 futures-timer = "3.0.3"
 futures-udp = "0.1.0"
-futures-util = { version = "0.3.33", default-features = false, features = ["async-await", "async-await-macro"] }
-musicbrainz_rs = "0.13.0"
+futures-util = { version = "0.3.33", default-features = false, features = [
+    "async-await",
+    "async-await-macro",
+] }
+musicbrainz_rs = { version = "0.13.0", features = ["sync"] }
 osinfo = "1.0.0"
 ratatui = "0.30.0"
+reqwest = "0.13.4"
 try_v2 = "0.10.1"
 url = "2.5.8"
 uuid = { version = "1.24.0", features = ["v4"] }

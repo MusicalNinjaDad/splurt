@@ -183,7 +183,7 @@ impl AudioCdExt for AudioCd {
         // SAFETY - inline based on https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ni-ntddcdrm-ioctl_cdrom_raw_read
         let read_chunk = unsafe {
             // SAFETY: Buffer is expected size
-            debug_assert_eq!(bytes_to_read, buf.len().try_into().unwrap());
+            debug_assert_eq!(bytes_to_read, buf.len() as u32);
             // SAFETY: Buffer is exact size for Sector count
             debug_assert_eq!(
                 read_command.SectorCount,
