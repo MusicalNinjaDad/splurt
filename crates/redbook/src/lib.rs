@@ -112,14 +112,10 @@ pub trait AudioCdExt {
 
         let discid = self.toc().unwrap().musicbrainz_id().to_string();
         dbg!(&discid);
-        // Have to make reqwest ourselves as musicbrainz_rs uses ring which won't x-compile nicely
         let url = format!("https://musicbrainz.org/ws/2/discid/{discid}?inc=recordings&fmt=json");
         dbg!(&url);
         let details = reqwest::blocking::get(url)
             .map_err(io::Error::other)?;
-            // can't even use the entity as mb_rs feature native_tls doesn't disable default features on api_bindium ;(
-            // .json()
-            // .map_err(io::Error::other)?;
         Ok(details)
     }
 }

@@ -16,7 +16,8 @@
 - [ ] flac encoding
 - [ ] rip entire CD
 - [ ] create TOC & query online directories
-  - [ ] From Vec Tracks
-  - [ ] use cdtoc = "0.13.2" where possible
+  - [x] From Vec Tracks
+  - [x] use cdtoc = "0.13.2" where possible
   - [ ] incl artwork
+  - [ ] open bug with musicbrainz_rs re ring (commit b51ab9c31c45f11c2c86e884621d625e1bb786dc)
 - [ ] GUI with slint
