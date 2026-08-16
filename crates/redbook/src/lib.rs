@@ -304,26 +304,32 @@ impl Disc {
 
     /// Use the latest release, or first if only one exists
     pub fn use_latest_release(&mut self) {
-        self.release_index = self.latest_release_index().or_else(|| {
-            self.musicbrainz.as_ref()?.releases.first().map(|_| 0)
-        });
+        self.release_index = self
+            .latest_release_index()
+            .or_else(|| self.musicbrainz.as_ref()?.releases.first().map(|_| 0));
     }
 
-    /// Select a release: if multiple exist, use closure to pick; otherwise use the only one
-    pub fn get_or_select_release<F>(&mut self, selector: F) -> io::Result<()>
+    /// Get the index of the selected release.
+    ///
+    /// If no release has been selected:
+    /// - if only one is present, select that
+    /// - else call `selector` which should return Some(valid_index) or None
+    ///
+    /// If selector returns an invalid index this function will return None
+    pub fn get_or_select_release<F>(&mut self, selector: F) -> Option<usize>
     where
-        F: FnOnce(&[musicbrainz::Release]) -> io::Result<usize>,
+        F: FnOnce(&[musicbrainz::Release]) -> Option<usize>,
     {
-        let mb_data = self.musicbrainz.as_ref().ok_or_else(|| {
-            io::Error::new(io::ErrorKind::NotFound, "No MusicBrainz data")
-        })?;
-        
-        if mb_data.releases.len() > 1 {
-            let index = selector(&mb_data.releases)?;
-            self.select_release(index);
-        } else {
-            self.release_index = Some(0);
+        if self.release_index.is_none()
+            && let Some(ref mb_data) = self.musicbrainz
+        {
+            self.release_index = match mb_data.releases.len() {
+                0 => None,
+                1 => Some(0),
+                _ => selector(&mb_data.releases)
+                    .filter(|index| mb_data.releases.get(*index).is_some()),
+            }
         }
-        Ok(())
+        self.release_index
     }
 }

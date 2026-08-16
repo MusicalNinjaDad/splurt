@@ -21,6 +21,7 @@
 - Return `Option<&T>` for cached data that may not exist
 - Return `io::Result<T>` for operations involving I/O
 - Let callers handle unwrapping/cloning: `disc_mut().cover_art()?.clone().unwrap()`
+- Reserve errors for system failures, not user input mistakes (loop instead)
 
 ### API Design
 
@@ -29,6 +30,15 @@
 - Favor lazy initialization over eager loading
 - Cache expensive operations in struct fields
 - Expect callers to handle Option types explicitly
+- Store indices instead of strings/IDs when possible for efficiency
+
+### Control Flow
+
+- Avoid nested ifs and if-else-if-else chains
+- Prefer functional chaining: `and_then()`, `or()`, `map()`, `unwrap_or()`, `or_else()`
+- Use `match` when functional chaining would be less clear
+- Use `loop` for interactive user input validation
+- Use early returns and guards (`if condition { return }`) to flatten logic
 
 ### Caching
 
@@ -43,6 +53,7 @@
 - Define traits for shared behavior
 - Re-export types at crate root for convenience
 - Group related types and constants together
+- Prefer type methods over free-floating functions
 
 ### Documentation
 
@@ -62,3 +73,10 @@
 - Use domain-specific terminology (Disc, Track, CdTime)
 - Use clear, descriptive names for types and methods
 - Follow Rust naming conventions consistently
+- Avoid bool parameters in functions; split into separate methods instead
+
+### Closure Patterns
+
+- Use closure-based selection for map-like patterns (e.g., `get_or_select_release`)
+- Closures should return `Result<T>` to propagate errors
+- Use closures to encapsulate complex selection logic

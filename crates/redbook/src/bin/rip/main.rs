@@ -1,4 +1,5 @@
 #![feature(never_type)]
+#![feature(try_blocks)]
 #![feature(try_trait_v2)]
 #![feature(try_trait_v2_residual)]
 
@@ -29,37 +30,50 @@ fn main() -> Exit<()> {
     let track_number = ripper.track_number;
     let use_latest = ripper.non_interactive;
 
-    let disc = cd.disc();
-    let has_releases = disc.musicbrainz.as_ref().map_or(false, |m| !m.releases.is_empty());
-    
-    if has_releases && use_latest {
+    if use_latest {
         cd.disc_mut().use_latest_release();
     }
-    
-    if has_releases && !use_latest {
-        let _ = cd.disc_mut().get_or_select_release(|releases| {
-            // Interactive selection - prompt user and loop on invalid input
-            println!("Multiple releases found. Please select one:");
-            releases.iter().enumerate().for_each(|(i, release)| {
-                let date = release.date.as_deref().unwrap_or("unknown");
-                let country = release.country.as_deref().unwrap_or("unknown");
-                let barcode = release.barcode.as_deref().unwrap_or("none");
-                println!("{}. Date: {}, Country: {}, Barcode: {}", i + 1, date, country, barcode);
-            });
-            
-            let max = releases.len();
-            loop {
+
+    // closure is only called if release not set / obvious
+    let _ = cd.disc_mut().get_or_select_release(|releases| {
+        // Interactive selection - prompt user and loop on invalid input
+        println!("Multiple releases found. Please select one:");
+        releases.iter().enumerate().for_each(|(i, release)| {
+            let date = release.date.as_deref().unwrap_or("unknown");
+            let country = release.country.as_deref().unwrap_or("unknown");
+            let barcode = release.barcode.as_deref().unwrap_or("none");
+            println!(
+                "{}. Date: {}, Country: {}, Barcode: {}",
+                i + 1,
+                date,
+                country,
+                barcode
+            );
+        });
+
+        loop {
+            #[expect(unused, reason = "loop on error")]
+            try {
                 let mut input = String::new();
-                println!("\nEnter the number of the release to use (1-{max}):");
-                io::stdin().read_line(&mut input)?;
-                
-                match input.trim().parse::<usize>() {
-                    Ok(choice) if choice > 0 && choice <= max => return Ok(choice - 1),
-                    _ => println!("Invalid selection. Please enter a number between 1 and {max}."),
-                }
-            }
-        })?;
-    }
+                println!("\nEnter the number of the release to use:");
+
+                let _ = io::stdin().read_line(&mut input).map_err(|error| {
+                    println!("oops ... problem understanding you ... it's me, not you. {error}");
+                })?;
+
+                let choice = input.trim().parse::<usize>().map_err(|error| {
+                    println!("oops ... try again {input} is not a number");
+                })?;
+
+                let index = choice - 1;
+                releases.get(index).ok_or_else(|| {
+                    println!("oops ... I can't find release number {choice}");
+                });
+
+                Some(index)
+            };
+        }
+    });
 
     let (track_name, pcm, cover_art) = rip(&mut cd, track_number)?;
     let output_filename = ripper.output_filename(track_name);
