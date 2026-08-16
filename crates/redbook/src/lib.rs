@@ -126,11 +126,21 @@ pub fn rip(cd: &mut AudioCd, track_number: usize) -> io::Result<(String, Vec<u8>
         io::ErrorKind::NotFound,
         "No MusicBrainz data available",
     ))?;
-    // dbg!(&mb_data);
-    let track_name = mb_data
-        .releases
-        .first()
-        .unwrap()
+    
+    let release_id = cd.disc().release_id.as_ref();
+    
+    // Find the selected release or use the first one
+    let release = if let Some(release_id) = release_id {
+        mb_data.releases.iter()
+            .find(|r| r.id == *release_id)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, 
+                format!("Release {} not found in MusicBrainz data", release_id)))?
+    } else {
+        mb_data.releases.first()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No releases found"))?
+    };
+    
+    let track_name = release
         .media
         .as_ref()
         .unwrap()
@@ -215,6 +225,8 @@ impl CdTime {
 pub struct Disc {
     pub toc: Toc,
     pub musicbrainz: Option<DiscId>,
+    /// Selected release_id from musicbrainz.releases, if multiple exist
+    pub release_id: Option<String>,
     /// Cached coverart: None if musicbrainz is None
     coverart: Option<Vec<u8>>,
 }
@@ -240,6 +252,7 @@ impl Disc {
         Self {
             toc,
             musicbrainz,
+            release_id: None,
             coverart: None,
         }
     }
@@ -251,15 +264,28 @@ impl Disc {
     /// - Will not attempt to identify the MusicBrainz ID to avoid spamming API
     fn cover_art(&mut self) -> io::Result<&Option<Vec<u8>>> {
         if self.coverart.is_none() {
-            let release_mbid = self
-                .musicbrainz
-                .as_ref()
-                .ok_or_else(|| io::Error::other("No MusicBrainz data available"))?
-                .releases
-                .first()
-                .ok_or_else(|| io::Error::other("No MusicBrainz releases available"))?
-                .id
-                .clone();
+            let release_mbid = if let Some(release_id) = &self.release_id {
+                // If a specific release is selected, use it
+                self.musicbrainz
+                    .as_ref()
+                    .ok_or_else(|| io::Error::other("No MusicBrainz data available"))?
+                    .releases
+                    .iter()
+                    .find(|r| r.id == *release_id)
+                    .ok_or_else(|| io::Error::other(format!("Release {} not found", release_id)))?
+                    .id
+                    .clone()
+            } else {
+                // Otherwise use the first release
+                self.musicbrainz
+                    .as_ref()
+                    .ok_or_else(|| io::Error::other("No MusicBrainz data available"))?
+                    .releases
+                    .first()
+                    .ok_or_else(|| io::Error::other("No MusicBrainz releases available"))?
+                    .id
+                    .clone()
+            };
 
             let client = reqwest::blocking::Client::new();
             let url = format!("https://coverartarchive.org/release/{release_mbid}/front");
@@ -276,4 +302,30 @@ impl Disc {
         }
         Ok(&self.coverart)
     }
+}
+
+/// Helper to select a release from MusicBrainz data
+/// Returns the index of the selected release in the releases vector
+pub fn select_release(releases: &[musicbrainz::Release], latest: bool) -> Option<usize> {
+    if releases.is_empty() {
+        return None;
+    }
+    
+    if latest {
+        // Find the release with the latest date
+        let mut latest_index = 0;
+        let mut latest_date: Option<&str> = releases[0].date.as_deref();
+        
+        for (i, release) in releases.iter().enumerate().skip(1) {
+            if let Some(date) = release.date.as_deref() {
+                if latest_date.map_or(true, |d| date > d) {
+                    latest_date = Some(date);
+                    latest_index = i;
+                }
+            }
+        }
+        return Some(latest_index);
+    }
+    
+    None
 }

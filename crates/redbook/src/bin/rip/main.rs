@@ -4,7 +4,7 @@
 
 use clap::Parser;
 use exit_safely::Termination;
-use redbook::{AudioCd, into_wav, rip};
+use redbook::{AudioCd, AudioCdExt, into_wav, rip, select_release};
 use std::{
     convert::Infallible,
     fs::File,
@@ -27,6 +27,46 @@ fn main() -> Exit<()> {
     let mut cd = AudioCd::new(drive)?;
 
     let track_number = ripper.track_number;
+
+    // Check if we need to select a release
+    if let Some(mb_data) = cd.disc().musicbrainz.as_ref() {
+        if mb_data.releases.len() > 1 {
+            let releases = &mb_data.releases;
+            
+            // Check if --latest flag is set
+            if ripper.latest {
+                if let Some(latest_index) = select_release(releases, true) {
+                    cd.disc_mut().release_id = Some(releases[latest_index].id.clone());
+                }
+            } else {
+                // Interactive selection - prompt user
+                println!("Multiple releases found. Please select one:");
+                for (i, release) in releases.iter().enumerate() {
+                    let date = release.date.as_deref().unwrap_or("unknown");
+                    let country = release.country.as_deref().unwrap_or("unknown");
+                    let barcode = release.barcode.as_deref().unwrap_or("none");
+                    println!("{}. Date: {}, Country: {}, Barcode: {}", i + 1, date, country, barcode);
+                }
+                
+                let mut input = String::new();
+                println!("Enter the number of the release to use (1-{}):", releases.len());
+                io::stdin().read_line(&mut input)?;
+                
+                if let Ok(choice) = input.trim().parse::<usize>() {
+                    if choice > 0 && choice <= releases.len() {
+                        cd.disc_mut().release_id = Some(releases[choice - 1].id.clone());
+                    } else {
+                        return Exit::Error(format!("Invalid selection: {}", choice));
+                    }
+                } else {
+                    return Exit::Error("Invalid input. Please enter a number.".to_string());
+                }
+            }
+        } else if mb_data.releases.len() == 1 {
+            // Only one release, use it
+            cd.disc_mut().release_id = Some(mb_data.releases[0].id.clone());
+        }
+    }
 
     let (track_name, pcm, cover_art) = rip(&mut cd, track_number)?;
     let output_filename = ripper.output_filename(track_name);
