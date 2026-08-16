@@ -134,7 +134,28 @@ pub fn rip(drive: &str, track_number: usize) -> io::Result<Vec<u8>> {
     dbg!(&cd);
 
     let mb_data = cd.musicbrainz()?;
-    dbg!(&mb_data);
+    // dbg!(&mb_data);
+    let track_name = mb_data
+        .releases
+        .first()
+        .unwrap()
+        .media
+        .as_ref()
+        .unwrap()
+        .first()
+        .unwrap()
+        .tracks
+        .as_ref()
+        .unwrap()
+        .iter()
+        .find(|track| {
+            track.number.as_ref().and_then(|number| number.parse().ok()) == Some(track_number)
+        })
+        .unwrap()
+        .title
+        .as_ref()
+        .unwrap();
+    dbg!(track_name);
 
     cd.read_track(track_number)
 }
