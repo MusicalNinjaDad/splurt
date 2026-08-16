@@ -122,24 +122,11 @@ pub trait AudioCdExt {
 }
 
 pub fn rip(cd: &mut AudioCd, track_number: usize) -> io::Result<(String, Vec<u8>, Vec<u8>)> {
-    let mb_data = cd.musicbrainz().ok_or(io::Error::new(
-        io::ErrorKind::NotFound,
-        "No MusicBrainz data available",
-    ))?;
-    
-    let release_id = cd.disc().release_id.as_ref();
-    
-    // Find the selected release or use the first one
-    let release = if let Some(release_id) = release_id {
-        mb_data.releases.iter()
-            .find(|r| r.id == *release_id)
-            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, 
-                format!("Release {} not found in MusicBrainz data", release_id)))?
-    } else {
-        mb_data.releases.first()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No releases found"))?
-    };
-    
+    let release = cd
+        .disc()
+        .selected_release()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No releases found"))?;
+
     let track_name = release
         .media
         .as_ref()
@@ -264,28 +251,11 @@ impl Disc {
     /// - Will not attempt to identify the MusicBrainz ID to avoid spamming API
     fn cover_art(&mut self) -> io::Result<&Option<Vec<u8>>> {
         if self.coverart.is_none() {
-            let release_mbid = if let Some(release_id) = &self.release_id {
-                // If a specific release is selected, use it
-                self.musicbrainz
-                    .as_ref()
-                    .ok_or_else(|| io::Error::other("No MusicBrainz data available"))?
-                    .releases
-                    .iter()
-                    .find(|r| r.id == *release_id)
-                    .ok_or_else(|| io::Error::other(format!("Release {} not found", release_id)))?
-                    .id
-                    .clone()
-            } else {
-                // Otherwise use the first release
-                self.musicbrainz
-                    .as_ref()
-                    .ok_or_else(|| io::Error::other("No MusicBrainz data available"))?
-                    .releases
-                    .first()
-                    .ok_or_else(|| io::Error::other("No MusicBrainz releases available"))?
-                    .id
-                    .clone()
-            };
+            let release_mbid = self
+                .selected_release()
+                .ok_or_else(|| io::Error::other("No releases found"))?
+                .id
+                .clone();
 
             let client = reqwest::blocking::Client::new();
             let url = format!("https://coverartarchive.org/release/{release_mbid}/front");
@@ -302,30 +272,37 @@ impl Disc {
         }
         Ok(&self.coverart)
     }
-}
 
-/// Helper to select a release from MusicBrainz data
-/// Returns the index of the selected release in the releases vector
-pub fn select_release(releases: &[musicbrainz::Release], latest: bool) -> Option<usize> {
-    if releases.is_empty() {
-        return None;
+    /// Get the selected release, or the first one if none selected
+    pub fn selected_release(&self) -> Option<&musicbrainz::Release> {
+        let mb_data = self.musicbrainz.as_ref()?;
+        self.release_id
+            .as_ref()
+            .and_then(|id| mb_data.releases.iter().find(|r| r.id == *id))
+            .or(mb_data.releases.first())
     }
-    
-    if latest {
-        // Find the release with the latest date
-        let mut latest_index = 0;
-        let mut latest_date: Option<&str> = releases[0].date.as_deref();
-        
-        for (i, release) in releases.iter().enumerate().skip(1) {
-            if let Some(date) = release.date.as_deref() {
-                if latest_date.map_or(true, |d| date > d) {
-                    latest_date = Some(date);
-                    latest_index = i;
-                }
-            }
-        }
-        return Some(latest_index);
+
+    /// Select the release with the latest date
+    /// Returns the index of the latest release
+    pub fn latest_release_index(&self) -> Option<usize> {
+        let mb_data = self.musicbrainz.as_ref()?;
+        mb_data
+            .releases
+            .iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| {
+                a.date
+                    .as_deref()
+                    .partial_cmp(&b.date.as_deref())
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .map(|(i, _)| i)
     }
-    
-    None
+
+    /// Use the latest release
+    pub fn use_latest_release(&mut self) {
+        self.release_id = self
+            .latest_release_index()
+            .and_then(|i| self.musicbrainz.as_ref()?.releases.get(i).map(|r| r.id.clone()));
+    }
 }

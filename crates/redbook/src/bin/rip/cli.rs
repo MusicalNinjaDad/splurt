@@ -11,9 +11,9 @@ pub struct Rip {
     /// Output filename (default: Track<n>.wav)
     #[arg(long)]
     pub output: Option<String>,
-    /// Use the latest release (non-interactive mode for CDs with multiple releases)
-    #[arg(long)]
-    pub latest: bool,
+    /// Non-interactive mode: use the latest release for CDs with multiple releases
+    #[arg(short = 'n', long)]
+    pub non_interactive: bool,
 }
 
 impl Rip {
