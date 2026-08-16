@@ -16,6 +16,12 @@ use std::{
 };
 use try_v2::Try;
 
+#[derive(Debug, Clone, Copy)]
+enum SelectedTrack {
+    All,
+    One(usize),
+}
+
 mod cli;
 use cli::Rip;
 
@@ -74,62 +80,63 @@ fn main() -> Exit<()> {
         }
     });
 
-    // Determine what to rip - CLI flag or interactive prompt for track selection
-    let (rip_all, track_number) = if ripper.all {
-        (true, 0)
-    } else if ripper.track_number.is_none() {
-        // No track number on CLI triggers interactive track selection
-        let release = cd.disc()
-            .selected_release()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No releases found"))?;
-        
-        let tracks = release
-            .media
-            .as_ref()
-            .unwrap()
-            .first()
-            .unwrap()
-            .tracks
-            .as_ref()
-            .unwrap();
+    // Determine what to rip
+    let selected_track = match (ripper.all, ripper.track_number) {
+        (true, Some(_)) => return Exit::InvocationError("Cannot specify both --all and a track number".to_string()),
+        (true, None) => SelectedTrack::All,
+        (false, Some(n)) => SelectedTrack::One(n),
+        (false, None) => {
+            // Interactive track selection
+            let release = cd.disc()
+                .selected_release()
+                .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No releases found"))?;
+            
+            let tracks = release
+                .media
+                .as_ref()
+                .unwrap()
+                .first()
+                .unwrap()
+                .tracks
+                .as_ref()
+                .unwrap();
 
-        println!("\nAvailable tracks:");
-        for track in tracks.iter() {
-            let track_number: usize = track.number.as_ref().and_then(|n| n.parse().ok()).unwrap();
-            let track_name = track.title.as_deref().unwrap_or("Unknown");
-            println!("{}. {}", track_number, track_name);
+            println!("\nAvailable tracks:");
+            for track in tracks.iter() {
+                let track_number: usize = track.number.as_ref().and_then(|n| n.parse().ok()).unwrap();
+                let track_name = track.title.as_deref().unwrap_or("Unknown");
+                println!("{}. {}", track_number, track_name);
+            }
+            println!("a. All tracks");
+
+            loop {
+                #[expect(unused, reason = "loop on error")]
+                try {
+                    let mut input = String::new();
+                    println!("\nEnter the track number to rip (a for all):");
+
+                    let _ = io::stdin().read_line(&mut input).map_err(|error| {
+                        println!("oops ... problem understanding you ... it's me, not you. {error}");
+                    })?;
+
+                    let input_trimmed = input.trim().to_lowercase();
+                    if input_trimmed == "a" {
+                        break SelectedTrack::All;
+                    }
+
+                    let choice: usize = input_trimmed.parse().map_err(|error| {
+                        println!("oops ... try again {input_trimmed} is not a number");
+                    })?;
+
+                    let valid = tracks.iter().any(|t| t.number.as_ref().and_then(|n| n.parse().ok()) == Some(choice));
+                    valid.ok_or_else(|| {
+                        println!("oops ... I can't find track number {choice}");
+                    })?;
+
+                    break SelectedTrack::One(choice);
+                };
+            }
         }
-        println!("a. All tracks");
-
-        loop {
-            #[expect(unused, reason = "loop on error")]
-            try {
-                let mut input = String::new();
-                println!("\nEnter the track number to rip (a for all):");
-
-                let _ = io::stdin().read_line(&mut input).map_err(|error| {
-                    println!("oops ... problem understanding you ... it's me, not you. {error}");
-                })?;
-
-                let input_trimmed = input.trim().to_lowercase();
-                if input_trimmed == "a" {
-                    break (true, 0);
-                }
-
-                let choice: usize = input_trimmed.parse().map_err(|error| {
-                    println!("oops ... try again {input_trimmed} is not a number");
-                })?;
-
-                let valid = tracks.iter().any(|t| t.number.as_ref().and_then(|n| n.parse().ok()) == Some(choice));
-                valid.ok_or_else(|| {
-                    println!("oops ... I can't find track number {choice}");
-                })?;
-
-                break (false, choice);
-            };
-        }
-    } else {
-        (false, ripper.track_number.unwrap())
     };
 
     // Write cover art once before ripping
@@ -139,38 +146,38 @@ fn main() -> Exit<()> {
     }
 
     // Rip tracks
-    let ripped_tracks: Vec<RippedTrack> = if rip_all {
-        cd.rip_all()?
-    } else {
-        vec![cd.rip(track_number)?]
+    let ripped_tracks: Vec<RippedTrack> = match selected_track {
+        SelectedTrack::All => cd.rip_all()?,
+        SelectedTrack::One(n) => vec![cd.rip(n)?],
     };
 
     // Write WAV files
+    let has_release = cd.disc().selected_release().is_some();
     for track in &ripped_tracks {
-        let track_name = cd
-            .disc()
-            .selected_release()
-            .unwrap_or_else(|| 
-                panic!("No release found - this should have been caught earlier"))
-            .media
-            .as_ref()
-            .unwrap()
-            .first()
-            .unwrap()
-            .tracks
-            .as_ref()
-            .unwrap()
-            .iter()
-            .find(|t| t.number.as_ref().and_then(|n| n.parse().ok()) == Some(track.track_number))
-            .and_then(|t| t.title.as_ref())
-            .map(|t| t.as_str())
-            .unwrap_or("");
-
-        let output_filename = if track_name.is_empty() {
-            format!("{:02}.wav", track.track_number)
+        let track_name = if has_release {
+            cd.disc()
+                .selected_release()
+                .unwrap()
+                .media
+                .as_ref()
+                .unwrap()
+                .first()
+                .unwrap()
+                .tracks
+                .as_ref()
+                .unwrap()
+                .iter()
+                .find(|t| t.number.as_ref().and_then(|n| n.parse().ok()) == Some(track.track_number))
+                .and_then(|t| t.title.as_ref())
+                .map(|t| t.as_str())
+                .unwrap_or_default()
         } else {
-            format!("{:02} {}.wav", track.track_number, track_name)
+            ""
         };
+
+        let output_filename = [format!("{:02}", track.track_number), track_name.to_string()]
+            .join(" ")
+            + ".wav";
 
         let mut dump = File::create_new(&output_filename)?;
         let wav = into_wav(track.raw_data.clone());
