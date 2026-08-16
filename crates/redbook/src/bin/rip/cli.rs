@@ -14,9 +14,10 @@ pub struct Rip {
 }
 
 impl Rip {
-    pub fn output_filename(&self) -> String {
-        self.output
-            .clone()
-            .unwrap_or_else(|| format!("Track{}.wav", self.track_number))
+    pub fn output_filename(&self, track_name: String) -> String {
+        if let Some(ref filename) = self.output {
+            return filename.clone();
+        }
+        format!("{nn:02} {track_name}.wav", nn = self.track_number)
     }
 }

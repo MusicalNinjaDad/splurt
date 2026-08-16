@@ -11,9 +11,10 @@
 
 pub mod musicbrainz;
 pub mod win;
-use win::*;
 
-use std::{convert::TryFrom, io, path::PathBuf};
+pub use win::AudioCd;
+
+use std::{convert::TryFrom, io};
 
 use cdtoc::{Toc, TocError};
 use musicbrainz::DiscId;
@@ -127,12 +128,7 @@ pub trait AudioCdExt {
     }
 }
 
-pub fn rip(drive: &str, track_number: usize) -> io::Result<Vec<u8>> {
-    let drive: PathBuf = drive.into();
-
-    let cd = AudioCd::new(drive)?;
-    dbg!(&cd);
-
+pub fn rip(cd: AudioCd, track_number: usize) -> io::Result<(String, Vec<u8>)> {
     let mb_data = cd.musicbrainz()?;
     // dbg!(&mb_data);
     let track_name = mb_data
@@ -157,7 +153,7 @@ pub fn rip(drive: &str, track_number: usize) -> io::Result<Vec<u8>> {
         .unwrap();
     dbg!(track_name);
 
-    cd.read_track(track_number)
+    Ok((track_name.clone(), cd.read_track(track_number)?))
 }
 
 pub fn into_wav(pcm: Vec<u8>) -> Vec<u8> {

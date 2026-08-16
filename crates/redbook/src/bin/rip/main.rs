@@ -4,11 +4,14 @@
 
 use clap::Parser;
 use exit_safely::Termination;
-use redbook::{into_wav, rip};
+use redbook::{AudioCd, into_wav, rip};
 use std::{
+    convert::Infallible,
     fs::File,
     io::{self, Write},
+    path::PathBuf,
     process::Termination as _T,
+    str::FromStr,
 };
 use try_v2::Try;
 
@@ -20,11 +23,14 @@ use clap::Error as ClapError;
 fn main() -> Exit<()> {
     let ripper = Rip::parse();
 
-    let drive = &ripper.drive;
-    let track_number = ripper.track_number;
-    let output_filename = ripper.output_filename();
+    let drive = PathBuf::from_str(&ripper.drive)?;
+    let cd = AudioCd::new(drive)?;
 
-    let pcm = rip(drive, track_number)?;
+    let track_number = ripper.track_number;
+
+    let (track_name, pcm) = rip(cd, track_number)?;
+    let output_filename = ripper.output_filename(track_name);
+
     let mut dump = File::create_new(&output_filename)?;
     let wav = into_wav(pcm);
     dump.write_all(&wav)?;
@@ -53,5 +59,11 @@ impl<T: _T> From<ClapError> for Exit<T> {
 impl<T: _T> From<io::Error> for Exit<T> {
     fn from(e: io::Error) -> Self {
         Self::IO(e.to_string())
+    }
+}
+
+impl<T: _T> From<Infallible> for Exit<T> {
+    fn from(_: Infallible) -> Self {
+        unreachable!()
     }
 }
