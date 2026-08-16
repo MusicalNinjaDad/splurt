@@ -120,6 +120,9 @@ pub trait AudioCdExt {
         self.disc().musicbrainz.as_ref()
     }
 
+    /// Get all tracks from the CD
+    fn tracks(&self) -> &[Track];
+
     /// Rip a single track, returning track info and raw data.
     fn rip(&mut self, track_number: usize) -> io::Result<RippedTrack> {
         let release = self

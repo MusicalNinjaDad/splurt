@@ -178,6 +178,10 @@ impl AudioCdExt for AudioCd {
         &mut self.disc
     }
 
+    fn tracks(&self) -> &[Track] {
+        &self.tracks
+    }
+
     fn read_chunk(
         &self,
         track: &Track,
