@@ -28,8 +28,11 @@ fn main() -> Exit<()> {
 
     let track_number = ripper.track_number;
 
-    let (track_name, pcm) = rip(cd, track_number)?;
+    let (track_name, pcm, cover_art) = rip(cd, track_number)?;
     let output_filename = ripper.output_filename(track_name);
+
+    let mut cover = File::create_new("front.jpeg")?;
+    cover.write_all(&cover_art)?;
 
     let mut dump = File::create_new(&output_filename)?;
     let wav = into_wav(pcm);

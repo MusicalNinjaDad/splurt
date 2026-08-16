@@ -129,7 +129,7 @@ pub trait AudioCdExt {
     }
 }
 
-pub fn rip(cd: AudioCd, track_number: usize) -> io::Result<(String, Vec<u8>)> {
+pub fn rip(cd: AudioCd, track_number: usize) -> io::Result<(String, Vec<u8>, Vec<u8>)> {
     let mb_data = cd.musicbrainz()?;
     // dbg!(&mb_data);
     let track_name = mb_data
@@ -155,10 +155,27 @@ pub fn rip(cd: AudioCd, track_number: usize) -> io::Result<(String, Vec<u8>)> {
     dbg!(track_name);
 
     let mbid = mb_data.releases.first().unwrap().id.clone();
-    let cover_url = format!("https://coverartarchive.org/release/{mbid}/front");
-    dbg!(cover_url);
+    let cover_art = download_cover_art(&mbid)?;
 
-    Ok((track_name.clone(), cd.read_track(track_number)?))
+    Ok((track_name.clone(), cd.read_track(track_number)?, cover_art))
+}
+
+/// Download cover art from the Cover Art Archive for a given MusicBrainz release ID.
+///
+/// Returns the image as a Vec of bytes (typically JPEG format) that can be written to disk.
+pub fn download_cover_art(mbid: &str) -> io::Result<Vec<u8>> {
+    let url = format!("https://coverartarchive.org/release/{mbid}/front");
+    dbg!(&url);
+    let client = reqwest::blocking::Client::new();
+    let response = client
+        .get(url)
+        .header("User-Agent", "splurt/0.1.0")
+        .send()
+        .map_err(io::Error::other)?;
+    response
+        .bytes()
+        .map_err(io::Error::other)
+        .map(|b| b.to_vec())
 }
 
 pub fn into_wav(pcm: Vec<u8>) -> Vec<u8> {
