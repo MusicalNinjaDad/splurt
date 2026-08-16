@@ -24,11 +24,11 @@ fn main() -> Exit<()> {
     let ripper = Rip::parse();
 
     let drive = PathBuf::from_str(&ripper.drive)?;
-    let cd = AudioCd::new(drive)?;
+    let mut cd = AudioCd::new(drive)?;
 
     let track_number = ripper.track_number;
 
-    let (track_name, pcm, cover_art) = rip(cd, track_number)?;
+    let (track_name, pcm, cover_art) = rip(&mut cd, track_number)?;
     let output_filename = ripper.output_filename(track_name);
 
     let mut cover = File::create_new("front.jpeg")?;

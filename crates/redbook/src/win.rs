@@ -132,13 +132,13 @@ impl AudioCd {
                 dbg!(track.Address);
             }
         }
-        
+
         // Create the Toc and Disc
         let audio: Vec<_> = tracks.iter().map(|track| track.starting_frame).collect();
         let data = None;
         let toc = cdtoc::Toc::from_parts(audio, data, leadout_starting_frame).unwrap();
         let disc = Disc::from_toc(toc);
-        
+
         Ok(Self {
             drive,
             tracks,
@@ -172,6 +172,10 @@ impl AudioCdExt for AudioCd {
 
     fn disc(&self) -> &Disc {
         &self.disc
+    }
+
+    fn disc_mut(&mut self) -> &mut Disc {
+        &mut self.disc
     }
 
     fn read_chunk(
