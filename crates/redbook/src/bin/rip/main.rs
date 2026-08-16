@@ -5,7 +5,7 @@
 
 use clap::Parser;
 use exit_safely::Termination;
-use redbook::{AudioCd, AudioCdExt, into_wav};
+use redbook::{AudioCd, AudioCdExt, into_wav, RippedTrack};
 use std::{
     convert::Infallible,
     fs::File,
@@ -74,11 +74,11 @@ fn main() -> Exit<()> {
         }
     });
 
-    // Determine track number - prompt if not provided
-    let track_number = if let Some(n) = ripper.track_number {
-        n
-    } else {
-        // No track number provided - prompt user
+    // Determine what to rip - CLI flag or interactive prompt for track selection
+    let (rip_all, track_number) = if ripper.all {
+        (true, 0)
+    } else if ripper.track_number.is_none() {
+        // No track number on CLI triggers interactive track selection
         let release = cd.disc()
             .selected_release()
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No releases found"))?;
@@ -94,66 +94,88 @@ fn main() -> Exit<()> {
             .unwrap();
 
         println!("\nAvailable tracks:");
-        println!("0. All tracks");
         for track in tracks.iter() {
             let track_number: usize = track.number.as_ref().and_then(|n| n.parse().ok()).unwrap();
             let track_name = track.title.as_deref().unwrap_or("Unknown");
-            println!("{}. {} - {}", track_number, track_number, track_name);
+            println!("{}. {}", track_number, track_name);
         }
+        println!("a. All tracks");
 
         loop {
-            let mut input = String::new();
-            println!("\nEnter the track number to rip (0 for all):");
+            #[expect(unused, reason = "loop on error")]
+            try {
+                let mut input = String::new();
+                println!("\nEnter the track number to rip (a for all):");
 
-            io::stdin().read_line(&mut input).map_err(|error| {
-                Exit::IO(format!("Problem reading input: {error}"))
-            })?;
+                let _ = io::stdin().read_line(&mut input).map_err(|error| {
+                    println!("oops ... problem understanding you ... it's me, not you. {error}");
+                })?;
 
-            let choice: usize = input.trim().parse().map_err(|_| {
-                Exit::InvocationError(format!("Invalid track number: {}", input.trim()))
-            })?;
+                let input_trimmed = input.trim().to_lowercase();
+                if input_trimmed == "a" {
+                    break (true, 0);
+                }
 
-            // Validate choice - 0 is valid (all), otherwise must be a valid track
-            if choice == 0 || tracks.iter().any(|t| t.number.as_ref().and_then(|n| n.parse().ok()) == Some(choice)) {
-                break choice;
-            } else {
-                println!("oops ... I can't find track number {choice}");
-                continue;
-            }
+                let choice: usize = input_trimmed.parse().map_err(|error| {
+                    println!("oops ... try again {input_trimmed} is not a number");
+                })?;
+
+                let valid = tracks.iter().any(|t| t.number.as_ref().and_then(|n| n.parse().ok()) == Some(choice));
+                valid.ok_or_else(|| {
+                    println!("oops ... I can't find track number {choice}");
+                })?;
+
+                break (false, choice);
+            };
         }
+    } else {
+        (false, ripper.track_number.unwrap())
     };
 
-    // Handle rip all or single track
-    let cover_art = cd.disc_mut().cover_art()?.clone().unwrap_or_default();
-    
-    if track_number == 0 {
-        // Rip all tracks
-        let ripped_tracks = cd.rip_all()?;
-        
-        for track in &ripped_tracks {
-            let output_filename = ripper.output_filename(track.track_name.clone());
-            let mut dump = File::create_new(&output_filename)?;
-            let wav = into_wav(track.raw_data.clone());
-            dump.write_all(&wav)?;
-            println!("Track {} ripped to {}", track.track_number, output_filename);
-        }
-        
-        // Save cover art once
-        let mut cover = File::create_new("front.jpeg")?;
-        cover.write_all(&cover_art)?;
-        println!("Cover art saved to front.jpeg");
-    } else {
-        // Rip single track
-        let ripped_track = cd.rip(track_number)?;
-        let output_filename = ripper.output_filename(ripped_track.track_name.clone());
+    // Write cover art once before ripping
+    let mut cover = File::create_new("front.jpeg")?;
+    if let Some(data) = cd.disc_mut().cover_art()? {
+        cover.write_all(data)?;
+    }
 
-        let mut cover = File::create_new("front.jpeg")?;
-        cover.write_all(&cover_art)?;
+    // Rip tracks
+    let ripped_tracks: Vec<RippedTrack> = if rip_all {
+        cd.rip_all()?
+    } else {
+        vec![cd.rip(track_number)?]
+    };
+
+    // Write WAV files
+    for track in &ripped_tracks {
+        let track_name = cd
+            .disc()
+            .selected_release()
+            .unwrap_or_else(|| 
+                panic!("No release found - this should have been caught earlier"))
+            .media
+            .as_ref()
+            .unwrap()
+            .first()
+            .unwrap()
+            .tracks
+            .as_ref()
+            .unwrap()
+            .iter()
+            .find(|t| t.number.as_ref().and_then(|n| n.parse().ok()) == Some(track.track_number))
+            .and_then(|t| t.title.as_ref())
+            .map(|t| t.as_str())
+            .unwrap_or("");
+
+        let output_filename = if track_name.is_empty() {
+            format!("{:02}.wav", track.track_number)
+        } else {
+            format!("{:02} {}.wav", track.track_number, track_name)
+        };
 
         let mut dump = File::create_new(&output_filename)?;
-        let wav = into_wav(ripped_track.raw_data);
+        let wav = into_wav(track.raw_data.clone());
         dump.write_all(&wav)?;
-        println!("Track {} ripped to {}", ripped_track.track_number, output_filename);
+        println!("Track {} ripped to {}", track.track_number, output_filename);
     }
 
     Exit::Ok(())

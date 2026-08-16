@@ -121,11 +121,7 @@ pub trait AudioCdExt {
     }
 
     /// Rip a single track, returning track info and raw data.
-    /// Cover art is downloaded once and cached in the Disc.
     fn rip(&mut self, track_number: usize) -> io::Result<RippedTrack> {
-        // Ensure cover art is downloaded first (cached in Disc)
-        let _ = self.disc_mut().cover_art()?;
-        
         let release = self
             .disc()
             .selected_release()
@@ -158,17 +154,13 @@ pub trait AudioCdExt {
     }
 
     /// Rip all tracks, returning a vector of RippedTrack.
-    /// Cover art is downloaded once and cached in the Disc.
     fn rip_all(&mut self) -> io::Result<Vec<RippedTrack>> {
-        // Ensure cover art is downloaded first (cached in Disc)
-        let _ = self.disc_mut().cover_art()?;
-        
         let release = self
             .disc()
             .selected_release()
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No releases found"))?;
 
-        let tracks = release
+        let track_numbers: Vec<usize> = release
             .media
             .as_ref()
             .unwrap()
@@ -176,19 +168,12 @@ pub trait AudioCdExt {
             .unwrap()
             .tracks
             .as_ref()
-            .unwrap();
+            .unwrap()
+            .iter()
+            .map(|track| track.number.as_ref().and_then(|n| n.parse().ok()).unwrap())
+            .collect();
 
-        let mut result = Vec::new();
-        for track in tracks {
-            let track_number: usize = track.number.as_ref().and_then(|n| n.parse().ok()).unwrap();
-            let track_name = track.title.as_ref().unwrap().clone();
-            result.push(RippedTrack {
-                track_number,
-                track_name,
-                raw_data: self.read_track(track_number)?,
-            });
-        }
-        Ok(result)
+        track_numbers.iter().map(|&n| self.rip(n)).collect()
     }
 }
 
