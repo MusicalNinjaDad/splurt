@@ -232,3 +232,35 @@ impl CdTime {
         (((self.min as u32 * 60) + self.sec as u32) * 75) + self.frame as u32
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Disc {
+    pub toc: Toc,
+    pub musicbrainz: Option<DiscId>,
+    /// Cached coverart: None if musicbrainz is None
+    coverart: Option<Vec<u8>>,
+}
+
+impl Disc {
+    /// Create a Disc from a given Toc and attempt to identify it on MusicBrainz.
+    /// 
+    /// Will only call MusicBrainz API once to avoid spamming the API
+    fn from_toc(toc: Toc) -> Self {
+        // TODO as part of implementation
+        // remove default impl AudioCdExt::musicbrainz, leaving the function in the trait
+        // change signature of AudioCdExt::musicbrainz to return an Option
+        // store a Disc in win::AudioCd and retrieve cached musicbrainz data in impl AudioCdExt
+        todo!()
+    }
+
+    /// Attempt to get the front cover art from the CoverArtArchive.
+    /// 
+    /// - Will return None if no musicbrainz data is available
+    /// - Will cache the image to avoid spamming API on repeat calls
+    /// - Will not attempt to identify the MusicBrainz ID to avoid spamming API
+    fn cover_art(&self) -> Option<io::Result<Vec<u8>>> {
+        // TODO as part of implementation
+        // remove pub fn download_cover_art and replace with this
+        todo!()
+    }
+}
