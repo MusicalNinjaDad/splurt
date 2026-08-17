@@ -227,12 +227,16 @@ fn main() -> Exit<()> {
             let vorbis = tag.vorbis_comments_mut();
 
             vorbis.set_album(vec![release.title.clone()]);
-            vorbis.set_album_artist(release.artist_credit.names().collect::<Vec<String>>());
+            vorbis.set("MUSICBRAINZ_ALBUMID", vec![release.id.clone()]);
 
-            let track_artists = mbtrk
-                .map(|trk| trk.artist_credit.names().collect::<Vec<String>>())
+            vorbis.set_album_artist(release.artist_credit.names().collect());
+
+            let track_artists: Vec<_> = mbtrk
+                .map(|trk| trk.names().collect())
+                .or_else(|| Some(release.names().collect()))
                 .unwrap_or_default();
             vorbis.set_artist(track_artists);
+
             vorbis.set(
                 "MUSICBRAINZ_ALBUMARTISTID",
                 release.artist_credit.artist_ids().collect(),
@@ -268,7 +272,6 @@ fn main() -> Exit<()> {
             });
 
             // MusicBrainz album ID
-            vorbis.set("MUSICBRAINZ_ALBUMID", vec![release.id.clone()]);
 
             // Release status, barcode, country
             release.status.as_ref().map(|status| {

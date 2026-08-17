@@ -171,6 +171,26 @@ pub trait ArtistCreditsExt {
     fn artist_ids(&self) -> impl Iterator<Item = String>;
 }
 
+impl ArtistCreditsExt for Track {
+    fn names(&self) -> impl Iterator<Item = String> {
+        self.artist_credit.names()
+    }
+
+    fn artist_ids(&self) -> impl Iterator<Item = String> {
+        self.artist_credit.artist_ids()
+    }
+}
+
+impl ArtistCreditsExt for Release {
+    fn names(&self) -> impl Iterator<Item = String> {
+        self.artist_credit.names()
+    }
+
+    fn artist_ids(&self) -> impl Iterator<Item = String> {
+        self.artist_credit.artist_ids()
+    }
+}
+
 impl ArtistCreditsExt for Vec<ArtistCredit> {
     fn names(&self) -> impl Iterator<Item = String> {
         self.iter().map(|credit| credit.name.clone())
@@ -182,7 +202,7 @@ impl ArtistCreditsExt for Vec<ArtistCredit> {
     }
 }
 
-impl ArtistCreditsExt for Option<Vec<ArtistCredit>> {
+impl<T: ArtistCreditsExt> ArtistCreditsExt for Option<T> {
     fn names(&self) -> impl Iterator<Item = String> {
         self.as_ref()
             .map(|credits| credits.names().collect::<Vec<_>>())
@@ -212,3 +232,4 @@ impl Release {
             })
     }
 }
+
