@@ -1,0 +1,455 @@
+{
+    "packaging": "Fatbox",
+    "cover-art-archive": {
+        "back": true,
+        "front": true,
+        "count": 14,
+        "darkened": false,
+        "artwork": true
+    },
+    "status": "Official",
+    "country": "GB",
+    "quality": "normal",
+    "id": "2ee8d8db-df68-3d8c-95ea-53039d9ad952",
+    "disambiguation": "made in the UK, printed in England",
+    "status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+    "barcode": "077774603683",
+    "packaging-id": "57429523-ffe6-3336-9381-32565c142c18",
+    "text-representation": {
+        "script": "Latn",
+        "language": "eng"
+    },
+    "date": "1987",
+    "title": "The Wall",
+    "release-events": [
+        {
+            "date": "1987",
+            "area": {
+                "sort-name": "United Kingdom",
+                "iso-3166-1-codes": [
+                    "GB"
+                ],
+                "type": null,
+                "id": "8a754a16-0027-3a29-b6d7-2b40ea0481ed",
+                "type-id": null,
+                "disambiguation": "",
+                "name": "United Kingdom"
+            }
+        }
+    ],
+    "asin": null,
+    "media": [
+        {
+            "format-id": "9712d52a-4509-3d4b-a1a2-67c88c643e31",
+            "track-offset": 0,
+            "title": "",
+            "track-count": 13,
+            "format": "CD",
+            "position": 1,
+            "tracks": [
+                {
+                    "title": "In the Flesh?",
+                    "recording": {
+                        "title": "In the Flesh?",
+                        "video": false,
+                        "first-release-date": "1979-11-30",
+                        "id": "1be4459a-4bda-4530-bf8e-421fdddbdbfc",
+                        "disambiguation": "",
+                        "length": 199560
+                    },
+                    "length": 198400,
+                    "id": "a94c0578-ebf3-31f7-ada9-eddbbea31f61",
+                    "number": "1",
+                    "position": 1
+                },
+                {
+                    "number": "2",
+                    "position": 2,
+                    "id": "9e41cc61-a1e6-387f-8345-536ce3ecf030",
+                    "length": 148960,
+                    "recording": {
+                        "length": 149866,
+                        "video": false,
+                        "title": "The Thin Ice",
+                        "first-release-date": "1979-11-30",
+                        "disambiguation": "",
+                        "id": "eff36e5e-5abb-4f7e-a0aa-64c154c5b28d"
+                    },
+                    "title": "The Thin Ice"
+                },
+                {
+                    "recording": {
+                        "disambiguation": "3:41 album edit",
+                        "id": "bab28d44-b444-4eef-89f9-424a5978f9b8",
+                        "video": false,
+                        "title": "Another Brick in the Wall, Part 1",
+                        "first-release-date": "1984-09",
+                        "length": 221400
+                    },
+                    "title": "Another Brick in the Wall, Part 1",
+                    "number": "3",
+                    "position": 3,
+                    "id": "6ca981ee-c49a-325d-9021-138f5b814eba",
+                    "length": 221400
+                },
+                {
+                    "recording": {
+                        "length": 80840,
+                        "video": false,
+                        "title": "The Happiest Days of Our Lives",
+                        "first-release-date": "1984-09",
+                        "id": "489a7c58-cf40-406d-bc0b-62e6d061d04f",
+                        "disambiguation": "1:20 album edit"
+                    },
+                    "title": "The Happiest Days of Our Lives",
+                    "position": 4,
+                    "number": "4",
+                    "id": "2c322148-10b2-3e86-b563-bd1dabb17e6d",
+                    "length": 80840
+                },
+                {
+                    "recording": {
+                        "id": "597eae0b-ccb6-4076-b997-0ce940586076",
+                        "disambiguation": "album version",
+                        "video": false,
+                        "title": "Another Brick in the Wall, Part 2",
+                        "first-release-date": "1979-11-30",
+                        "length": 239933
+                    },
+                    "title": "Another Brick in the Wall, Part 2",
+                    "position": 5,
+                    "number": "5",
+                    "length": 236266,
+                    "id": "ba8555bf-d57b-3086-a1c0-b8e0fc89754d"
+                },
+                {
+                    "recording": {
+                        "disambiguation": "",
+                        "id": "2423ca5e-99d3-4b49-be53-542e6ee38a82",
+                        "video": false,
+                        "title": "Mother",
+                        "first-release-date": "1979-11-30",
+                        "length": 333866
+                    },
+                    "title": "Mother",
+                    "position": 6,
+                    "number": "6",
+                    "length": 332626,
+                    "id": "073bcc1d-3f0a-3bfe-82bf-96630d4749b5"
+                },
+                {
+                    "number": "7",
+                    "position": 7,
+                    "id": "9e574107-85e9-35e6-b82e-3e0c3b8b3a4b",
+                    "length": 168440,
+                    "recording": {
+                        "first-release-date": "1979-11-30",
+                        "video": false,
+                        "title": "Goodbye Blue Sky",
+                        "id": "bb0d3c16-b684-4a5a-a107-e12bbd4f3041",
+                        "disambiguation": "",
+                        "length": 168000
+                    },
+                    "title": "Goodbye Blue Sky"
+                },
+                {
+                    "title": "Empty Spaces",
+                    "recording": {
+                        "id": "f090a65d-c69f-4d7a-a1c3-e3f1c637bbda",
+                        "disambiguation": "incorrectly indexed, includes Young Lust",
+                        "first-release-date": "1984-09",
+                        "video": false,
+                        "title": "Empty Spaces",
+                        "length": 336493
+                    },
+                    "length": 336493,
+                    "id": "18dc5037-a1ab-399d-995d-5f465e453dfd",
+                    "position": 8,
+                    "number": "8"
+                },
+                {
+                    "id": "a9ab4414-3e58-39ce-b404-f71aaccc07a9",
+                    "length": 123306,
+                    "number": "9",
+                    "position": 9,
+                    "title": "Young Lust",
+                    "recording": {
+                        "length": 123306,
+                        "first-release-date": "1984-09",
+                        "title": "Young Lust",
+                        "video": false,
+                        "disambiguation": "incorrectly indexed, the beginning of One of My Turns",
+                        "id": "69a70dce-fac4-4d55-84e8-c47d8943f8b5"
+                    }
+                },
+                {
+                    "id": "a1e048a7-5990-316d-b972-8002b5193d70",
+                    "length": 93826,
+                    "number": "10",
+                    "position": 10,
+                    "title": "One of My Turns",
+                    "recording": {
+                        "disambiguation": "incorrectly indexed, the end of One of My Turns",
+                        "id": "dfb87080-6d33-4217-8075-c4faf2cb1c0d",
+                        "title": "One of My Turns",
+                        "video": false,
+                        "first-release-date": "1984-09",
+                        "length": 93826
+                    }
+                },
+                {
+                    "id": "46b15f08-a637-3a52-8790-3e30c1aa28be",
+                    "length": 262666,
+                    "position": 11,
+                    "number": "11",
+                    "title": "Don’t Leave Me Now",
+                    "recording": {
+                        "id": "c0a217dc-4c2c-45f9-afd4-9b5f366386ef",
+                        "disambiguation": "",
+                        "title": "Don’t Leave Me Now",
+                        "video": false,
+                        "first-release-date": "1979-11-30",
+                        "length": 256760
+                    }
+                },
+                {
+                    "length": 77306,
+                    "id": "3081be05-0bdd-3d0c-b0ec-0e3fc23d30d2",
+                    "number": "12",
+                    "position": 12,
+                    "title": "Another Brick in the Wall, Part 3",
+                    "recording": {
+                        "disambiguation": "",
+                        "id": "ae5096a0-4b53-455a-ac9c-0348108208c3",
+                        "title": "Another Brick in the Wall, Part 3",
+                        "video": false,
+                        "first-release-date": "1979-11-30",
+                        "length": 74960
+                    }
+                },
+                {
+                    "recording": {
+                        "length": 74640,
+                        "video": false,
+                        "title": "Goodbye Cruel World",
+                        "first-release-date": "1979-11-30",
+                        "id": "bc3448ee-53bb-412a-99d6-ea6cc862928a",
+                        "disambiguation": ""
+                    },
+                    "title": "Goodbye Cruel World",
+                    "number": "13",
+                    "position": 13,
+                    "length": 64533,
+                    "id": "946459ab-ef2d-3cc4-a225-efd7c8181c3f"
+                }
+            ],
+            "id": "a468cddd-722f-3c3c-b712-adef46538e92"
+        },
+        {
+            "track-count": 13,
+            "title": "",
+            "format": "CD",
+            "format-id": "9712d52a-4509-3d4b-a1a2-67c88c643e31",
+            "track-offset": 0,
+            "id": "2dea2f97-580c-322a-a0bc-3b64364b6c73",
+            "position": 2,
+            "tracks": [
+                {
+                    "title": "Hey You",
+                    "recording": {
+                        "length": 280946,
+                        "title": "Hey You",
+                        "video": false,
+                        "first-release-date": "1979-11-30",
+                        "id": "daebd800-fe8a-48bf-bfb4-d8655a895dff",
+                        "disambiguation": ""
+                    },
+                    "id": "e57bc13d-1c9b-3e89-829e-9799c5b89f86",
+                    "length": 280733,
+                    "number": "1",
+                    "position": 1
+                },
+                {
+                    "number": "2",
+                    "position": 2,
+                    "length": 160293,
+                    "id": "2ff31c25-bc2f-3500-89fa-b351b7fb10b1",
+                    "recording": {
+                        "disambiguation": "",
+                        "id": "5893b2c3-243c-4b79-bfbf-c6624770a97b",
+                        "video": false,
+                        "title": "Is There Anybody Out There?",
+                        "first-release-date": "1979-11-30",
+                        "length": 161906
+                    },
+                    "title": "Is There Anybody Out There?"
+                },
+                {
+                    "position": 3,
+                    "number": "3",
+                    "length": 205040,
+                    "id": "835064dc-bd51-3c39-96fb-045796077ece",
+                    "recording": {
+                        "length": 204533,
+                        "disambiguation": "",
+                        "id": "cfc2fb95-2fc0-4129-acf3-5a5dfb9bceef",
+                        "first-release-date": "1979-11-30",
+                        "title": "Nobody Home",
+                        "video": false
+                    },
+                    "title": "Nobody Home"
+                },
+                {
+                    "id": "31952071-0ad1-36d8-8569-3adbe72e245d",
+                    "length": 98893,
+                    "position": 4,
+                    "number": "4",
+                    "title": "Vera",
+                    "recording": {
+                        "disambiguation": "",
+                        "id": "eb2fbdca-089e-493b-ae03-bb24cdf2b176",
+                        "video": false,
+                        "title": "Vera",
+                        "first-release-date": "1979-11-30",
+                        "length": 93356
+                    }
+                },
+                {
+                    "title": "Bring the Boys Back Home",
+                    "recording": {
+                        "disambiguation": "0:51 album version",
+                        "id": "f4d42a74-cfb1-488d-a312-639034793cc1",
+                        "title": "Bring the Boys Back Home",
+                        "video": false,
+                        "first-release-date": "1984-09",
+                        "length": 50906
+                    },
+                    "length": 50906,
+                    "id": "e703c191-c6d1-3d00-8193-1e23326cb387",
+                    "number": "5",
+                    "position": 5
+                },
+                {
+                    "title": "Comfortably Numb",
+                    "recording": {
+                        "disambiguation": "6:49 album version, including \"Is There Anybody Out There\"",
+                        "id": "d3528f95-1a3f-45d2-a569-826740c0adee",
+                        "first-release-date": "1984-09",
+                        "title": "Comfortably Numb",
+                        "video": false,
+                        "length": 409493
+                    },
+                    "id": "29cd1cea-9031-3923-9574-86d62fb837a6",
+                    "length": 409493,
+                    "number": "6",
+                    "position": 6
+                },
+                {
+                    "recording": {
+                        "length": 96813,
+                        "disambiguation": "",
+                        "id": "e90a6932-b238-4cc0-8331-6637469b7a34",
+                        "title": "The Show Must Go On",
+                        "video": false,
+                        "first-release-date": "1979-11-30"
+                    },
+                    "title": "The Show Must Go On",
+                    "number": "7",
+                    "position": 7,
+                    "length": 96866,
+                    "id": "857e7cd1-aa69-3390-b63b-8a5ac75d03c8"
+                },
+                {
+                    "recording": {
+                        "length": 256706,
+                        "id": "89881237-8c35-43b7-af8f-950fb6183fee",
+                        "disambiguation": "",
+                        "first-release-date": "1979-11-30",
+                        "title": "In the Flesh",
+                        "video": false
+                    },
+                    "title": "In the Flesh",
+                    "number": "8",
+                    "position": 8,
+                    "length": 256706,
+                    "id": "64cc24ac-10be-3054-a3e8-17187e8d373f"
+                },
+                {
+                    "recording": {
+                        "id": "d36e0b66-a91c-44ee-98c1-881ac8157439",
+                        "disambiguation": "",
+                        "first-release-date": "1979-11-30",
+                        "title": "Run Like Hell",
+                        "video": false,
+                        "length": 263573
+                    },
+                    "title": "Run Like Hell",
+                    "number": "9",
+                    "position": 9,
+                    "length": 262760,
+                    "id": "68c4aa81-9510-376a-b878-97ba1c797114"
+                },
+                {
+                    "recording": {
+                        "length": 238240,
+                        "id": "da31bbd5-d020-41d8-8ed5-908c18c13c55",
+                        "disambiguation": "",
+                        "first-release-date": "1979-11-30",
+                        "video": false,
+                        "title": "Waiting for the Worms"
+                    },
+                    "title": "Waiting for the Worms",
+                    "number": "10",
+                    "position": 10,
+                    "length": 236640,
+                    "id": "187f78bd-c80b-31ed-9aba-e1e053508510"
+                },
+                {
+                    "title": "Stop",
+                    "recording": {
+                        "disambiguation": "",
+                        "id": "92e2cb40-de60-47e4-80bc-60595fb5a488",
+                        "video": false,
+                        "title": "Stop",
+                        "first-release-date": "1979-11-30",
+                        "length": 30800
+                    },
+                    "id": "1f7c27dd-58fb-34bf-96d1-105ad03b0745",
+                    "length": 34933,
+                    "position": 11,
+                    "number": "11"
+                },
+                {
+                    "length": 316266,
+                    "id": "a8b8a6c4-001e-35ce-abe4-5cc4deaf5ab6",
+                    "position": 12,
+                    "number": "12",
+                    "title": "The Trial",
+                    "recording": {
+                        "length": 319240,
+                        "first-release-date": "1979-11-30",
+                        "title": "The Trial",
+                        "video": false,
+                        "disambiguation": "",
+                        "id": "a362cf52-5d85-4f34-8a69-e830ef87b5cb"
+                    }
+                },
+                {
+                    "title": "Outside the Wall",
+                    "recording": {
+                        "length": 104000,
+                        "first-release-date": "1979-11-30",
+                        "title": "Outside the Wall",
+                        "video": false,
+                        "disambiguation": "",
+                        "id": "a0545de0-0c68-4301-8cd4-1b77e4b0dc3e"
+                    },
+                    "length": 102760,
+                    "id": "03101493-d9d7-350a-9b85-561b54491ecd",
+                    "position": 13,
+                    "number": "13"
+                }
+            ]
+        }
+    ]
+}

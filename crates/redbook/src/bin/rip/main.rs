@@ -225,7 +225,6 @@ fn main() -> Exit<()> {
         let vorbis = tag.vorbis_comments_mut();
         vorbis.set_title(vec![track.track_name.clone()]);
         vorbis.set_track(track.track_number as u32);
-
         if let Some(release) = cd.disc().release() {
             vorbis.set(
                 "SCRIPT",
@@ -281,32 +280,31 @@ fn main() -> Exit<()> {
                 vec![release.status.clone().unwrap_or_default()],
             );
 
-            // Media information
             if let Some(media_list) = release.media.as_ref() {
-                let total_discs = media_list.len() as u32;
-                let total_tracks: u32 = media_list.iter().filter_map(|m| m.track_count).sum();
-
+                let total_discs = media_list.len();
                 vorbis.set("TOTALDISCS", vec![total_discs.to_string()]);
                 vorbis.set("DISCTOTAL", vec![total_discs.to_string()]);
-
-                if total_tracks > 0 {
-                    vorbis.set("TOTALTRACKS", vec![total_tracks.to_string()]);
-                    vorbis.set("TRACKTOTAL", vec![total_tracks.to_string()]);
-                }
-
-                // Media format and disc number
-                if let Some(first_media) = media_list.first() {
-                    if let Some(format) = first_media.format.as_ref() {
-                        vorbis.set("MEDIA", vec![format.clone()]);
-                    }
-                    if let Some(position) = first_media.position {
-                        vorbis.set("DISCNUMBER", vec![position.to_string()]);
-                    }
-                }
+                if let Some(track_count) = media_list.first().and_then(|media| media.track_count) {
+                    vorbis.set("TOTALTRACKS", vec![track_count.to_string()]);
+                    vorbis.set("TRACKTOTAL", vec![track_count.to_string()]);
+                };
             }
-            dbg!(&tag);
-            tag.write_to_path(&flac_filename).unwrap();
+
+            vorbis.set(
+                "MEDIA",
+                vec![
+                    release
+                        .media
+                        .as_ref()
+                        .and_then(|all_media| all_media.first())
+                        .and_then(|media| media.format.clone())
+                        .unwrap_or_default(),
+                ],
+            );
+            vorbis.set("DISCNUMBER", vec![1.to_string()]);
         }
+        dbg!(&tag);
+        tag.write_to_path(&flac_filename).unwrap();
         let written_tag = Tag::read_from_path(&flac_filename).unwrap();
         dbg!(written_tag);
     }

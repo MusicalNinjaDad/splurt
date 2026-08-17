@@ -24,3 +24,4 @@
   - [x] open bug with musicbrainz_rs re ring (commit b51ab9c31c45f11c2c86e884621d625e1bb786dc)
 - [ ] GUI with slint
 - [ ] Consider replacing Vec u8 with crate bytes Bytes
+- [ ] Multi-Disc albums
