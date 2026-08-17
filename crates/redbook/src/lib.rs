@@ -230,18 +230,19 @@ pub struct Track {
     pub starting_frame: u32,
     pub duration_frames: u32,
     /// Relative value, excluding lead-in (2s)
-    pub starting_time: CdTime,
-    pub duration: CdTime,
+    pub starting_time: Msf,
+    pub duration: Msf,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct CdTime {
+/// CD audio duration in min:sec/frames (75 frames/sec)
+pub struct Msf {
     pub min: i8,
     pub sec: i8,
     pub frame: i8,
 }
 
-impl CdTime {
+impl Msf {
     pub fn to_frames(&self) -> u32 {
         (((self.min as u32 * 60) + self.sec as u32) * 75) + self.frame as u32
     }

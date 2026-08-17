@@ -32,7 +32,7 @@ use windows_sys::Win32::{
     Storage::FileSystem::{FILE_SHARE_READ, OPEN_EXISTING},
 };
 
-use crate::{AudioCdExt, CdTime, Disc, FRAME_SIZE, Track};
+use crate::{AudioCdExt, Msf, Disc, FRAME_SIZE, Track};
 
 //(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
 pub const TRACK_MODE_CDDA: TRACK_MODE_TYPE = 2;
@@ -332,7 +332,7 @@ impl TryFrom<CdaFile> for Track {
         let duration_frames = u32::from_le_bytes([data[0x20], data[0x21], data[0x22], data[0x23]]);
 
         // For inexplicable, probably historical, reasons Windows stores the absolute time in cda
-        let starting_time = CdTime {
+        let starting_time = Msf {
             frame: data[0x24] as i8,
             sec: data[0x25] as i8 - 2,
             min: data[0x26] as i8,
@@ -347,7 +347,7 @@ impl TryFrom<CdaFile> for Track {
         }
 
         // Parse duration time
-        let duration = CdTime {
+        let duration = Msf {
             frame: data[0x28] as i8,
             sec: data[0x29] as i8,
             min: data[0x2A] as i8,
