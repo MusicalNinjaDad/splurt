@@ -9,7 +9,7 @@ use flacenc::{component::BitRepr, error::Verify};
 use metaflac::Tag;
 use redbook::{
     AudioCd, AudioCdExt, RippedTrack, into_wav,
-    musicbrainz::{ArtistCreditsExt, Release},
+    musicbrainz::ArtistCreditsExt,
 };
 use std::{
     convert::Infallible,
@@ -31,21 +31,6 @@ mod cli;
 use cli::Rip;
 
 use clap::Error as ClapError;
-
-fn get_track_name(release: Option<&Release>, track_number: usize) -> &str {
-    release
-        .and_then(|r| r.media.as_ref())
-        .and_then(|media| media.first())
-        .and_then(|media| media.tracks.as_ref())
-        .and_then(|tracks| {
-            tracks
-                .iter()
-                .find(|trk| trk.number.as_ref().and_then(|n| n.parse().ok()) == Some(track_number))
-                .and_then(|trk| trk.title.as_ref())
-        })
-        .map(|title| title.as_str())
-        .unwrap_or("Unknown")
-}
 
 fn main() -> Exit<()> {
     let ripper = Rip::parse();
@@ -116,7 +101,21 @@ fn main() -> Exit<()> {
 
             let release = cd.disc().release();
             for track in cd.tracks() {
-                let track_name = get_track_name(release, track.track_number.into());
+                let track_name = release
+                    .and_then(|r| r.media.as_ref())
+                    .and_then(|media| media.first())
+                    .and_then(|media| media.tracks.as_ref())
+                    .and_then(|tracks| {
+                        tracks
+                            .iter()
+                            .find(|trk| {
+                                trk.number.as_ref().and_then(|n| n.parse().ok())
+                                    == Some(track.track_number)
+                            })
+                            .and_then(|trk| trk.title.as_ref())
+                    })
+                    .map(|title| title.as_str())
+                    .unwrap_or("Unknown");
                 println!("{n}. {track_name}", n = track.track_number);
             }
             println!("a. All tracks");
@@ -178,10 +177,14 @@ fn main() -> Exit<()> {
     let release = cd.disc().release();
     for track in &ripped_tracks {
         let mbtrk = release.and_then(|release| release.track(track.track_number));
-        let track_name = get_track_name(release, track.track_number);
 
-        let output_filename =
-            PathBuf::from([format!("{:02}", track.track_number), track_name.to_string()].join(" "));
+        let output_filename = PathBuf::from(
+            [
+                format!("{:02}", track.track_number),
+                track.track_name.clone(),
+            ]
+            .join(" "),
+        );
 
         let mut dump = File::create_new(output_filename.with_extension("wav"))?;
         let wav = into_wav(track.raw_data.clone());
