@@ -15,7 +15,7 @@ pub mod win;
 
 pub use win::AudioCd;
 
-use std::{convert::TryFrom, io};
+use std::{convert::TryFrom, io, ops::Add};
 
 use cdtoc::{Toc, TocError};
 use musicbrainz::DiscId;
@@ -227,11 +227,25 @@ pub struct Track {
     pub track_number: u16,
     pub windows_identifier: u32,
     /// Absolute value, including lead-in (150 frames)
-    pub starting_frame: u32,
+    pub starting_frame: Frame,
     pub duration_frames: u32,
     /// Relative value, excluding lead-in (2s)
     pub starting_time: Msf,
     pub duration: Msf,
+}
+
+/// CD audio frame (1/75 sec). Basic unit of time for CD audio
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Frame(usize);
+
+impl Frame {
+    pub fn as_usize(self) -> usize {
+        self.0
+    }
+
+    pub fn from_msf(msf: Msf) -> Self {
+        Self((((msf.min as usize * 60) + msf.sec as usize) * 75) + msf.frame as usize)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -245,6 +259,17 @@ pub struct Msf {
 impl Msf {
     pub fn to_frames(&self) -> u32 {
         (((self.min as u32 * 60) + self.sec as u32) * 75) + self.frame as u32
+    }
+}
+
+impl<N> Add<N> for Frame
+where
+    usize: Add<N, Output = usize>,
+{
+    type Output = Self;
+
+    fn add(self, rhs: N) -> Self::Output {
+        Self(self.0 + rhs)
     }
 }
 

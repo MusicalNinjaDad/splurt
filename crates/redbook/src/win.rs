@@ -32,7 +32,7 @@ use windows_sys::Win32::{
     Storage::FileSystem::{FILE_SHARE_READ, OPEN_EXISTING},
 };
 
-use crate::{AudioCdExt, Msf, Disc, FRAME_SIZE, Track};
+use crate::{AudioCdExt, Disc, FRAME_SIZE, Frame, Msf, Track};
 
 //(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
 pub const TRACK_MODE_CDDA: TRACK_MODE_TYPE = 2;
@@ -134,7 +134,10 @@ impl AudioCd {
         }
 
         // Create the Toc and Disc
-        let audio: Vec<_> = tracks.iter().map(|track| track.starting_frame).collect();
+        let audio: Vec<_> = tracks
+            .iter()
+            .map(|track| track.starting_frame.as_usize() as u32)
+            .collect();
         let data = None;
         let toc = cdtoc::Toc::from_parts(audio, data, leadout_starting_frame).unwrap();
         let disc = Disc::from_toc(toc);
@@ -163,7 +166,7 @@ impl AudioCdExt for AudioCd {
         let audio: Vec<_> = self
             .tracks
             .iter()
-            .map(|track| track.starting_frame)
+            .map(|track| track.starting_frame.as_usize() as u32)
             .collect();
         let data = None;
         let leadout = self.leadout();
@@ -189,7 +192,7 @@ impl AudioCdExt for AudioCd {
         frames_to_read: u32,
         buf: &mut [u8],
     ) -> io::Result<u32> {
-        let offset = Sector::from_frame(track.starting_frame + frame_offset as u32).offset();
+        let offset = Sector::from_frame(track.starting_frame + frame_offset).offset();
         let read_command = RAW_READ_INFO {
             DiskOffset: offset,
             SectorCount: frames_to_read,
@@ -328,7 +331,7 @@ impl TryFrom<CdaFile> for Track {
         let range_offset_frames =
             u32::from_le_bytes([data[0x1C], data[0x1D], data[0x1E], data[0x1F]]);
         // For inexplicable, probably historical, reasons Windows stores the relative frame in cda
-        let starting_frame = range_offset_frames + 150;
+        let starting_frame = Frame(range_offset_frames as usize + 150);
         let duration_frames = u32::from_le_bytes([data[0x20], data[0x21], data[0x22], data[0x23]]);
 
         // For inexplicable, probably historical, reasons Windows stores the absolute time in cda
@@ -361,7 +364,7 @@ impl TryFrom<CdaFile> for Track {
             ));
         }
 
-        debug_assert_eq!(starting_frame, starting_time.to_frames() + 150);
+        debug_assert_eq!(starting_frame, Frame::from_msf(starting_time) + 150);
         debug_assert_eq!(duration_frames, duration.to_frames());
 
         Ok(Track {
@@ -385,8 +388,8 @@ pub struct Sector(i64);
 
 impl Sector {
     /// Construct from an absolute frame number (including lead-in)
-    pub fn from_frame(frame: u32) -> Self {
-        Self(frame as i64 - 150)
+    pub fn from_frame(frame: Frame) -> Self {
+        Self(frame.as_usize() as i64 - 150)
     }
 
     /// For passing to `DeviceIoControl(..,IOCTL_CDROM_RAW_READ,..)`
