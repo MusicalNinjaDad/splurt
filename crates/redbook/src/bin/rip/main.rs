@@ -7,10 +7,7 @@ use clap::Parser;
 use exit_safely::Termination;
 use flacenc::{component::BitRepr, error::Verify};
 use metaflac::Tag;
-use redbook::{
-    AudioCd, AudioCdExt, RippedTrack, into_wav,
-    musicbrainz::ArtistCreditsExt,
-};
+use redbook::{AudioCd, AudioCdExt, RippedTrack, into_wav, musicbrainz::ArtistCreditsExt};
 use std::{
     convert::Infallible,
     fs::File,

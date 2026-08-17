@@ -333,6 +333,7 @@ impl TryFrom<CdaFile> for Track {
         // For inexplicable, probably historical, reasons Windows stores the relative frame in cda
         let starting_frame = Frame(range_offset_frames as usize + 150);
         let duration_frames = u32::from_le_bytes([data[0x20], data[0x21], data[0x22], data[0x23]]);
+        let duration_frames = Frame(duration_frames as usize);
 
         // For inexplicable, probably historical, reasons Windows stores the absolute time in cda
         let starting_time = Msf {
@@ -365,7 +366,7 @@ impl TryFrom<CdaFile> for Track {
         }
 
         debug_assert_eq!(starting_frame, Frame::from_msf(starting_time) + 150);
-        debug_assert_eq!(duration_frames, duration.to_frames());
+        debug_assert_eq!(duration_frames, Frame::from_msf(duration));
 
         Ok(Track {
             track_number,

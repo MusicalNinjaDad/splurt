@@ -66,9 +66,7 @@ pub trait AudioCdExt {
     fn read_track(&self, track_number: usize) -> io::Result<Vec<u8>> {
         let track = self.track(track_number).unwrap();
         dbg!(track);
-        let track_size = usize::try_from(track.duration_frames)
-            .unwrap()
-            .strict_mul(FRAME_SIZE);
+        let track_size = track.duration_frames.as_usize().strict_mul(FRAME_SIZE);
         debug_assert!(track_size > 0);
 
         // Vec needs to be initialised to split into chunks. Performance cost insignificant vs IO.
@@ -111,9 +109,10 @@ pub trait AudioCdExt {
         );
         let frames_to_read = track
             .duration_frames
-            .strict_rem(MAX_CHUNK_FRAMES.try_into().unwrap());
+            .as_usize()
+            .strict_rem(MAX_CHUNK_FRAMES);
 
-        let bytes_read = self.read_chunk(track, frame_offset, frames_to_read, last_buf)?;
+        let bytes_read = self.read_chunk(track, frame_offset, frames_to_read as u32, last_buf)?;
         bytes_read_so_far += i64::from(bytes_read);
 
         dbg!(bytes_read_so_far);
@@ -228,7 +227,7 @@ pub struct Track {
     pub windows_identifier: u32,
     /// Absolute value, including lead-in (150 frames)
     pub starting_frame: Frame,
-    pub duration_frames: u32,
+    pub duration_frames: Frame,
     /// Relative value, excluding lead-in (2s)
     pub starting_time: Msf,
     pub duration: Msf,
@@ -270,6 +269,14 @@ where
 
     fn add(self, rhs: N) -> Self::Output {
         Self(self.0 + rhs)
+    }
+}
+
+impl Add<Frame> for Frame {
+    type Output = Self;
+
+    fn add(self, rhs: Frame) -> Self::Output {
+        Self(self.0 + rhs.0)
     }
 }
 
