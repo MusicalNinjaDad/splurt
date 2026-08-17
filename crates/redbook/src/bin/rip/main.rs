@@ -5,6 +5,7 @@
 
 use clap::Parser;
 use exit_safely::Termination;
+use flacenc::{component::BitRepr, error::Verify};
 use redbook::{AudioCd, AudioCdExt, RippedTrack, into_wav};
 use std::{
     convert::Infallible,
@@ -192,10 +193,37 @@ fn main() -> Exit<()> {
         let output_filename =
             PathBuf::from([format!("{:02}", track.track_number), track_name.to_string()].join(" "));
 
-        let mut dump = File::create_new(&output_filename.with_extension(".wav"))?;
+        let mut dump = File::create_new(output_filename.with_extension("wav"))?;
         let wav = into_wav(track.raw_data.clone());
         dump.write_all(&wav)?;
-        println!("Track {} ripped to {}", track.track_number, output_filename);
+        println!(
+            "Track {} ripped to {}",
+            track.track_number,
+            output_filename.display()
+        );
+
+        let (channels, bits_per_sample, sample_rate) = (2, 16, 44100);
+        let config = flacenc::config::Encoder::default()
+            .into_verified()
+            .expect("Config data error.");
+        let samples: Vec<_> = track.raw_data.iter().map(|s| *s as i32).collect();
+        let source = flacenc::source::MemSource::from_samples(
+            &samples,
+            channels,
+            bits_per_sample,
+            sample_rate,
+        );
+        let flac_stream = flacenc::encode_with_fixed_block_size(&config, source, config.block_size)
+            .expect("Encode failed.");
+        let mut sink = flacenc::bitsink::ByteSink::new();
+        flac_stream.write(&mut sink).unwrap();
+        let mut dump = File::create_new(output_filename.with_extension("flac"))?;
+        dump.write_all(sink.as_slice())?;
+        println!(
+            "Track {} ripped to {}",
+            track.track_number,
+            output_filename.display()
+        );
     }
 
     Exit::Ok(())

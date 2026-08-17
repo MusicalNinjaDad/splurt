@@ -14,6 +14,7 @@
   - [x] create trait crate::AudioCd, keep struct win::AudioCd
   - [ ] add struct linux::AudioCd
 - [ ] flac encoding
+  - [ ] open issue with https://github.com/yotarok/flacenc-rs/ due to https://users.rust-lang.org/t/error-cant-find-lanecount-and-supportedlanecount-in-portable-simd-rust-playground-nightly/138089 https://github.com/rust-lang/rust/pull/151775
 - [x] rip entire CD
 - [x] create TOC & query online directories
   - [x] From Vec Tracks
