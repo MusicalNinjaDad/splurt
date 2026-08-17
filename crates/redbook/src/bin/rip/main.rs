@@ -228,26 +228,28 @@ fn main() -> Exit<()> {
             .expect("Encode failed.");
         let mut sink = flacenc::bitsink::ByteSink::new();
         flac_stream.write(&mut sink).unwrap();
-        let mut dump = File::create_new(output_filename.with_extension("flac"))?;
-        dump.write_all(sink.as_slice())?;
-        println!(
-            "Track {} ripped to {}",
-            track.track_number,
-            output_filename.display()
-        );
-        debug_assert!(Tag::is_candidate(&mut dump));
-        let mut tag = Tag::new();
+        let flac_filename = output_filename.with_extension("flac");
+        {
+            let mut dump = File::create_new(&flac_filename)?;
+            dump.write_all(sink.as_slice())?;
+            println!(
+                "Track {} ripped to {}",
+                track.track_number,
+                output_filename.display()
+            );
+        }
+        let mut tag = Tag::read_from_path(&flac_filename).unwrap();
         let vorbis = tag.vorbis_comments_mut();
         vorbis.set_album(
             cd.disc()
                 .release()
-                .and_then(|release| release.media.as_ref())
-                .and_then(|all_media| all_media.first())
-                .and_then(|media| media.title.clone())
-                .map(|title| vec![title])
+                .map(|release| vec![release.title.clone()])
                 .unwrap(),
         );
-        tag.write_to(&mut dump).unwrap();
+        dbg!(&tag);
+        tag.write_to_path(&flac_filename).unwrap();
+        let written_tag = Tag::read_from_path(&flac_filename).unwrap();
+        dbg!(written_tag);
     }
 
     Exit::Ok(())
