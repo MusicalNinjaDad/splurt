@@ -310,16 +310,17 @@ impl Disc {
 
             let client = reqwest::blocking::Client::new();
             let url = format!("https://coverartarchive.org/release/{release_mbid}/front");
-            let image = client
+            let response = client
                 .get(url)
                 .header("User-Agent", "splurt/0.1.0")
                 .send()
-                .map_err(io::Error::other)?
-                .bytes()
-                .map_err(io::Error::other)?
-                .to_vec();
-
-            self.coverart = Some(image);
+                .map_err(io::Error::other)?;
+            if response.status().is_success() {
+                let image = response.bytes().map_err(io::Error::other)?.to_vec();
+                self.coverart = Some(image);
+            } else {
+                dbg!(response);
+            }
         }
         Ok(&self.coverart)
     }
