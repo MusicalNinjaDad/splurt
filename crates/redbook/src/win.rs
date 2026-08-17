@@ -373,8 +373,6 @@ impl TryFrom<CdaFile> for Track {
             windows_identifier,
             starting_frame,
             duration_frames,
-            starting_time,
-            duration,
         })
     }
 }

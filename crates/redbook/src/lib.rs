@@ -228,9 +228,6 @@ pub struct Track {
     /// Absolute value, including lead-in (150 frames)
     pub starting_frame: Frame,
     pub duration_frames: Frame,
-    /// Relative value, excluding lead-in (2s)
-    pub starting_time: Msf,
-    pub duration: Msf,
 }
 
 /// CD audio frame (1/75 sec). Basic unit of time for CD audio
