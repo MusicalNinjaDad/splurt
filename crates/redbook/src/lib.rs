@@ -20,6 +20,8 @@ use std::{convert::TryFrom, io};
 use cdtoc::{Toc, TocError};
 use musicbrainz::DiscId;
 
+use crate::musicbrainz::Release;
+
 /// One cdda audio frame in bytes
 const FRAME_SIZE: usize = 2352;
 
@@ -33,6 +35,9 @@ const MAX_CHUNK_BYTES: usize = MAX_CHUNK_FRAMES * FRAME_SIZE;
 pub trait AudioCdExt {
     /// Obtain Track details
     fn track(&self, track_number: usize) -> Option<&Track>;
+
+    /// Get all tracks from the CD
+    fn tracks(&self) -> impl Iterator<Item = &Track>;
 
     /// Frame address for leadout
     fn leadout(&self) -> u32;
@@ -120,14 +125,12 @@ pub trait AudioCdExt {
         self.disc().musicbrainz.as_ref()
     }
 
-    /// Get all tracks from the CD
-    fn tracks(&self) -> impl Iterator<Item = &Track>;
-
     /// Rip a single track, returning track info and raw data.
     fn rip(&mut self, track_number: usize) -> io::Result<RippedTrack> {
         let release = self
             .disc()
-            .selected_release()
+            .release()
+            // TODO handle no releases vs none selected
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No releases found"))?;
 
         let track_name = release
@@ -160,7 +163,8 @@ pub trait AudioCdExt {
     fn rip_all(&mut self) -> io::Result<Vec<RippedTrack>> {
         let release = self
             .disc()
-            .selected_release()
+            .release()
+            // TODO handle no releases vs none selected
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No releases found"))?;
 
         let track_numbers: Vec<usize> = release
@@ -247,8 +251,14 @@ impl CdTime {
 pub struct Disc {
     pub toc: Toc,
     pub musicbrainz: Option<DiscId>,
-    /// Selected release index from musicbrainz.releases, if multiple exist
-    pub release_index: Option<usize>,
+    /// Selected release index from musicbrainz.releases. Use [`select_release()`]
+    /// or [set_release()] to set and [`release()`] to get.
+    ///
+    /// - None if no selection made yet
+    /// - Some(0) if no data present
+    /// - Some(0) if first release selected
+    /// - Some(n) if specific release selected
+    release_index: Option<usize>,
     /// Cached coverart: None if musicbrainz is None
     coverart: Option<Vec<u8>>,
 }
@@ -268,13 +278,19 @@ impl Disc {
                 .header("User-Agent", "splurt/0.1.0")
                 .send()
                 .ok()?
-                .json()
+                .json::<DiscId>()
                 .ok()?
+        };
+        let release_index = match musicbrainz {
+            None => Some(0),
+            Some(ref mb_data) if mb_data.releases.is_empty() => Some(0),
+            Some(ref mb_data) if mb_data.releases.len() == 1 => Some(1),
+            _ => None,
         };
         Self {
             toc,
             musicbrainz,
-            release_index: None,
+            release_index,
             coverart: None,
         }
     }
@@ -287,7 +303,7 @@ impl Disc {
     pub fn cover_art(&mut self) -> io::Result<&Option<Vec<u8>>> {
         if self.coverart.is_none() {
             let release_mbid = self
-                .selected_release()
+                .release()
                 .ok_or_else(|| io::Error::other("No releases found"))?
                 .id
                 .clone();
@@ -308,63 +324,38 @@ impl Disc {
         Ok(&self.coverart)
     }
 
-    /// Get the selected release, or the first one if none selected
-    pub fn selected_release(&self) -> Option<&musicbrainz::Release> {
-        let mb_data = self.musicbrainz.as_ref()?;
-        self.release_index
-            .and_then(|i| mb_data.releases.get(i))
-            .or(mb_data.releases.first())
+    /// Get the selected release
+    pub fn release(&self) -> Option<&musicbrainz::Release> {
+        self.musicbrainz.as_ref()?.releases.get(self.release_index?)
     }
 
-    /// Get the index of the release with the latest date
-    pub fn latest_release_index(&self) -> Option<usize> {
-        let mb_data = self.musicbrainz.as_ref()?;
-        mb_data
-            .releases
-            .iter()
-            .enumerate()
-            .max_by(|(_, a), (_, b)| {
-                a.date
-                    .as_deref()
-                    .partial_cmp(&b.date.as_deref())
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
-            .map(|(i, _)| i)
-    }
-
-    /// Use the release at the given index
-    pub fn select_release(&mut self, index: usize) {
-        self.release_index = Some(index);
-    }
-
-    /// Use the latest release, or first if only one exists
-    pub fn use_latest_release(&mut self) {
-        self.release_index = self
-            .latest_release_index()
-            .or_else(|| self.musicbrainz.as_ref()?.releases.first().map(|_| 0));
-    }
-
-    /// Get the index of the selected release.
+    /// Use the release at the given index, or reset selection to None.
+    /// Providing an invalid index will make no change.
     ///
-    /// If no release has been selected:
-    /// - if only one is present, select that
-    /// - else call `selector` which should return Some(valid_index) or None
+    /// Returns a reference to the release set, to allow for validation.
+    pub fn set_release(&mut self, index: Option<usize>) -> Option<&Release> {
+        let Some(index) = index else {
+            self.release_index = None;
+            return None;
+        };
+
+        match self.musicbrainz.as_ref()?.releases.get(index) {
+            None => None,
+            Some(release) => {
+                self.release_index = Some(index);
+                Some(release)
+            }
+        }
+    }
+
+    /// Provides an iterator over the releases to allow for programatic selection.
     ///
-    /// If selector returns an invalid index this function will return None
-    pub fn get_or_select_release<F>(&mut self, selector: F) -> Option<usize>
+    /// Takes a closure which accepts a slice of releases and returns the index of
+    /// the release to select.
+    pub fn select_release<F>(&mut self, selector: F) -> Option<&Release>
     where
         F: FnOnce(&[musicbrainz::Release]) -> Option<usize>,
     {
-        if self.release_index.is_none()
-            && let Some(ref mb_data) = self.musicbrainz
-        {
-            self.release_index = match mb_data.releases.len() {
-                0 => None,
-                1 => Some(0),
-                _ => selector(&mb_data.releases)
-                    .filter(|index| mb_data.releases.get(*index).is_some()),
-            }
-        }
-        self.release_index
+        self.set_release(selector(&self.musicbrainz.as_ref()?.releases))
     }
 }
