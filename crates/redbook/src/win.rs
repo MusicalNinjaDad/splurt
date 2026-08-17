@@ -326,8 +326,9 @@ impl TryFrom<CdaFile> for Track {
         }
 
         let track_number = u16::from_le_bytes([data[0x16], data[0x17]]);
-        let windows_identifier =
-            u32::from_le_bytes([data[0x18], data[0x19], data[0x1A], data[0x1B]]);
+        let windows_identifier = Some(u32::from_le_bytes([
+            data[0x18], data[0x19], data[0x1A], data[0x1B],
+        ]));
         let range_offset_frames =
             u32::from_le_bytes([data[0x1C], data[0x1D], data[0x1E], data[0x1F]]);
         // For inexplicable, probably historical, reasons Windows stores the relative frame in cda
