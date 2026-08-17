@@ -221,17 +221,29 @@ fn main() -> Exit<()> {
                 output_filename.display()
             );
         }
+        let mut tag = Tag::read_from_path(&flac_filename).unwrap();
+        let vorbis = tag.vorbis_comments_mut();
+        vorbis.set_title(vec![track.track_name.clone()]);
+        vorbis.set_track(track.track_number as u32);
 
         if let Some(release) = cd.disc().release() {
-            let mut tag = Tag::read_from_path(&flac_filename).unwrap();
-            let vorbis = tag.vorbis_comments_mut();
+            vorbis.set(
+                "SCRIPT",
+                vec![
+                    release
+                        .text_representation
+                        .as_ref()
+                        .and_then(|text_rep| text_rep.script.clone())
+                        .unwrap_or_default(),
+                ],
+            );
 
             vorbis.set_album(vec![release.title.clone()]);
             vorbis.set("MUSICBRAINZ_ALBUMID", vec![release.id.clone()]);
 
             vorbis.set_album_artist(release.artist_credit.names().collect());
 
-            let track_artists= mbtrk
+            let track_artists = mbtrk
                 .and_then(|trk| trk.artist_credit.as_ref())
                 .or(release.artist_credit.as_ref());
             vorbis.set_artist(track_artists.names().collect());
@@ -241,10 +253,28 @@ fn main() -> Exit<()> {
                 release.artist_credit.artist_ids().collect(),
             );
 
-            let original_date = release.date.clone().unwrap_or_default();
+            let release_date = release.date.clone().unwrap_or_default();
+            let release_year = release_date.get(0..4).unwrap_or_default().to_string();
+            vorbis.set("RELEASEDATE", vec![release_date]);
+            vorbis.set("RELEASEYEAR", vec![release_year]);
+
+            let original_date = mbtrk
+                .and_then(|trk| trk.recording.as_ref())
+                .and_then(|recording| recording.first_release_date.clone())
+                .unwrap_or_default();
             let original_year = original_date.get(0..4).unwrap_or_default().to_string();
             vorbis.set("ORIGINALDATE", vec![original_date]);
             vorbis.set("ORIGINALYEAR", vec![original_year]);
+
+            vorbis.set("BARCODE", vec![release.barcode.clone().unwrap_or_default()]);
+            vorbis.set(
+                "RELEASECOUNTRY",
+                vec![release.country.clone().unwrap_or_default()],
+            );
+            vorbis.set(
+                "RELEASESTATUS",
+                vec![release.status.clone().unwrap_or_default()],
+            );
 
             // Release group information
             if let Some(release_group) = release.release_group.as_ref() {
@@ -260,17 +290,6 @@ fn main() -> Exit<()> {
                 }
             }
 
-            // Release status, barcode, country
-            if let Some(status) = release.status.as_ref() {
-                vorbis.set("RELEASESTATUS", vec![status.clone()]);
-            }
-            if let Some(barcode) = release.barcode.as_ref() {
-                vorbis.set("BARCODE", vec![barcode.clone()]);
-            }
-            if let Some(country) = release.country.as_ref() {
-                vorbis.set("RELEASECOUNTRY", vec![country.clone()]);
-            }
-
             // Catalog number - use first available
             let catalog_number = release
                 .label_info_list
@@ -279,15 +298,6 @@ fn main() -> Exit<()> {
                 .and_then(|label_info| label_info.catalog_number.as_ref());
             if let Some(cat_num) = catalog_number {
                 vorbis.set("CATALOGNUMBER", vec![cat_num.clone()]);
-            }
-
-            // Script from text representation
-            let script = release
-                .text_representation
-                .as_ref()
-                .and_then(|text_rep| text_rep.script.as_ref());
-            if let Some(script) = script {
-                vorbis.set("SCRIPT", vec![script.clone()]);
             }
 
             // Media information
@@ -327,12 +337,6 @@ fn main() -> Exit<()> {
                 });
 
             if let Some(track_info) = track_info {
-                if let Some(title) = track_info.title.as_ref() {
-                    vorbis.set_title(vec![title.clone()]);
-                }
-                if let Some(track_num) = track_info.number.as_ref() {
-                    vorbis.set("TRACKNUMBER", vec![track_num.clone()]);
-                }
                 if let Some(track_id) = track_info.id.as_ref() {
                     vorbis.set("MUSICBRAINZ_TRACKID", vec![track_id.clone()]);
                 }
