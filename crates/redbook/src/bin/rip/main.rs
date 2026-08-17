@@ -7,7 +7,10 @@ use clap::Parser;
 use exit_safely::Termination;
 use flacenc::{component::BitRepr, error::Verify};
 use metaflac::Tag;
-use redbook::{AudioCd, AudioCdExt, RippedTrack, into_wav, musicbrainz::Release};
+use redbook::{
+    AudioCd, AudioCdExt, RippedTrack, into_wav,
+    musicbrainz::{ArtistCreditsExt, Release},
+};
 use std::{
     convert::Infallible,
     fs::File,
@@ -217,24 +220,35 @@ fn main() -> Exit<()> {
                 output_filename.display()
             );
         }
-        let mut tag = Tag::read_from_path(&flac_filename).unwrap();
-        let vorbis = tag.vorbis_comments_mut();
 
-        // Set all available metadata from the release
         if let Some(release) = cd.disc().release() {
-            // Basic album information
+            let mut tag = Tag::read_from_path(&flac_filename).unwrap();
+            let vorbis = tag.vorbis_comments_mut();
+
             vorbis.set_album(vec![release.title.clone()]);
+            vorbis.set_album_artist(release.artist_credit.names().collect::<Vec<String>>());
+
+            let track_artists = release
+                .media
+                .as_ref()
+                .and_then(|all_media| all_media.first())
+                .and_then(|media| media.tracks.as_ref())
+                .and_then(|tracks| {
+                    tracks.iter().find(|trk| {
+                        trk.number.as_ref().and_then(|trk_num| trk_num.parse().ok())
+                            == Some(track.track_number)
+                    })
+                })
+                .and_then(|trk| {
+                    trk.artist_credit
+                        .as_ref()
+                        .map(|credits| credits.names().collect::<Vec<String>>())
+                })
+                .unwrap_or_default();
+            vorbis.set_artist(track_artists);
 
             // Album artist information
             if let Some(artist_credits) = &release.artist_credit {
-                let album_artist = artist_credits
-                    .iter()
-                    .map(|ac| ac.name.clone())
-                    .collect::<Vec<String>>()
-                    .join(", ");
-                vorbis.set_album_artist(vec![album_artist.clone()]);
-                vorbis.set_artist(vec![album_artist]);
-
                 // Set album artist sort and ID
                 if let Some(artist) = artist_credits.first().and_then(|fc| fc.artist.as_ref()) {
                     artist.sort_name.as_ref().map(|sort_name| {
@@ -246,13 +260,20 @@ fn main() -> Exit<()> {
                 }
             }
 
-            // Date information
-            release.date.as_ref().map(|date| {
-                vorbis.set("ORIGINALDATE", vec![date.clone()]);
-                date.get(..4).map(|year| {
-                    vorbis.set("ORIGINALYEAR", vec![year.to_string()]);
-                });
-            });
+            vorbis.set(
+                "ORIGINALDATE",
+                vec![release.date.clone().unwrap_or_default()],
+            );
+            vorbis.set(
+                "ORIGINALYEAR",
+                vec![
+                    release
+                        .date
+                        .as_ref()
+                        .and_then(|date| date.get(..4))
+                        .unwrap_or_default(),
+                ],
+            );
 
             // Release group information
             release.release_group.as_ref().map(|release_group| {
@@ -388,10 +409,9 @@ fn main() -> Exit<()> {
                         vorbis.set("MUSICBRAINZ_RELEASETRACKID", vec![recording.id.clone()]);
                     });
                 });
+            dbg!(&tag);
+            tag.write_to_path(&flac_filename).unwrap();
         }
-
-        dbg!(&tag);
-        tag.write_to_path(&flac_filename).unwrap();
         let written_tag = Tag::read_from_path(&flac_filename).unwrap();
         dbg!(written_tag);
     }

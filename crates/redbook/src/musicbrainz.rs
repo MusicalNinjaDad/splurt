@@ -165,3 +165,22 @@ pub struct Label {
     pub name: String,
     pub id: Option<String>,
 }
+
+pub trait ArtistCreditsExt {
+    fn names(&self) -> impl Iterator<Item = String>;
+}
+
+impl ArtistCreditsExt for Vec<ArtistCredit> {
+    fn names(&self) -> impl Iterator<Item = String> {
+        self.iter().map(|credit| credit.name.clone())
+    }
+}
+
+impl ArtistCreditsExt for Option<Vec<ArtistCredit>> {
+    fn names(&self) -> impl Iterator<Item = String> {
+        self.as_ref()
+            .map(|credits| credits.names().collect::<Vec<String>>())
+            .unwrap_or_default()
+            .into_iter()
+    }
+}
