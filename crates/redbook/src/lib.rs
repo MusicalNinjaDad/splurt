@@ -252,12 +252,6 @@ pub struct Msf {
     pub frame: i8,
 }
 
-impl Msf {
-    pub fn to_frames(&self) -> u32 {
-        (((self.min as u32 * 60) + self.sec as u32) * 75) + self.frame as u32
-    }
-}
-
 impl<N> Add<N> for Frame
 where
     usize: Add<N, Output = usize>,
