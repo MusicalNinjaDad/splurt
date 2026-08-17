@@ -221,10 +221,18 @@ fn main() -> Exit<()> {
                 output_filename.display()
             );
         }
+
         let mut tag = Tag::read_from_path(&flac_filename).unwrap();
         let vorbis = tag.vorbis_comments_mut();
+        
         vorbis.set_title(vec![track.track_name.clone()]);
         vorbis.set_track(track.track_number as u32);
+        if let Some(id) = cd
+            .track(track.track_number)
+            .and_then(|trk| trk.windows_identifier)
+        {
+            vorbis.set("WINDOWS_IDENTIFIER", vec![id.to_string()])
+        }
         if let Some(release) = cd.disc().release() {
             vorbis.set(
                 "SCRIPT",
