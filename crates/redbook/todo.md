@@ -14,12 +14,12 @@
   - [x] create trait crate::AudioCd, keep struct win::AudioCd
   - [ ] add struct linux::AudioCd
 - [ ] flac encoding
-- [ ] rip entire CD
-- [ ] create TOC & query online directories
+- [x] rip entire CD
+- [x] create TOC & query online directories
   - [x] From Vec Tracks
   - [x] use cdtoc = "0.13.2" where possible
   - [x] name file
-  - [ ] incl artwork
+  - [x] incl artwork
   - [x] open bug with musicbrainz_rs re ring (commit b51ab9c31c45f11c2c86e884621d625e1bb786dc)
 - [ ] GUI with slint
 - [ ] Consider replacing Vec u8 with crate bytes Bytes
