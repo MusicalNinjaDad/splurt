@@ -2,10 +2,10 @@
 
 - [ ] Fix time manipulation
   - [ ] struct FrameDuration
-  - [ ] Track stores only absolute starting_frame
+  - [x] Track stores only absolute starting_frame
   - [ ] Accessor method start()
   - [ ] impl FrameDuration: as_relative_position(), to_msf(), from_msf()
-  - [ ] rename CdTime to Msf (min, sec, frame) with display mm::ss/ff (unless any std format ever used in ISO redbook)
+  - [x] rename CdTime to Msf (min, sec, frame) with display mm::ss/ff (unless any std format ever used in ISO redbook)
   - [ ] impl From Duration for Msf & FrameDuration, From Msf & FrameDuration for Duration, FromStr for Msf
 - [x] clap app to rip one track
 - [ ] mod linux
