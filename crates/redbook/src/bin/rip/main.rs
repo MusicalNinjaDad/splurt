@@ -186,13 +186,13 @@ fn main() -> Exit<()> {
                 .map(|title| title.as_str())
                 .unwrap_or_default()
         } else {
-            ""
+            Default::default()
         };
 
         let output_filename =
-            [format!("{:02}", track.track_number), track_name.to_string()].join(" ") + ".wav";
+            PathBuf::from([format!("{:02}", track.track_number), track_name.to_string()].join(" "));
 
-        let mut dump = File::create_new(&output_filename)?;
+        let mut dump = File::create_new(&output_filename.with_extension(".wav"))?;
         let wav = into_wav(track.raw_data.clone());
         dump.write_all(&wav)?;
         println!("Track {} ripped to {}", track.track_number, output_filename);
