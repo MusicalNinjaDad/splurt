@@ -202,6 +202,17 @@ impl ArtistCreditsExt for Vec<ArtistCredit> {
     }
 }
 
+impl ArtistCreditsExt for &Vec<ArtistCredit> {
+    fn names(&self) -> impl Iterator<Item = String> {
+        self.iter().map(|credit| credit.name.clone())
+    }
+
+    fn artist_ids(&self) -> impl Iterator<Item = String> {
+        self.iter()
+            .filter_map(|credit| credit.artist.as_ref().and_then(|artist| artist.id.clone()))
+    }
+}
+
 impl<T: ArtistCreditsExt> ArtistCreditsExt for Option<T> {
     fn names(&self) -> impl Iterator<Item = String> {
         self.as_ref()
@@ -232,4 +243,3 @@ impl Release {
             })
     }
 }
-

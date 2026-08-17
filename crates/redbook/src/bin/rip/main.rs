@@ -231,11 +231,10 @@ fn main() -> Exit<()> {
 
             vorbis.set_album_artist(release.artist_credit.names().collect());
 
-            let track_artists: Vec<_> = mbtrk
-                .map(|trk| trk.names().collect())
-                .or_else(|| Some(release.names().collect()))
-                .unwrap_or_default();
-            vorbis.set_artist(track_artists);
+            let track_artists= mbtrk
+                .and_then(|trk| trk.artist_credit.as_ref())
+                .or(release.artist_credit.as_ref());
+            vorbis.set_artist(track_artists.names().collect());
 
             vorbis.set(
                 "MUSICBRAINZ_ALBUMARTISTID",
@@ -243,13 +242,8 @@ fn main() -> Exit<()> {
             );
 
             let original_date = release.date.clone().unwrap_or_default();
+            let original_year = original_date.get(0..4).unwrap_or_default().to_string();
             vorbis.set("ORIGINALDATE", vec![original_date]);
-
-            let original_year = release
-                .date
-                .as_ref()
-                .and_then(|date| date.get(..4))
-                .unwrap_or_default();
             vorbis.set("ORIGINALYEAR", vec![original_year]);
 
             // Release group information
