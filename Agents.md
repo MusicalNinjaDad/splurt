@@ -39,6 +39,12 @@
 - Use `match` when functional chaining would be less clear
 - Use `loop` for interactive user input validation
 - Use early returns and guards (`if condition { return }`) to flatten logic
+- Use `&&` for conditional evaluation instead of nested ifs when chaining isn't possible
+- Prefer `Option`/`Result` combinators over manual nesting
+- Use `as_deref()`, `as_ref()` to avoid cloning in Option chains
+- Don't use `if len > idx` followed by `foo[indexing]` - use `get()`, `first()`, `nth()`, or slice patterns instead
+- Don't check `.is_empty()` before using a value - setting a tag as "" via default is fine unless it would cause an error
+- Replace `if let Some(a) { if let Some(b) { ... }}` with `.and_then()` or `.map()` chains
 
 ### Caching
 
