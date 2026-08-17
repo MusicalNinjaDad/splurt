@@ -206,7 +206,11 @@ fn main() -> Exit<()> {
         let config = flacenc::config::Encoder::default()
             .into_verified()
             .expect("Config data error.");
-        let samples: Vec<_> = track.raw_data.iter().map(|s| *s as i32).collect();
+        let samples: Vec<i32> = track
+            .raw_data
+            .chunks_exact(2)
+            .map(|chunk| i16::from_le_bytes([chunk[0], chunk[1]]) as i32)
+            .collect();
         let source = flacenc::source::MemSource::from_samples(
             &samples,
             channels,
