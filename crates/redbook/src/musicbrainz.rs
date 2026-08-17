@@ -33,6 +33,12 @@ pub struct Release {
     pub asin: Option<String>,
     pub title: String,
     pub id: String,
+    #[serde(rename = "artist-credit")]
+    pub artist_credit: Option<Vec<ArtistCredit>>,
+    #[serde(rename = "release-group")]
+    pub release_group: Option<ReleaseGroup>,
+    #[serde(rename = "label-info-list")]
+    pub label_info_list: Option<Vec<LabelInfo>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Default, Deserialize)]
@@ -94,6 +100,8 @@ pub struct Track {
     pub title: Option<String>,
     pub id: Option<String>,
     pub length: Option<u64>,
+    #[serde(rename = "artist-credit")]
+    pub artist_credit: Option<Vec<ArtistCredit>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Default, Deserialize)]
@@ -105,6 +113,8 @@ pub struct Recording {
     pub length: Option<u64>,
     pub video: Option<bool>,
     pub disambiguation: Option<String>,
+    #[serde(rename = "artist-credit")]
+    pub artist_credit: Option<Vec<ArtistCredit>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Default, Deserialize)]
@@ -113,5 +123,45 @@ pub struct Disc {
     pub sectors: Option<u64>,
     #[serde(rename = "offset-count")]
     pub offset_count: Option<u32>,
+    pub id: Option<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Default, Deserialize)]
+pub struct ArtistCredit {
+    pub name: String,
+    pub artist: Option<Artist>,
+    #[serde(rename = "joinphrase")]
+    pub join_phrase: Option<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Default, Deserialize)]
+pub struct Artist {
+    pub name: String,
+    pub id: Option<String>,
+    #[serde(rename = "sort-name")]
+    pub sort_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Default, Deserialize)]
+pub struct ReleaseGroup {
+    pub id: Option<String>,
+    #[serde(rename = "type-id")]
+    pub type_id: Option<String>,
+    pub r#type: Option<String>,
+    #[serde(rename = "primary-type-id")]
+    pub primary_type_id: Option<String>,
+    pub primary_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Default, Deserialize)]
+pub struct LabelInfo {
+    #[serde(rename = "catalog-number")]
+    pub catalog_number: Option<String>,
+    pub label: Option<Label>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Default, Deserialize)]
+pub struct Label {
+    pub name: String,
     pub id: Option<String>,
 }

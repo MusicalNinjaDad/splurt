@@ -240,12 +240,194 @@ fn main() -> Exit<()> {
         }
         let mut tag = Tag::read_from_path(&flac_filename).unwrap();
         let vorbis = tag.vorbis_comments_mut();
-        vorbis.set_album(
-            cd.disc()
-                .release()
-                .map(|release| vec![release.title.clone()])
-                .unwrap(),
-        );
+        
+        // Set all available metadata from the release
+        if let Some(release) = cd.disc().release() {
+            // Basic album information
+            if !release.title.is_empty() {
+                vorbis.set_album(vec![release.title.clone()]);
+            }
+            
+            // Album artist information
+            if let Some(artist_credits) = &release.artist_credit {
+                if !artist_credits.is_empty() {
+                    let album_artist = artist_credits.iter()
+                        .map(|ac| ac.name.clone())
+                        .collect::<Vec<String>>()
+                        .join(", ");
+                    vorbis.set_album_artist(vec![album_artist.clone()]);
+                    vorbis.set_artist(vec![album_artist]);
+                    
+                    // Set album artist sort
+                    if let Some(first_credit) = artist_credits.first() {
+                        if let Some(artist) = &first_credit.artist {
+                            if let Some(sort_name) = &artist.sort_name {
+                                vorbis.set("ALBUMARTISTSORT", vec![sort_name.clone()]);
+                            }
+                        }
+                    }
+                    
+                    // Set album artist ID
+                    if let Some(first_credit) = artist_credits.first() {
+                        if let Some(artist) = &first_credit.artist {
+                            if let Some(artist_id) = &artist.id {
+                                vorbis.set("MUSICBRAINZ_ALBUMARTISTID", vec![artist_id.clone()]);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Date information
+            if let Some(date) = &release.date {
+                vorbis.set("ORIGINALDATE", vec![date.clone()]);
+                if date.len() >= 4 {
+                    vorbis.set("ORIGINALYEAR", vec![date[..4].to_string()]);
+                }
+            }
+            
+            // Release group information
+            if let Some(release_group) = &release.release_group {
+                if let Some(rg_id) = &release_group.id {
+                    vorbis.set("MUSICBRAINZ_RELEASEGROUPID", vec![rg_id.clone()]);
+                }
+                if let Some(rg_type) = &release_group.primary_type {
+                    vorbis.set("RELEASETYPE", vec![rg_type.clone()]);
+                } else if let Some(rg_type) = &release_group.r#type {
+                    vorbis.set("RELEASETYPE", vec![rg_type.clone()]);
+                }
+            }
+            
+            // MusicBrainz album ID
+            vorbis.set("MUSICBRAINZ_ALBUMID", vec![release.id.clone()]);
+            
+            // Release status
+            if let Some(status) = &release.status {
+                vorbis.set("RELEASESTATUS", vec![status.clone()]);
+            }
+            
+            // Barcode
+            if let Some(barcode) = &release.barcode {
+                vorbis.set("BARCODE", vec![barcode.clone()]);
+            }
+            
+            // Catalog number
+            if let Some(label_info_list) = &release.label_info_list {
+                for label_info in label_info_list {
+                    if let Some(cat_num) = &label_info.catalog_number {
+                        vorbis.set("CATALOGNUMBER", vec![cat_num.clone()]);
+                        break; // Use first catalog number
+                    }
+                }
+            }
+            
+            // Script from text representation
+            if let Some(text_rep) = &release.text_representation {
+                if let Some(script) = &text_rep.script {
+                    vorbis.set("SCRIPT", vec![script.clone()]);
+                }
+            }
+            
+            // Country
+            if let Some(country) = &release.country {
+                vorbis.set("RELEASECOUNTRY", vec![country.clone()]);
+            }
+            
+            // Media information
+            if let Some(media_list) = &release.media {
+                let total_discs = media_list.len() as u32;
+                let total_tracks: u32 = media_list.iter()
+                    .filter_map(|m| m.track_count)
+                    .sum();
+                
+                vorbis.set("TOTALDISCS", vec![total_discs.to_string()]);
+                vorbis.set("DISCTOTAL", vec![total_discs.to_string()]);
+                
+                if total_tracks > 0 {
+                    vorbis.set("TOTALTRACKS", vec![total_tracks.to_string()]);
+                    vorbis.set("TRACKTOTAL", vec![total_tracks.to_string()]);
+                }
+                
+                // Media format
+                if let Some(first_media) = media_list.first() {
+                    if let Some(format) = &first_media.format {
+                        vorbis.set("MEDIA", vec![format.clone()]);
+                    }
+                    // Disc number from media position
+                    if let Some(position) = first_media.position {
+                        vorbis.set("DISCNUMBER", vec![position.to_string()]);
+                    }
+                }
+            }
+            
+            // Now handle track-specific information
+            if let Some(media_list) = &release.media {
+                if let Some(first_media) = media_list.first() {
+                    if let Some(tracks) = &first_media.tracks {
+                        if let Some(track_info) = tracks.iter().find(|t| {
+                            t.number.as_ref().and_then(|n| n.parse().ok()) == Some(track.track_number)
+                        }) {
+                            // Track title
+                            if let Some(title) = &track_info.title {
+                                vorbis.set_title(vec![title.clone()]);
+                            }
+                            
+                            // Track number
+                            if let Some(track_num) = &track_info.number {
+                                vorbis.set("TRACKNUMBER", vec![track_num.clone()]);
+                            }
+                            
+                            // Track MusicBrainz ID
+                            if let Some(track_id) = &track_info.id {
+                                vorbis.set("MUSICBRAINZ_TRACKID", vec![track_id.clone()]);
+                            }
+                            
+                            // Track artist information (if different from album artist)
+                            if let Some(track_artist_credits) = &track_info.artist_credit {
+                                if !track_artist_credits.is_empty() {
+                                    let track_artist = track_artist_credits.iter()
+                                        .map(|ac| ac.name.clone())
+                                        .collect::<Vec<String>>()
+                                        .join(", ");
+                                    vorbis.set("ARTISTS", vec![track_artist.clone()]);
+                                    
+                                    // Track artist sort
+                                    if let Some(first_credit) = track_artist_credits.first() {
+                                        if let Some(artist) = &first_credit.artist {
+                                            if let Some(sort_name) = &artist.sort_name {
+                                                vorbis.set("ARTISTSORT", vec![sort_name.clone()]);
+                                            }
+                                            if let Some(artist_id) = &artist.id {
+                                                vorbis.set("MUSICBRAINZ_ARTISTID", vec![artist_id.clone()]);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Recording information
+                            if let Some(recording) = &track_info.recording {
+                                // Recording artist information
+                                if let Some(recording_artist_credits) = &recording.artist_credit {
+                                    if !recording_artist_credits.is_empty() {
+                                        let recording_artist = recording_artist_credits.iter()
+                                            .map(|ac| ac.name.clone())
+                                            .collect::<Vec<String>>()
+                                            .join(", ");
+                                        // ARTIST tag for the track artist
+                                        vorbis.set("ARTIST", vec![recording_artist]);
+                                    }
+                                }
+                                
+                                // MusicBrainz release track ID (recording ID)
+                                vorbis.set("MUSICBRAINZ_RELEASETRACKID", vec![recording.id.clone()]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
         dbg!(&tag);
         tag.write_to_path(&flac_filename).unwrap();
         let written_tag = Tag::read_from_path(&flac_filename).unwrap();
