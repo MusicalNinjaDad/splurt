@@ -40,6 +40,7 @@ futures-util = { version = "0.3.33", default-features = false, features = [
     "async-await",
     "async-await-macro",
 ] }
+metaflac = "0.2.8"
 osinfo = "1.0.0"
 ratatui = "0.30.0"
 reqwest = { version = "0.13.4", default-features = false }

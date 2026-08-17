@@ -26,6 +26,7 @@ cdtoc.workspace = true
 clap.workspace = true
 exit_safely.workspace = true
 flacenc.workspace = true
+metaflac.workspace = true
 reqwest = { workspace = true, features = ["blocking", "native-tls", "json"] }
 serde.workspace = true
 serde_json.workspace = true

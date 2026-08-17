@@ -6,6 +6,7 @@
 use clap::Parser;
 use exit_safely::Termination;
 use flacenc::{component::BitRepr, error::Verify};
+use metaflac::Tag;
 use redbook::{AudioCd, AudioCdExt, RippedTrack, into_wav};
 use std::{
     convert::Infallible,
@@ -228,6 +229,19 @@ fn main() -> Exit<()> {
             track.track_number,
             output_filename.display()
         );
+        debug_assert!(Tag::is_candidate(&mut dump));
+        let mut tag = Tag::new();
+        let vorbis = tag.vorbis_comments_mut();
+        vorbis.set_album(
+            cd.disc()
+                .release()
+                .and_then(|release| release.media.as_ref())
+                .and_then(|all_media| all_media.first())
+                .and_then(|media| media.title.clone())
+                .map(|title| vec![title])
+                .unwrap(),
+        );
+        tag.write_to(&mut dump).unwrap();
     }
 
     Exit::Ok(())
