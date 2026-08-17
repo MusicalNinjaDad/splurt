@@ -168,19 +168,47 @@ pub struct Label {
 
 pub trait ArtistCreditsExt {
     fn names(&self) -> impl Iterator<Item = String>;
+    fn artist_ids(&self) -> impl Iterator<Item = String>;
 }
 
 impl ArtistCreditsExt for Vec<ArtistCredit> {
     fn names(&self) -> impl Iterator<Item = String> {
         self.iter().map(|credit| credit.name.clone())
     }
+
+    fn artist_ids(&self) -> impl Iterator<Item = String> {
+        self.iter()
+            .filter_map(|credit| credit.artist.as_ref().and_then(|artist| artist.id.clone()))
+    }
 }
 
 impl ArtistCreditsExt for Option<Vec<ArtistCredit>> {
     fn names(&self) -> impl Iterator<Item = String> {
         self.as_ref()
-            .map(|credits| credits.names().collect::<Vec<String>>())
+            .map(|credits| credits.names().collect::<Vec<_>>())
             .unwrap_or_default()
             .into_iter()
+    }
+
+    fn artist_ids(&self) -> impl Iterator<Item = String> {
+        self.as_ref()
+            .map(|credits| credits.artist_ids().collect::<Vec<_>>())
+            .unwrap_or_default()
+            .into_iter()
+    }
+}
+
+impl Release {
+    pub fn track(&self, track_number: usize) -> Option<&Track> {
+        self.media
+            .as_ref()
+            .and_then(|all_media| all_media.first())
+            .and_then(|media| media.tracks.as_ref())
+            .and_then(|tracks| {
+                tracks.iter().find(|trk| {
+                    trk.number.as_ref().and_then(|trk_num| trk_num.parse().ok())
+                        == Some(track_number)
+                })
+            })
     }
 }

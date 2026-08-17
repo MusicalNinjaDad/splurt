@@ -177,6 +177,7 @@ fn main() -> Exit<()> {
     // define just in time, to allow for mutable borrows earlier
     let release = cd.disc().release();
     for track in &ripped_tracks {
+        let mbtrk = release.and_then(|release| release.track(track.track_number));
         let track_name = get_track_name(release, track.track_number);
 
         let output_filename =
@@ -228,37 +229,14 @@ fn main() -> Exit<()> {
             vorbis.set_album(vec![release.title.clone()]);
             vorbis.set_album_artist(release.artist_credit.names().collect::<Vec<String>>());
 
-            let track_artists = release
-                .media
-                .as_ref()
-                .and_then(|all_media| all_media.first())
-                .and_then(|media| media.tracks.as_ref())
-                .and_then(|tracks| {
-                    tracks.iter().find(|trk| {
-                        trk.number.as_ref().and_then(|trk_num| trk_num.parse().ok())
-                            == Some(track.track_number)
-                    })
-                })
-                .and_then(|trk| {
-                    trk.artist_credit
-                        .as_ref()
-                        .map(|credits| credits.names().collect::<Vec<String>>())
-                })
+            let track_artists = mbtrk
+                .map(|trk| trk.artist_credit.names().collect::<Vec<String>>())
                 .unwrap_or_default();
             vorbis.set_artist(track_artists);
-
-            // Album artist information
-            if let Some(artist_credits) = &release.artist_credit {
-                // Set album artist sort and ID
-                if let Some(artist) = artist_credits.first().and_then(|fc| fc.artist.as_ref()) {
-                    artist.sort_name.as_ref().map(|sort_name| {
-                        vorbis.set("ALBUMARTISTSORT", vec![sort_name.clone()]);
-                    });
-                    artist.id.as_ref().map(|artist_id| {
-                        vorbis.set("MUSICBRAINZ_ALBUMARTISTID", vec![artist_id.clone()]);
-                    });
-                }
-            }
+            vorbis.set(
+                "MUSICBRAINZ_ALBUMARTISTID",
+                release.artist_credit.artist_ids().collect(),
+            );
 
             vorbis.set(
                 "ORIGINALDATE",
