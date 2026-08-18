@@ -10,6 +10,7 @@
 //! Frame IDs are always *absolute* and *include* the lead-in (150 frames)
 //! Timestamps are always *relative* to the start of the audio and *exclude* the lead-in (2s)
 
+pub mod hex;
 pub mod musicbrainz;
 pub mod win;
 
@@ -235,6 +236,13 @@ pub struct Track {
     /// Absolute value, including lead-in (150 frames)
     pub starting_frame: Frame,
     pub duration_frames: Frame,
+}
+
+/// Entry in a CD TOC (Table of Contents)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TocEntry {
+    pub track: u8,
+    pub start: Msf,
 }
 
 /// CD audio frame (1/75 sec). Basic unit of time for CD audio
