@@ -22,6 +22,7 @@ windows-sys = { version = "0.61.2", features = [
     "Win32_System",
     "Win32_System_IO",
 ] }
+bytes.workspace = true
 cdtoc.workspace = true
 clap.workspace = true
 exit_safely.workspace = true
