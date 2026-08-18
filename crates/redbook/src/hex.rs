@@ -23,6 +23,15 @@ pub fn hex_to_bytes(hex: &str) -> Vec<u8> {
         .collect()
 }
 
+/// Convert bytes to a hex dump string in the form `00 01 02 ...`
+pub fn hex_dump(bytes: &[u8]) -> String {
+    bytes
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 /// Parse raw bytes as a CDROM_TOC structure
 ///
 /// # Safety
@@ -57,4 +66,72 @@ pub fn parse_toc(bytes: Vec<u8>) -> String {
     format!("{tracks:02x}+{timings}")
         .trim_end_matches("+")
         .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hex_dump_empty() {
+        assert_eq!(hex_dump(&[]), "");
+    }
+
+    #[test]
+    fn test_hex_dump_single_byte() {
+        assert_eq!(hex_dump(&[0x00]), "00");
+        assert_eq!(hex_dump(&[0xff]), "ff");
+    }
+
+    #[test]
+    fn test_hex_dump_multiple_bytes() {
+        assert_eq!(hex_dump(&[0x00, 0x01, 0x02]), "00 01 02");
+        assert_eq!(hex_dump(&[0x10, 0x20, 0x30, 0x40]), "10 20 30 40");
+    }
+
+    #[test]
+    fn test_hex_dump_lowercase() {
+        assert_eq!(hex_dump(&[0xab, 0xcd]), "ab cd");
+    }
+
+    #[test]
+    fn test_hex_dump_full_range() {
+        assert_eq!(hex_dump(&[0x00, 0xff]), "00 ff");
+    }
+
+    #[test]
+    fn test_hex_dump_roundtrip() {
+        let original: Vec<u8> = vec![0x00, 0x01, 0x02, 0x0a, 0xff];
+        let dumped = hex_dump(&original);
+        let parsed = hex_to_bytes(&dumped);
+        assert_eq!(parsed, original);
+    }
+
+    #[test]
+    fn test_hex_to_bytes_empty() {
+        assert_eq!(hex_to_bytes(""), Vec::<u8>::new());
+    }
+
+    #[test]
+    fn test_hex_to_bytes_single() {
+        assert_eq!(hex_to_bytes("00"), vec![0x00]);
+        assert_eq!(hex_to_bytes("ff"), vec![0xff]);
+    }
+
+    #[test]
+    fn test_hex_to_bytes_multiple() {
+        assert_eq!(hex_to_bytes("00 01 02"), vec![0x00, 0x01, 0x02]);
+        assert_eq!(hex_to_bytes("10203040"), vec![0x10, 0x20, 0x30, 0x40]);
+    }
+
+    #[test]
+    fn test_hex_to_bytes_with_newlines() {
+        assert_eq!(hex_to_bytes("00\n01\n02"), vec![0x00, 0x01, 0x02]);
+    }
+
+    #[test]
+    fn test_hex_to_bytes_uppercase() {
+        assert_eq!(hex_to_bytes("FF"), vec![0xff]);
+        assert_eq!(hex_to_bytes("AB CD"), vec![0xab, 0xcd]);
+    }
 }

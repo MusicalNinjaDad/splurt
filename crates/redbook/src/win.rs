@@ -32,6 +32,7 @@ use windows_sys::Win32::{
 };
 
 use crate::{AudioCdExt, Disc, FRAME_SIZE, Frame, LEADIN, Msf, Track};
+use crate::hex::hex_dump;
 
 //(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
 pub const TRACK_MODE_CDDA: TRACK_MODE_TYPE = 2;
@@ -175,12 +176,7 @@ impl CdDrive {
 
     /// Obtain a hex representation of the raw bytes representing the [`CDROM_TOC`]
     pub fn toc_as_hex(&self) -> String {
-        self.toc_as_raw_bytes()
-            .iter()
-            .map(|b| format!("{:02x} ", b))
-            .collect::<String>()
-            .trim()
-            .to_string()
+        hex_dump(self.toc_as_raw_bytes())
     }
 
     /// Obtain a reference to the TOC as a [`CDROM_TOC`]
