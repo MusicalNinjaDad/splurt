@@ -1,5 +1,3 @@
-#![allow(unsafe_code)]
-
 //! Safe and sane wrappers around windows APIs
 
 // RULES for this file:
@@ -8,8 +6,9 @@
 // - Use a liberal application of debug_assert
 
 use std::{
+    fmt::Debug,
     fs::{self, read_dir},
-    io,
+    io::{self, ErrorKind},
     path::{Path, PathBuf},
     ptr::{null, null_mut},
 };
@@ -18,8 +17,12 @@ use windows_sys::{
     Win32::{
         Devices::Cdrom::{
             CDROM_READ_TOC_EX, CDROM_TOC, IOCTL_CDROM_READ_TOC_EX, RAW_READ_INFO, TRACK_MODE_TYPE,
-        }, Foundation::{CloseHandle, HANDLE}, Storage::FileSystem::CreateFile2, System::IO::DeviceIoControl,
-    }, core::PCWSTR,
+        },
+        Foundation::{CloseHandle, HANDLE},
+        Storage::FileSystem::CreateFile2,
+        System::IO::DeviceIoControl,
+    },
+    core::PCWSTR,
 };
 
 use windows_sys::Win32::{
@@ -35,16 +38,31 @@ pub const TRACK_MODE_CDDA: TRACK_MODE_TYPE = 2;
 
 const TOC_SIZE: usize = size_of::<CDROM_TOC>();
 
-#[derive(Debug, PartialEq, Eq)]
 /// A CdDrive with opened read-only [`HANDLE`] and [`CDROM_TOC`]
-/// 
+///
 /// # SAFETY
 /// - CdDrive cannot be `Clone` to avoid duplicate handles
 pub struct CdDrive {
     path: PathBuf,
     handle: HANDLE,
-    toc: [u8; TOC_SIZE],
+    toc: CDROM_TOC,
 }
+
+impl Debug for CdDrive {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
+        // f.debug_struct("CdDrive").field("path", &self.path).field("handle", &self.handle).field("toc", &self.toc).finish()
+    }
+}
+
+impl PartialEq for CdDrive {
+    fn eq(&self, other: &Self) -> bool {
+        todo!()
+        // self.path == other.path && self.handle == other.handle && self.toc == other.toc
+    }
+}
+
+impl Eq for CdDrive {}
 
 impl CdDrive {
     /// A safe wrapper around the ffi calls needed to obtain a handle for the raw
@@ -62,8 +80,10 @@ impl CdDrive {
         let dwdesiredaccess = GENERIC_READ;
         let dwsharemode = FILE_SHARE_READ;
         let dwcreationdisposition = OPEN_EXISTING;
+        #[allow(unsafe_code)]
         let handle: HANDLE = unsafe {
-            // SAFETY - lpfilename remains valid while raw pointer is in use
+            // SAFETY: `lpfilename` is a local variable that remains
+            // valid for the duration of this synchronous FFI call.
             CreateFile2(
                 lpfilename.as_pcwstr(),
                 dwdesiredaccess,
@@ -83,13 +103,11 @@ impl CdDrive {
             ..Default::default()
         };
 
-        let mut toc = [0_u8; TOC_SIZE];
+        let mut toc = CDROM_TOC::default();
         let mut bytes_read: u32 = 0;
 
+        #[allow(unsafe_code)]
         let read_toc = unsafe {
-            // SAFETY - deliberately NOT using TOC_SIZE here ...
-            debug_assert_eq!(size_of_val(&toc), size_of::<CDROM_TOC>());
-
             // SAFETY: inline based on
             // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ni-ntddcdrm-ioctl_cdrom_read_toc_ex
             DeviceIoControl(
@@ -104,8 +122,6 @@ impl CdDrive {
                 // CDROM_READ_TOC_EX does not allow setting `Format` but
                 // `CDROM_READ_TOC_EX_FORMAT_TOC` is `0` (default) whereby
                 // The output data is reported in a CDROM_TOC structure.
-                //
-                // toc is confirmed via debug_assert and was set earlier to be correct size for a CDROM_TOC
                 &mut toc as *mut _ as *mut _,
                 size_of_val(&toc) as u32,
                 &mut bytes_read as *mut _,
@@ -130,23 +146,39 @@ impl CdDrive {
         &self.handle
     }
 
-    /// Obtain a slice of raw bytes representing the [`CDROM_TOC`]
+    /// Obtain an array of raw bytes representing the [`CDROM_TOC`]
     pub fn toc_as_raw_bytes(&self) -> &[u8] {
-        &self.toc
+        #[allow(unsafe_code)]
+        unsafe {
+            // SAFETY - check stored value is the expected size
+            assert_eq!(
+                size_of_val(&self.toc),
+                TOC_SIZE,
+                "Windows API changed - CDROM_TOC is unexpected size"
+            );
+            std::slice::from_raw_parts(&self.toc as *const _ as *const _, TOC_SIZE)
+        }
+    }
+
+    /// Obtain a hex representation of the raw bytes representing the [`CDROM_TOC`]
+    pub fn toc_as_hex(&self) -> String {
+        self.toc_as_raw_bytes()
+            .iter()
+            .map(|b| format!("{:02x} ", b))
+            .collect::<String>()
+            .trim()
+            .to_string()
     }
 
     /// Obtain a reference to the TOC as a [`CDROM_TOC`]
     pub fn toc(&self) -> &CDROM_TOC {
-        unsafe {
-            // SAFETY - deliberately NOT using TOC_SIZE here ...
-            debug_assert_eq!(size_of_val(self.toc()), size_of::<CDROM_TOC>());
-            &*(self.toc.as_ptr() as *const _)
-        }
+        &self.toc
     }
 }
 
 impl Drop for CdDrive {
     fn drop(&mut self) {
+        #[allow(unsafe_code)]
         unsafe {
             // SAFETY: handle
             // - was opened and validated in `open()`
@@ -160,7 +192,7 @@ impl Drop for CdDrive {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct AudioCd {
-    drive: HANDLE,
+    drive: CdDrive,
     /// sorted by position on disc (starting frame)
     tracks: Vec<Track>,
     leadout_starting_frame: u32,
@@ -181,58 +213,9 @@ impl AudioCd {
             .collect();
         tracks.sort_by_key(|track| track.starting_frame);
 
-        // Need to use ffi to raw read data. No API found to "get track audio data".
-        let windrive = format!(r"\\.\{}", path.as_ref().display());
-        let lpfilename = WinString::from(windrive.as_str());
-        let dwdesiredaccess = GENERIC_READ;
-        let dwsharemode = FILE_SHARE_READ;
-        let dwcreationdisposition = OPEN_EXISTING;
-        let drive: HANDLE = unsafe {
-            // SAFETY - lpfilename remains valid while raw pointer is in use
-            CreateFile2(
-                lpfilename.as_pcwstr(),
-                dwdesiredaccess,
-                dwsharemode,
-                dwcreationdisposition,
-                null(),
-            )
-        };
-        if drive == INVALID_HANDLE_VALUE {
-            // If the function fails, the return value is INVALID_HANDLE_VALUE. To get extended error information, call GetLastError.
-            return Err(io::Error::last_os_error());
-        };
+        let drive = CdDrive::open(path)?;
+        let toc = drive.toc();
 
-        let toc_command = CDROM_READ_TOC_EX {
-            SessionTrack: 1,
-            ..Default::default()
-        };
-        let mut toc: CDROM_TOC = CDROM_TOC::default();
-        let mut bytes_read: u32 = 0;
-
-        let read_toc = unsafe {
-            // SAFETY: inline based on
-            // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ni-ntddcdrm-ioctl_cdrom_read_toc_ex
-            DeviceIoControl(
-                drive,
-                IOCTL_CDROM_READ_TOC_EX,
-                // points to a buffer of type CDROM_READ_TOC_EX
-                &toc_command as *const _ as *const _,
-                // indicates the size, in bytes, of the input buffer,
-                // which must be >= sizeof(CDROM_READ_TOC_EX).
-                size_of_val(&toc_command) as u32,
-                // CDROM_READ_TOC_EX does not allow setting `Format`.
-                // `CDROM_READ_TOC_EX_FORMAT_TOC` is `0` (default) whereby
-                // The output data is reported in a CDROM_TOC structure.
-                &mut toc as *mut _ as *mut _,
-                size_of_val(&toc) as u32,
-                &mut bytes_read as *mut _,
-                null_mut(),
-            )
-        };
-        if read_toc == 0 {
-            dbg!(bytes_read);
-            return Err(io::Error::last_os_error());
-        }
         debug_assert_eq!(toc.FirstTrack, tracks.first().unwrap().track_number as u8);
         debug_assert_eq!(toc.LastTrack, tracks.last().unwrap().track_number as u8);
         let leadout_address = toc
@@ -327,11 +310,20 @@ impl AudioCdExt for AudioCd {
         let mut bytes_read: u32 = 0;
         dbg!(offset);
 
+        #[allow(unsafe_code)]
         // SAFETY - inline based on https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ni-ntddcdrm-ioctl_cdrom_raw_read
         let read_chunk = unsafe {
-            // SAFETY: Buffer is expected size
-            debug_assert_eq!(bytes_to_read, buf.len() as u32);
-            // SAFETY: Buffer is exact size for Sector count
+            // SAFETY check: Buffer is expected size.
+            // Runtime check as `buf` is provided by caller
+            (bytes_to_read == buf.len() as u32)
+                .ok_or_else(|| io::Error::new(
+                    ErrorKind::InvalidInput,
+                    format!("buffer incorrectly sized for track data. Require {bytes_to_read} bytes, buffer is {len} bytes", len = buf.len())
+                )
+            )?;
+
+            // SAFETY check: Buffer is exact size for Sector count.
+            // Debug check as we generated SectorCount and have validated bytes_to_read above.
             debug_assert_eq!(
                 read_command.SectorCount,
                 bytes_to_read
@@ -340,7 +332,7 @@ impl AudioCdExt for AudioCd {
             );
 
             DeviceIoControl(
-                self.drive,
+                *self.drive.handle(),
                 IOCTL_CDROM_RAW_READ,
                 // If the IOCTL is from user mode, Irp->AssociatedIrp.SystemBuffer contains a RAW_READ_INFO
                 // structure that specifies the starting disk offset, the sector count, and the track mode
@@ -550,83 +542,8 @@ impl WinString {
     /// You must ensure that the returned `PCWSTR` is not used after self is dropped.
     /// It is recommended to call this directly in the call to a WinAPI unsafe function,
     /// see [AudioCd::new()] for an example
+    #[allow(unsafe_code)]
     pub unsafe fn as_pcwstr(&self) -> PCWSTR {
         self.words.as_ptr()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::path::PathBuf;
-
-    use super::*;
-
-    #[test]
-    fn size() {
-        dbg!(size_of::<CDROM_TOC>());
-        let foo: [_; _] = [0_u8; size_of::<CDROM_TOC>()];
-        assert_eq!(foo.len(), 1);
-    }
-
-    #[test]
-    fn dump_toc() {
-        let path = PathBuf::from("G:");
-        let windrive = format!(r"\\.\{}", path.display());
-        let lpfilename = WinString::from(windrive.as_str());
-        let dwdesiredaccess = GENERIC_READ;
-        let dwsharemode = FILE_SHARE_READ;
-        let dwcreationdisposition = OPEN_EXISTING;
-        let drive: HANDLE = unsafe {
-            // SAFETY - lpfilename remains valid while raw pointer is in use
-            CreateFile2(
-                lpfilename.as_pcwstr(),
-                dwdesiredaccess,
-                dwsharemode,
-                dwcreationdisposition,
-                null(),
-            )
-        };
-        assert_ne!(
-            drive,
-            INVALID_HANDLE_VALUE,
-            "{err}",
-            err = io::Error::last_os_error()
-        );
-
-        let toc_command = CDROM_READ_TOC_EX {
-            SessionTrack: 1,
-            ..Default::default()
-        };
-        let mut toc: [_; _] = [0_u8; size_of::<CDROM_TOC>()];
-        let mut bytes_read: u32 = 0;
-
-        let read_toc = unsafe {
-            // SAFETY: inline based on
-            // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ni-ntddcdrm-ioctl_cdrom_read_toc_ex
-            DeviceIoControl(
-                drive,
-                IOCTL_CDROM_READ_TOC_EX,
-                // points to a buffer of type CDROM_READ_TOC_EX
-                &toc_command as *const _ as *const _,
-                // indicates the size, in bytes, of the input buffer,
-                // which must be >= sizeof(CDROM_READ_TOC_EX).
-                size_of_val(&toc_command) as u32,
-                // CDROM_READ_TOC_EX does not allow setting `Format`.
-                // `CDROM_READ_TOC_EX_FORMAT_TOC` is `0` (default) whereby
-                // The output data is reported in a CDROM_TOC structure.
-                &mut toc as *mut _ as *mut _,
-                size_of_val(&toc) as u32,
-                &mut bytes_read as *mut _,
-                null_mut(),
-            )
-        };
-        assert_ne!(read_toc, 0, "{err}", err = io::Error::last_os_error());
-        println!(
-            "{}",
-            toc.iter()
-                .map(|b| format!("{:02x} ", b))
-                .collect::<String>()
-                .trim()
-        );
     }
 }
