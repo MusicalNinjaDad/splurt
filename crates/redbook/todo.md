@@ -1,12 +1,11 @@
 # TODO for Redbook & Ripper
 
-- [ ] Fix time manipulation
-  - [ ] struct FrameDuration
+- [x] Fix time manipulation
+  - [x] struct FrameDuration
   - [x] Track stores only absolute starting_frame
-  - [ ] Accessor method start()
-  - [ ] impl FrameDuration: as_relative_position(), to_msf(), from_msf()
+  - [x] impl FrameDuration: as_relative_position(), to_msf(), from_msf()
   - [x] rename CdTime to Msf (min, sec, frame) with display mm::ss/ff (unless any std format ever used in ISO redbook)
-  - [ ] impl From Duration for Msf & FrameDuration, From Msf & FrameDuration for Duration, FromStr for Msf
+  - [x] impl From Duration for Msf & FrameDuration, From Msf & FrameDuration for Duration, FromStr for Msf
 - [x] clap app to rip one track
 - [ ] mod linux
   - [ ] tidy API surface mod win

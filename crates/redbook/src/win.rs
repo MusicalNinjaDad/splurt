@@ -366,8 +366,10 @@ impl TryFrom<CdaFile> for Track {
             ));
         }
 
-        debug_assert_eq!(starting_frame, Frame::from(starting_time) + 150);
-        debug_assert_eq!(duration_frames, Frame::from(duration));
+        // For inexplicable, probably historical, reasons Windows stores the
+        // *relative* frame and *absolute* time in cda
+        debug_assert_eq!(starting_frame.relative_to_leadin(), starting_time);
+        debug_assert_eq!(duration_frames, duration);
 
         Ok(Track {
             track_number,
@@ -389,7 +391,7 @@ pub struct Sector(i64);
 impl Sector {
     /// Construct from an absolute frame number (including lead-in)
     pub fn from_frame(frame: Frame) -> Self {
-        Self(frame.as_usize() as i64 - 150)
+        Self(frame.relative_to_leadin().as_usize() as i64)
     }
 
     /// For passing to `DeviceIoControl(..,IOCTL_CDROM_RAW_READ,..)`

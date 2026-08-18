@@ -18,7 +18,7 @@ pub use win::AudioCd;
 use std::{
     convert::TryFrom,
     io,
-    ops::{Add, Rem},
+    ops::{Add, Rem, Sub},
     time::Duration,
 };
 
@@ -35,6 +35,8 @@ const FRAME_SIZE: usize = 2352;
 // TODO: research max chunk size. Guessing 64k for now based on something I saw in cd_da_reader but with no references given
 const MAX_CHUNK_FRAMES: usize = 64 * 1024 / FRAME_SIZE;
 const MAX_CHUNK_BYTES: usize = MAX_CHUNK_FRAMES * FRAME_SIZE;
+
+pub const LEADIN: Frame = Frame(150);
 
 /// Functions common to redbook audio CDs.
 pub trait AudioCdExt {
@@ -240,8 +242,16 @@ pub struct Track {
 pub struct Frame(usize);
 
 impl Frame {
+    pub fn new(frames: usize) -> Self {
+        Self(frames)
+    }
+
     pub fn as_usize(self) -> usize {
         self.0
+    }
+
+    pub fn relative_to_leadin(self) -> Self {
+        self - LEADIN
     }
 }
 
@@ -282,6 +292,25 @@ impl Add<Frame> for Frame {
     }
 }
 
+impl Sub<Frame> for Frame {
+    type Output = Self;
+
+    fn sub(self, rhs: Frame) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
+}
+
+impl<N> Sub<N> for Frame
+where
+    usize: Sub<N, Output = usize>,
+{
+    type Output = Self;
+
+    fn sub(self, rhs: N) -> Self::Output {
+        Self(self.0 - rhs)
+    }
+}
+
 impl<N> Rem<N> for Frame
 where
     usize: Rem<N, Output = usize>,
@@ -293,12 +322,36 @@ where
     }
 }
 
+impl PartialEq<Msf> for Frame {
+    fn eq(&self, msf: &Msf) -> bool {
+        *self == Self::from(*msf)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// CD audio duration in min:sec/frames (75 frames/sec)
 pub struct Msf {
     min: i8,
     sec: i8,
     frame: i8,
+}
+
+impl Msf {
+    pub fn new(min: i8, sec: i8, frame: i8) -> Self {
+        Self { min, sec, frame }
+    }
+
+    pub fn relative_to_leadin(self) -> Self {
+        self - LEADIN
+    }
+}
+
+impl Sub<Frame> for Msf {
+    type Output = Self;
+
+    fn sub(self, rhs: Frame) -> Self::Output {
+        (Frame::from(self) - rhs).into()
+    }
 }
 
 impl From<Duration> for Msf {
@@ -336,6 +389,12 @@ impl From<Frame> for Msf {
             sec: secs as i8,
             frame: frames as i8,
         }
+    }
+}
+
+impl PartialEq<Frame> for Msf {
+    fn eq(&self, frame: &Frame) -> bool {
+        Frame::from(*self) == *frame
     }
 }
 
@@ -467,7 +526,7 @@ mod tests {
             sec: 2,
             frame: 0,
         };
-        let frames = Frame(150);
+        let frames = LEADIN;
 
         assert_eq!(Msf::from(dur), msf);
         assert_eq!(Msf::from(frames), msf);
@@ -475,5 +534,13 @@ mod tests {
         assert_eq!(Frame::from(dur), frames);
         assert_eq!(Duration::from(msf), dur);
         assert_eq!(Duration::from(frames), dur);
+    }
+
+    #[test]
+    fn leadin_compensation() {
+        let starting_frames = Frame::new(183);
+        let starting_time = Msf::new(0, 2, 33);
+        assert_eq!(starting_frames.relative_to_leadin(), Frame::new(33));
+        assert_eq!(starting_time.relative_to_leadin(), Msf::new(0, 0, 33));
     }
 }
