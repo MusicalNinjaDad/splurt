@@ -48,17 +48,27 @@ pub struct CdDrive {
     toc: CDROM_TOC,
 }
 
+/// # SAFETY
+/// - See safety restrictions on [Self::handle]
+/// - Not Sync as we have not enabled overlapped I/O or any internal sync mechanism
+#[allow(unsafe_code)]
+unsafe impl Send for CdDrive {}
+
 impl Debug for CdDrive {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
-        // f.debug_struct("CdDrive").field("path", &self.path).field("handle", &self.handle).field("toc", &self.toc).finish()
+        f.debug_struct("CdDrive")
+            .field("path", &self.path)
+            .field("handle", &self.handle)
+            .field("toc", &self.toc_as_raw_bytes())
+            .finish()
     }
 }
 
 impl PartialEq for CdDrive {
     fn eq(&self, other: &Self) -> bool {
-        todo!()
-        // self.path == other.path && self.handle == other.handle && self.toc == other.toc
+        self.path == other.path
+            && self.handle == other.handle
+            && self.toc_as_raw_bytes() == other.toc_as_raw_bytes()
     }
 }
 
@@ -141,8 +151,15 @@ impl CdDrive {
         &self.path
     }
 
-    /// Obtain a reference to the [`HANDLE`] for the drive
-    pub fn handle(&self) -> &HANDLE {
+    /// Obtain a reference to the [`HANDLE`] for the drive.
+    ///
+    /// # SAFETY
+    /// - [`CdDrive`] is marked as [`Send`]. Callers must ensure that the handle is not
+    ///   used to enable concurrent access to the drive ("processes and threads that share
+    ///   the same file must synchronize their access").
+    ///   See: https://learn.microsoft.com/en-us/windows/win32/fileio/file-handles
+    #[allow(unsafe_code)]
+    pub unsafe fn handle(&self) -> &HANDLE {
         &self.handle
     }
 
