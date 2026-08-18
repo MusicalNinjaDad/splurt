@@ -224,7 +224,7 @@ fn main() -> Exit<()> {
 
         let mut tag = Tag::read_from_path(&flac_filename).unwrap();
         let vorbis = tag.vorbis_comments_mut();
-        
+
         vorbis.set_title(vec![track.track_name.clone()]);
         vorbis.set_track(track.track_number as u32);
         if let Some(id) = cd

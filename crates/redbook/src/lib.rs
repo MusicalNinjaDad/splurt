@@ -15,7 +15,12 @@ pub mod win;
 
 pub use win::AudioCd;
 
-use std::{convert::TryFrom, io, ops::Add};
+use std::{
+    convert::TryFrom,
+    io,
+    ops::{Add, Rem},
+    time::Duration,
+};
 
 use cdtoc::{Toc, TocError};
 use musicbrainz::DiscId;
@@ -238,18 +243,24 @@ impl Frame {
     pub fn as_usize(self) -> usize {
         self.0
     }
+}
 
-    pub fn from_msf(msf: Msf) -> Self {
+impl From<Msf> for Frame {
+    fn from(msf: Msf) -> Self {
         Self((((msf.min as usize * 60) + msf.sec as usize) * 75) + msf.frame as usize)
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-/// CD audio duration in min:sec/frames (75 frames/sec)
-pub struct Msf {
-    pub min: i8,
-    pub sec: i8,
-    pub frame: i8,
+impl From<Duration> for Frame {
+    fn from(duration: Duration) -> Self {
+        Msf::from(duration).into()
+    }
+}
+
+impl From<Frame> for Duration {
+    fn from(frames: Frame) -> Self {
+        Msf::from(frames).into()
+    }
 }
 
 impl<N> Add<N> for Frame
@@ -268,6 +279,63 @@ impl Add<Frame> for Frame {
 
     fn add(self, rhs: Frame) -> Self::Output {
         Self(self.0 + rhs.0)
+    }
+}
+
+impl<N> Rem<N> for Frame
+where
+    usize: Rem<N, Output = usize>,
+{
+    type Output = Self;
+
+    fn rem(self, rhs: N) -> Self::Output {
+        Self(self.0 % rhs)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// CD audio duration in min:sec/frames (75 frames/sec)
+pub struct Msf {
+    min: i8,
+    sec: i8,
+    frame: i8,
+}
+
+impl From<Duration> for Msf {
+    fn from(duration: Duration) -> Self {
+        let ms = duration.as_millis();
+        let secs = ms / 1000;
+        let min = secs / 60;
+        let secs = secs % 60;
+        let frames = (ms % 1000) * 75 / 1000;
+        Self {
+            min: min as i8,
+            sec: secs as i8,
+            frame: frames as i8,
+        }
+    }
+}
+
+impl From<Msf> for Duration {
+    fn from(msf: Msf) -> Self {
+        let secs = (msf.min * 60) + msf.sec;
+        let nanos = msf.frame as u32 * 75 / 1_000_000_000;
+        Self::new(secs as u64, nanos)
+    }
+}
+
+impl From<Frame> for Msf {
+    fn from(frames: Frame) -> Self {
+        let frames = frames.as_usize();
+        let secs = frames / 75;
+        let min = secs / 60;
+        let secs = secs % 60;
+        let frames = frames % 75;
+        Self {
+            min: min as i8,
+            sec: secs as i8,
+            frame: frames as i8,
+        }
     }
 }
 
@@ -382,5 +450,30 @@ impl Disc {
         F: FnOnce(&[musicbrainz::Release]) -> Option<usize>,
     {
         self.set_release(selector(&self.musicbrainz.as_ref()?.releases))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use super::*;
+
+    #[test]
+    fn leadin_conversion() {
+        let dur = Duration::from_secs(2);
+        let msf = Msf {
+            min: 0,
+            sec: 2,
+            frame: 0,
+        };
+        let frames = Frame(150);
+
+        assert_eq!(Msf::from(dur), msf);
+        assert_eq!(Msf::from(frames), msf);
+        assert_eq!(Frame::from(msf), frames);
+        assert_eq!(Frame::from(dur), frames);
+        assert_eq!(Duration::from(msf), dur);
+        assert_eq!(Duration::from(frames), dur);
     }
 }

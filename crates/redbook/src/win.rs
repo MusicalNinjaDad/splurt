@@ -366,8 +366,8 @@ impl TryFrom<CdaFile> for Track {
             ));
         }
 
-        debug_assert_eq!(starting_frame, Frame::from_msf(starting_time) + 150);
-        debug_assert_eq!(duration_frames, Frame::from_msf(duration));
+        debug_assert_eq!(starting_frame, Frame::from(starting_time) + 150);
+        debug_assert_eq!(duration_frames, Frame::from(duration));
 
         Ok(Track {
             track_number,
