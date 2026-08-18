@@ -142,7 +142,7 @@ impl CdDrive {
             dbg!(bytes_read);
             return Err(io::Error::last_os_error());
         };
-        assert_eq!(bytes_read, TOC_SIZE as u32);
+        assert!(bytes_read <= TOC_SIZE as u32);
         Ok(Self { path, handle, toc })
     }
 
@@ -168,11 +168,7 @@ impl CdDrive {
         #[allow(unsafe_code)]
         unsafe {
             // SAFETY - check stored value is the expected size
-            assert_eq!(
-                size_of_val(&self.toc),
-                TOC_SIZE,
-                "Windows API changed - CDROM_TOC is unexpected size"
-            );
+            assert_eq!(size_of_val(&self.toc), TOC_SIZE);
             std::slice::from_raw_parts(&self.toc as *const _ as *const _, TOC_SIZE)
         }
     }
