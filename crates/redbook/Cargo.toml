@@ -13,6 +13,18 @@ repository.workspace = true
 rust-version = "1.95.0"
 version = "0.0.1"
 
+[features]
+# required to allow integration tests to run on all targets
+binaries = []
+
+[[bin]]
+name = "toc"
+required-features = ["binaries"]
+
+[[bin]]
+name = "rip"
+required-features = ["binaries"]
+
 [dependencies]
 windows-sys = { version = "0.61.2", features = [
     "Win32_Devices_Cdrom",
