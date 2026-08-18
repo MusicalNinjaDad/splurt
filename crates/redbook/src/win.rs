@@ -32,7 +32,7 @@ use windows_sys::Win32::{
     Storage::FileSystem::{FILE_SHARE_READ, OPEN_EXISTING},
 };
 
-use crate::{AudioCdExt, Disc, FRAME_SIZE, Frame, Msf, Track};
+use crate::{AudioCdExt, Disc, FRAME_SIZE, Frame, LEADIN, Msf, Track};
 
 //(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
 pub const TRACK_MODE_CDDA: TRACK_MODE_TYPE = 2;
@@ -120,6 +120,8 @@ impl AudioCd {
             .find(|track| track.TrackNumber == 170)
             .expect("leadout")
             .Address;
+        // Windows reports positions relative to leadin.
+        // While spec expects absolute to be stored in the TOC
         let leadout_starting_frame = u32::from_be_bytes(leadout_address) + 150;
         dbg!(leadout_starting_frame);
         dbg!(toc.FirstTrack);
@@ -332,7 +334,7 @@ impl TryFrom<CdaFile> for Track {
         let range_offset_frames =
             u32::from_le_bytes([data[0x1C], data[0x1D], data[0x1E], data[0x1F]]);
         // For inexplicable, probably historical, reasons Windows stores the relative frame in cda
-        let starting_frame = Frame(range_offset_frames as usize + 150);
+        let starting_frame = Frame(range_offset_frames as usize) + LEADIN;
         let duration_frames = u32::from_le_bytes([data[0x20], data[0x21], data[0x22], data[0x23]]);
         let duration_frames = Frame(duration_frames as usize);
 
