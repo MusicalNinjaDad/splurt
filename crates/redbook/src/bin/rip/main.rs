@@ -107,13 +107,13 @@ fn main() -> Exit<()> {
                             .iter()
                             .find(|trk| {
                                 trk.number.as_ref().and_then(|n| n.parse().ok())
-                                    == Some(track.track_number)
+                                    == Some(track.toc_entry.track)
                             })
                             .and_then(|trk| trk.title.as_ref())
                     })
                     .map(|title| title.as_str())
                     .unwrap_or("Unknown");
-                println!("{n}. {track_name}", n = track.track_number);
+                println!("{n}. {track_name}", n = track.toc_entry.track);
             }
             println!("a. All tracks");
 
@@ -141,7 +141,7 @@ fn main() -> Exit<()> {
                     let valid = cd
                         .tracks()
                         .into_iter()
-                        .any(|t| t.track_number as usize == choice);
+                        .any(|t| t.toc_entry.track as usize == choice);
                     valid.ok_or_else(|| {
                         println!("oops ... I can't find track number {choice}");
                     })?;
