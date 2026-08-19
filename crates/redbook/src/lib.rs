@@ -267,11 +267,13 @@ impl Frame {
     }
 }
 
-impl From<&TRACK_DATA> for Frame {
+impl From<&TRACK_DATA> for TocEntry {
     // TODO make fallible TryFrom
-    fn from(track: &TRACK_DATA) -> Self {
-        let relative = u32::from_be_bytes(track.Address);
-        Self(relative as usize) + LEADIN
+    fn from(track_data: &TRACK_DATA) -> Self {
+        let relative = u32::from_be_bytes(track_data.Address);
+        let start = Frame::new(relative as usize) + LEADIN;
+        let track = track_data.TrackNumber;
+        Self { track, start }
     }
 }
 

@@ -536,16 +536,10 @@ impl CdromTocExt for CDROM_TOC {
             .TrackData
             .iter()
             .filter(|track| (1..0xA0).contains(&track.TrackNumber))
-            .map(Frame::from)
-            .map(|frame| frame.as_usize() as u32)
+            .map(TocEntry::from)
+            .map(|entry| entry.start.as_usize() as u32)
             .collect();
-        let leadout = self
-            .TrackData
-            .iter()
-            .find(|track| track.TrackNumber == 170)
-            .map(Frame::from)
-            .map(|frame| frame.as_usize() as u32)
-            .unwrap_or_default();
+        let leadout = self.leadout().as_usize() as u32;
         Toc::from_parts(audio, None, leadout)
     }
 
@@ -553,20 +547,15 @@ impl CdromTocExt for CDROM_TOC {
         self.TrackData
             .iter()
             .filter(|track| (1..0xA0).contains(&track.TrackNumber))
-            .map(|track| {
-                let start = Frame::from(track);
-                TocEntry {
-                    track: track.TrackNumber,
-                    start,
-                }
-            })
+            .map(TocEntry::from)
     }
 
     fn leadout(&self) -> Frame {
         self.TrackData
             .iter()
             .find(|track| track.TrackNumber == 170)
-            .map(Frame::from)
+            .map(TocEntry::from)
+            .map(|entry| entry.start)
             .unwrap_or_else(|| Frame::new(0))
     }
 }

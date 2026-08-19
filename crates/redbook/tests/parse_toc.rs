@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use cdtoc::{Toc, TocError};
+use cdtoc::Toc;
 use redbook::{
     Frame, TocEntry,
     hex::{hex_to_bytes, parse_toc},
@@ -15,24 +15,6 @@ use windows_sys::Win32::Devices::Cdrom::CDROM_TOC;
 fn load_hex_file(path: &PathBuf) -> Vec<u8> {
     let content = std::fs::read_to_string(path).expect("Failed to read file");
     hex_to_bytes(&content).unwrap()
-}
-
-fn toc_from_cdrom_toc(cdrom_toc: CDROM_TOC) -> Result<Toc, TocError> {
-    let audio = cdrom_toc
-        .TrackData
-        .iter()
-        .filter(|track| (1..0xA0).contains(&track.TrackNumber))
-        .map(Frame::from)
-        .map(|frame| frame.as_usize() as u32)
-        .collect();
-    let leadout = cdrom_toc
-        .TrackData
-        .iter()
-        .find(|track| track.TrackNumber == 170)
-        .map(Frame::from)
-        .map(|frame| frame.as_usize() as u32)
-        .unwrap_or_default();
-    Toc::from_parts(audio, None, leadout)
 }
 
 #[test]
@@ -63,7 +45,7 @@ fn compare() {
     let toc_dump = load_hex_file(&path.join("TOC.hex"));
     let toc_string = parse_toc(toc_dump);
     let toc = Toc::from_cdtoc(toc_string).unwrap();
-    assert_eq!(toc, toc_from_cdrom_toc(cdrom_toc).unwrap())
+    assert_eq!(toc, cdrom_toc.to_toc().unwrap())
 }
 
 // Tests for CdromTocExt trait
@@ -80,7 +62,7 @@ fn test_to_toc() {
     assert_eq!(toc.audio_len(), 11);
 
     // Should match the manually constructed toc
-    assert_eq!(toc, toc_from_cdrom_toc(cdrom_toc).unwrap())
+    assert_eq!(toc, cdrom_toc.to_toc().unwrap())
 }
 
 #[test]
@@ -102,7 +84,7 @@ fn test_iter_audio() {
     // First track should start at frame 150 (LEADIN) + 33 = 183
     // The first track's Address is [0, 0, 0, 33] which is 33 in big-endian
     // Frame::from adds LEADIN (150), so it should be 183
-    let first_track_frame: Frame = audio_tracks[0].start.into();
+    let first_track_frame: Frame = audio_tracks[0].start;
     assert_eq!(first_track_frame.as_usize(), 183);
 }
 
