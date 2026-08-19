@@ -417,7 +417,6 @@ impl PartialEq<Frame> for Msf {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use std::time::Duration;

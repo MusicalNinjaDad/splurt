@@ -32,8 +32,8 @@ use windows_sys::Win32::{
     Storage::FileSystem::{FILE_SHARE_READ, OPEN_EXISTING},
 };
 
-use crate::{AudioCdExt, FRAME_SIZE, Frame, LEADIN, Msf, Track};
 use crate::disc::Disc;
+use crate::{AudioCdExt, FRAME_SIZE, Frame, LEADIN, Msf, Track};
 use crate::{TocEntry, hex::hex_dump};
 
 //(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
