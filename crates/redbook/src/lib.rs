@@ -12,6 +12,7 @@
 //!
 //! Frame IDs are always *absolute* and *include* the lead-in (150 frames)
 
+pub mod disc;
 pub mod hex;
 pub mod musicbrainz;
 pub mod win;
@@ -232,7 +233,7 @@ pub fn into_wav(pcm: Vec<u8>) -> Vec<u8> {
     wav
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Track {
     pub toc_entry: TocEntry,
     pub duration_frames: Frame,
@@ -240,7 +241,7 @@ pub struct Track {
 }
 
 /// Entry in a CD TOC (Table of Contents)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TocEntry {
     pub track: u8,
     /// Absolute value, including lead-in (150 frames)
