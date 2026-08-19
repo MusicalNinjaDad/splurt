@@ -178,46 +178,164 @@ mod tests {
 
     mod definitely_maybe {
         use super::*;
+        use crate::{Msf, TocEntry, hex::*};
+
+        fn create_toc() -> Toc {
+            let toc_dump = hex_to_bytes(include_str!(
+                "../tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/TOC.hex"
+            ))
+            .unwrap();
+            let toc_string = parse_toc(toc_dump);
+            Toc::from_cdtoc(toc_string).unwrap()
+        }
+
+        fn create_tracks() -> Vec<Track> {
+            vec![
+                Track {
+                    toc_entry: TocEntry {
+                        track: 1,
+                        start: Frame::from(Msf::new(0x00, 0x02, 0x21)),
+                    },
+                    duration_frames: Frame::new(24242),
+                    windows_identifier: None,
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 2,
+                        start: Frame::from(Msf::new(0x05, 0x19, 0x32)),
+                    },
+                    duration_frames: Frame::new(23138),
+                    windows_identifier: None,
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 3,
+                        start: Frame::from(Msf::new(0x0A, 0x22, 0x0D)),
+                    },
+                    duration_frames: Frame::new(20762),
+                    windows_identifier: None,
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 4,
+                        start: Frame::from(Msf::new(0x0F, 0x0B, 0x00)),
+                    },
+                    duration_frames: Frame::new(20168),
+                    windows_identifier: None,
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 5,
+                        start: Frame::from(Msf::new(0x13, 0x27, 0x44)),
+                    },
+                    duration_frames: Frame::new(28272),
+                    windows_identifier: None,
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 6,
+                        start: Frame::from(Msf::new(0x19, 0x38, 0x41)),
+                    },
+                    duration_frames: Frame::new(21280),
+                    windows_identifier: None,
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 7,
+                        start: Frame::from(Msf::new(0x1E, 0x28, 0x2D)),
+                    },
+                    duration_frames: Frame::new(19338),
+                    windows_identifier: None,
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 8,
+                        start: Frame::from(Msf::new(0x22, 0x3A, 0x21)),
+                    },
+                    duration_frames: Frame::new(21700),
+                    windows_identifier: None,
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 9,
+                        start: Frame::from(Msf::new(0x27, 0x2F, 0x3A)),
+                    },
+                    duration_frames: Frame::new(11425),
+                    windows_identifier: None,
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 10,
+                        start: Frame::from(Msf::new(0x2A, 0x14, 0x08)),
+                    },
+                    duration_frames: Frame::new(29455),
+                    windows_identifier: None,
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 11,
+                        start: Frame::from(Msf::new(0x30, 0x34, 0x3F)),
+                    },
+                    duration_frames: Frame::new(14440),
+                    windows_identifier: None,
+                },
+            ]
+        }
+
+        fn create_disc() -> Disc {
+            Disc {
+                toc: create_toc(),
+                tracks: create_tracks(),
+                leadout: Frame::from(Msf::new(0x34, 0x05, 0x1C)),
+                musicbrainz: None,
+                release_index: None,
+                disc_index: None,
+                coverart: None,
+            }
+        }
 
         #[test]
         fn new() {
-            todo!("
-                1. load cdtoc::Toc as per tests/parse_toc;
-                2. create [Track] based on win::tests::audio (calculate the durations yourself and hardcode them)
-                3. identify and set correct value for leadout
-                4. call Disc::new().unwrap() with above values
-                5. validate as == a struct created by directly specifying field values 
-            ")
+            let toc = create_toc();
+            let tracks = create_tracks();
+            let leadout = Frame::from(Msf::new(0x34, 0x05, 0x1C));
+
+            let disc = Disc::new(toc, tracks, leadout).unwrap();
+
+            let expected = create_disc();
+            assert_eq!(disc, expected);
         }
 
         #[test]
         fn set_release() {
-            todo!("
-                1. manually create a struct for definitely_maybe (as used for validation in test new)
-                2. manually set musicbrainz by loading (crates/redbook/tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/musicbrainz_disc.json)
-                3. call set_release
-                4. validate release_index has been correctly set
-            ")
+            let mut disc = create_disc();
+            let json = include_str!(
+                "../tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/musicbrainz_disc.json"
+            );
+            disc.musicbrainz = Some(serde_json::from_str(json).unwrap());
+
+            disc.set_release(Some(2));
+            assert_eq!(disc.release_index, Some(2));
         }
 
         #[test]
         fn set_release_no_musicbrainz() {
-            todo!("
-                1. manually create a struct for definitely_maybe (as used for validation in test new)
-                2. leave musicbrainz as None
-                3. call set_release
-                4. validate release_index is_none
-            ")
+            let mut disc = create_disc();
+
+            disc.set_release(Some(0));
+            assert!(disc.release_index.is_none());
         }
 
         #[test]
         fn set_release_invalid() {
-            todo!("
-                1. manually create a struct for definitely_maybe (as used for validation in test new)
-                2. manually set musicbrainz by loading (crates/redbook/tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/musicbrainz_disc.json)
-                3. call set_release with an index which is too large
-                4. validate release_index is_none
-            ")
+            let mut disc = create_disc();
+            let json = include_str!(
+                "../tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/musicbrainz_disc.json"
+            );
+            disc.musicbrainz = Some(serde_json::from_str(json).unwrap());
+
+            disc.set_release(Some(999));
+            assert!(disc.release_index.is_none());
         }
     }
 }
