@@ -25,3 +25,4 @@
 - [ ] Consider replacing Vec u8 with crate bytes Bytes
 - [ ] Multi-Disc albums
 - [ ] Store details in Track, simplify tagging
+- [ ] Remove RipAll and loop in app
