@@ -247,6 +247,21 @@ impl AudioCd {
                 "Mismatch between TOC and cda files: different last track number",
             ))?;
 
+        for track in tracks.iter() {
+            let track_number = track.toc_entry.track as usize;
+            let data = wintoc
+                .TrackData
+                .get(track_number - 1)
+                .ok_or(io::Error::new(
+                    ErrorKind::InvalidData,
+                    format!("track {track_number} missing in TOC"),
+                ))?;
+            (TocEntry::from(data) == track.toc_entry).ok_or(io::Error::new(
+                ErrorKind::InvalidData,
+                format!("Mismatch between TOC and cda files for track {track_number}"),
+            ))?;
+        }
+
         let toc = wintoc
             .to_toc()
             .map_err(|error| io::Error::new(ErrorKind::InvalidData, error))?;
