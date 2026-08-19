@@ -216,28 +216,36 @@ impl AudioCd {
         let mut tracks: Vec<_> = read_dir(&path)?
             .map(|track| {
                 Track::try_from(CdaFile {
-                    raw: fs::read(track.unwrap().path()).unwrap(),
+                    raw: fs::read(track?.path())?,
                 })
-                .unwrap()
+                .map_err(|error| io::Error::new(ErrorKind::InvalidData, error))
             })
-            .collect();
+            .try_collect()?;
         tracks.sort_by_key(|track| track.toc_entry.start);
 
         let drive = CdDrive::open(path)?;
 
         let wintoc = drive.toc();
-        (wintoc.FirstTrack == tracks.first().unwrap().toc_entry.track as u8).ok_or(
-            io::Error::new(
+        (wintoc.FirstTrack
+            == tracks
+                .first()
+                .ok_or(io::Error::new(ErrorKind::NotFound, "no .cda files found"))?
+                .toc_entry
+                .track as u8)
+            .ok_or(io::Error::new(
                 ErrorKind::InvalidData,
                 "Mismatch between TOC and cda files: different first track number",
-            ),
-        )?;
-        (wintoc.LastTrack == tracks.last().unwrap().toc_entry.track as u8).ok_or(
-            io::Error::new(
+            ))?;
+        (wintoc.LastTrack
+            == tracks
+                .last()
+                .ok_or(io::Error::new(ErrorKind::NotFound, "no .cda files found"))?
+                .toc_entry
+                .track as u8)
+            .ok_or(io::Error::new(
                 ErrorKind::InvalidData,
                 "Mismatch between TOC and cda files: different last track number",
-            ),
-        )?;
+            ))?;
 
         let toc = wintoc
             .to_toc()
