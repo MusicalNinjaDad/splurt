@@ -10,7 +10,6 @@ use crate::{
     Frame, Msf, TocEntry,
     hex::HexErrorKind::{InvalidValue, NotPairs},
 };
-use windows_sys::Win32::Devices::Cdrom::CDROM_TOC;
 
 impl TocEntry {
     pub fn from_raw_toc_bytes(data: &[u8]) -> Self {
@@ -92,18 +91,6 @@ pub fn hex_dump(bytes: &[u8]) -> String {
         .map(|b| format!("{:02x}", b))
         .collect::<Vec<_>>()
         .join(" ")
-}
-
-/// Parse raw bytes as a CDROM_TOC structure
-///
-/// # Safety
-/// The caller must ensure `bytes` is exactly the size of CDROM_TOC and properly aligned.
-#[allow(unsafe_code)]
-pub unsafe fn parse_cdrom_toc(bytes: Vec<u8>) -> CDROM_TOC {
-    #[allow(unsafe_code)]
-    unsafe {
-        *(bytes.as_ptr() as *const _)
-    }
 }
 
 /// Converts a hex dump of raw TOC data to the format

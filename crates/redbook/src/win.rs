@@ -32,8 +32,8 @@ use windows_sys::Win32::{
     Storage::FileSystem::{FILE_SHARE_READ, OPEN_EXISTING},
 };
 
-use crate::{TocEntry, hex::hex_dump};
 use crate::{AudioCdExt, Disc, FRAME_SIZE, Frame, LEADIN, Msf, Track};
+use crate::{TocEntry, hex::hex_dump};
 
 //(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
 pub const TRACK_MODE_CDDA: TRACK_MODE_TYPE = 2;
@@ -512,6 +512,18 @@ pub trait CdromTocExt {
     /// # Safety
     /// The caller must ensure `bytes` is exactly the size of CDROM_TOC and properly aligned.
     #[allow(unsafe_code)]
+    unsafe fn from_raw_bytes(bytes: Vec<u8>) -> CDROM_TOC;
+
+    fn to_toc(&self) -> Result<Toc, TocError>;
+
+    fn iter_audio(&self) -> impl Iterator<Item = TocEntry>;
+
+    /// The absolute start of the lead out
+    fn leadout(&self) -> Frame;
+}
+
+impl CdromTocExt for CDROM_TOC {
+    #[allow(unsafe_code)]
     unsafe fn from_raw_bytes(bytes: Vec<u8>) -> CDROM_TOC {
         #[allow(unsafe_code)]
         unsafe {
@@ -520,20 +532,44 @@ pub trait CdromTocExt {
     }
 
     fn to_toc(&self) -> Result<Toc, TocError> {
-        todo!("see crates/redbook/tests/parse_toc.rs")
+        let audio: Vec<u32> = self
+            .TrackData
+            .iter()
+            .filter(|track| (1..0xA0).contains(&track.TrackNumber))
+            .map(Frame::from)
+            .map(|frame| frame.as_usize() as u32)
+            .collect();
+        let leadout = self
+            .TrackData
+            .iter()
+            .find(|track| track.TrackNumber == 170)
+            .map(Frame::from)
+            .map(|frame| frame.as_usize() as u32)
+            .unwrap_or_default();
+        Toc::from_parts(audio, None, leadout)
     }
 
     fn iter_audio(&self) -> impl Iterator<Item = TocEntry> {
-        todo!()
+        self.TrackData
+            .iter()
+            .filter(|track| (1..0xA0).contains(&track.TrackNumber))
+            .map(move |track| {
+                let frame = Frame::from(track);
+                TocEntry {
+                    track: track.TrackNumber,
+                    start: frame.into(),
+                }
+            })
     }
 
-    /// The absolute start of the lead out
     fn leadout(&self) -> Frame {
-        todo!("make sure to + LEADIN to the relative position provided in CDROM_TOC")
+        self.TrackData
+            .iter()
+            .find(|track| track.TrackNumber == 170)
+            .map(Frame::from)
+            .unwrap_or_else(|| Frame::new(0))
     }
 }
-
-impl CdromTocExt for CDROM_TOC {}
 
 /// A pseudo-sector on an AudioCd
 ///
@@ -585,5 +621,67 @@ impl WinString {
     #[allow(unsafe_code)]
     pub unsafe fn as_pcwstr(&self) -> PCWSTR {
         self.words.as_ptr()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hex::hex_to_bytes;
+
+    #[test]
+    fn test_from_raw_bytes() {
+        // This test verifies that from_raw_bytes correctly parses a CDROM_TOC
+        // We use the test data from the parse_toc test
+        let toc_dump = hex_to_bytes(include_str!(
+            "../tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/CDROM_TOC.hex"
+        ))
+        .unwrap();
+        #[allow(unsafe_code)]
+        let toc = unsafe { CDROM_TOC::from_raw_bytes(toc_dump) };
+        assert_eq!(toc.FirstTrack, 1);
+        assert_eq!(toc.LastTrack, 11);
+    }
+
+    #[test]
+    fn test_leadout_frame() {
+        // Test that leadout returns a Frame with LEADIN added
+        let toc_dump = hex_to_bytes(include_str!(
+            "../tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/CDROM_TOC.hex"
+        ))
+        .unwrap();
+        #[allow(unsafe_code)]
+        let toc = unsafe { CDROM_TOC::from_raw_bytes(toc_dump) };
+        let leadout = toc.leadout();
+        // Leadout should be > 0
+        assert!(leadout.as_usize() > 0);
+        // Leadout should include LEADIN
+        assert!(leadout.as_usize() >= LEADIN.as_usize());
+    }
+
+    #[test]
+    fn test_iter_audio_count() {
+        let toc_dump = hex_to_bytes(include_str!(
+            "../tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/CDROM_TOC.hex"
+        ))
+        .unwrap();
+        #[allow(unsafe_code)]
+        let toc = unsafe { CDROM_TOC::from_raw_bytes(toc_dump) };
+        let audio_tracks: Vec<TocEntry> = toc.iter_audio().collect();
+        assert_eq!(audio_tracks.len(), 11);
+    }
+
+    #[test]
+    fn test_to_toc_result() {
+        let toc_dump = hex_to_bytes(include_str!(
+            "../tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/CDROM_TOC.hex"
+        ))
+        .unwrap();
+        #[allow(unsafe_code)]
+        let toc = unsafe { CDROM_TOC::from_raw_bytes(toc_dump) };
+        let result = toc.to_toc();
+        assert!(result.is_ok());
+        let cdtoc = result.unwrap();
+        assert_eq!(cdtoc.audio_len(), 11);
     }
 }
