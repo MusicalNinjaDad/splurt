@@ -615,10 +615,7 @@ mod tests {
     use super::*;
     use crate::hex::hex_to_bytes;
 
-    #[test]
-    fn test_from_raw_bytes() {
-        // This test verifies that from_raw_bytes correctly parses a CDROM_TOC
-        // We use the test data from the parse_toc test
+    fn load_toc() -> CDROM_TOC {
         let toc_dump = hex_to_bytes(include_str!(
             "../tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/CDROM_TOC.hex"
         ))
@@ -627,47 +624,66 @@ mod tests {
         let toc = unsafe { CDROM_TOC::from_raw_bytes(toc_dump) };
         assert_eq!(toc.FirstTrack, 1);
         assert_eq!(toc.LastTrack, 11);
+        toc
     }
 
     #[test]
-    fn test_leadout_frame() {
-        // Test that leadout returns a Frame with LEADIN added
-        let toc_dump = hex_to_bytes(include_str!(
-            "../tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/CDROM_TOC.hex"
-        ))
-        .unwrap();
-        #[allow(unsafe_code)]
-        let toc = unsafe { CDROM_TOC::from_raw_bytes(toc_dump) };
-        let leadout = toc.leadout();
-        // Leadout should be > 0
-        assert!(leadout.unwrap().as_usize() > 0);
-        // Leadout should include LEADIN
-        assert!(leadout.unwrap().as_usize() >= LEADIN.as_usize());
+    fn leadout() {
+        let toc = load_toc();
+        let leadout = toc.leadout().unwrap();
+        assert_eq!(leadout, Frame::from(Msf::new(0x34, 0x05, 0x1c)))
     }
 
     #[test]
-    fn test_iter_audio_count() {
-        let toc_dump = hex_to_bytes(include_str!(
-            "../tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/CDROM_TOC.hex"
-        ))
-        .unwrap();
-        #[allow(unsafe_code)]
-        let toc = unsafe { CDROM_TOC::from_raw_bytes(toc_dump) };
+    fn audio() {
+        let toc = load_toc();
         let audio_tracks: Vec<TocEntry> = toc.iter_audio().collect();
-        assert_eq!(audio_tracks.len(), 11);
-    }
-
-    #[test]
-    fn test_to_toc_result() {
-        let toc_dump = hex_to_bytes(include_str!(
-            "../tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/CDROM_TOC.hex"
-        ))
-        .unwrap();
-        #[allow(unsafe_code)]
-        let toc = unsafe { CDROM_TOC::from_raw_bytes(toc_dump) };
-        let result = toc.to_toc();
-        assert!(result.is_ok());
-        let cdtoc = result.unwrap();
-        assert_eq!(cdtoc.audio_len(), 11);
+        let definitely_maybe = [
+            TocEntry {
+                track: 1,
+                start: Frame::from(Msf::new(0x00, 0x02, 0x21)),
+            },
+            TocEntry {
+                track: 2,
+                start: Frame::from(Msf::new(0x05, 0x19, 0x32)),
+            },
+            TocEntry {
+                track: 3,
+                start: Frame::from(Msf::new(0x0A, 0x22, 0x0D)),
+            },
+            TocEntry {
+                track: 4,
+                start: Frame::from(Msf::new(0x0F, 0x0B, 0x00)),
+            },
+            TocEntry {
+                track: 5,
+                start: Frame::from(Msf::new(0x13, 0x27, 0x44)),
+            },
+            TocEntry {
+                track: 6,
+                start: Frame::from(Msf::new(0x19, 0x38, 0x41)),
+            },
+            TocEntry {
+                track: 7,
+                start: Frame::from(Msf::new(0x1E, 0x28, 0x2D)),
+            },
+            TocEntry {
+                track: 8,
+                start: Frame::from(Msf::new(0x22, 0x3A, 0x21)),
+            },
+            TocEntry {
+                track: 9,
+                start: Frame::from(Msf::new(0x27, 0x2F, 0x3A)),
+            },
+            TocEntry {
+                track: 10,
+                start: Frame::from(Msf::new(0x2A, 0x14, 0x08)),
+            },
+            TocEntry {
+                track: 11,
+                start: Frame::from(Msf::new(0x30, 0x34, 0x3F)),
+            },
+        ];
+        assert_eq!(audio_tracks.as_slice(), &definitely_maybe);
     }
 }
