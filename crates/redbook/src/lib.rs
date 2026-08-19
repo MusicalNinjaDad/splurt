@@ -1,4 +1,5 @@
 #![feature(exact_div)]
+#![feature(exact_size_is_empty)]
 #![feature(iter_array_chunks)]
 #![feature(iterator_try_collect)]
 #![feature(try_blocks)]
