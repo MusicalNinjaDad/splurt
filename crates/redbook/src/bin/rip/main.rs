@@ -152,16 +152,10 @@ fn main() -> Exit<()> {
         }
     };
 
-    cd.disc_mut().update_cover_art().ok();
-    match cd.disc().cover_art() {
-        Some(data) => {
-            let mut cover = File::create_new("front.jpeg")?;
-            cover.write_all(data)?
-        }
-        None => {
-            dbg!("No cover art found");
-        }
-    };
+    if let Some(data) = cd.disc().cover_art() {
+        let mut cover = File::create_new("front.jpeg")?;
+        cover.write_all(data)?
+    }
 
     let ripped_tracks: Vec<RippedTrack> = match selected_track {
         SelectedTrack::All => cd.rip_all()?,

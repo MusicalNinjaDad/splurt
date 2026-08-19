@@ -211,6 +211,7 @@ pub struct AudioCd {
 }
 
 impl AudioCd {
+    /// Opens drive, reads CD, gets data from musicbrainz & coverart if possible
     pub fn new<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         // Windows already helpfully decodes the TOC for us. Parsing .cda files pre-calculates the
         // durations and gives us a comparison to validate the raw TOC against.
@@ -269,8 +270,9 @@ impl AudioCd {
 
         let leadout = toc.leadout();
 
-        let disc = Disc::new(toc, tracks.clone(), Frame::new(leadout as usize))
-            .map_err(|error| io::Error::new(ErrorKind::InvalidData, error))?;
+        let mut disc = Disc::new(toc, tracks.clone(), Frame::new(leadout as usize))?;
+        let _ = disc.update_musicbrainz();
+        let _ = disc.update_cover_art();
 
         Ok(Self {
             drive,

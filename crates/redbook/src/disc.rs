@@ -54,6 +54,12 @@ impl std::fmt::Display for DiscError {
 
 impl std::error::Error for DiscError {}
 
+impl From<DiscError> for std::io::Error {
+    fn from(error: DiscError) -> Self {
+        std::io::Error::new(std::io::ErrorKind::InvalidData, error)
+    }
+}
+
 impl Disc {
     pub fn new<T: IntoIterator<Item = Track>>(
         toc: Toc,
@@ -140,7 +146,7 @@ impl Disc {
     }
 
     /// Attempt to update the data from musicbrainz
-    pub fn update_musicbrainz(&mut self) -> io::Result<&mut Self> {
+    pub fn update_musicbrainz(&mut self) -> io::Result<()> {
         let discid = self.toc.musicbrainz_id().to_string();
         let url = format!("https://musicbrainz.org/ws/2/discid/{discid}?inc=recordings&fmt=json");
 
@@ -160,11 +166,11 @@ impl Disc {
             Some(ref mb_data) if mb_data.releases.len() == 1 => Some(1),
             _ => None,
         };
-        Ok(self)
+        Ok(())
     }
 
     /// Attempt to get the front cover art from the CoverArtArchive.
-    pub fn update_cover_art(&mut self) -> io::Result<&mut Self> {
+    pub fn update_cover_art(&mut self) -> io::Result<()> {
         let release_mbid = self
             .release()
             .ok_or_else(|| io::Error::other("No releases found"))?
@@ -184,7 +190,7 @@ impl Disc {
         } else {
             dbg!(response);
         }
-        Ok(self)
+        Ok(())
     }
 
     /// Get the cached cover art

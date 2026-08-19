@@ -27,3 +27,5 @@
 - [ ] Store details in Track, simplify tagging
 - [ ] Remove RipAll and loop in app
 - [ ] Tidy int types and as casts
+- [ ] add logging
+  - [ ] check for let _
