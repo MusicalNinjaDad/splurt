@@ -13,13 +13,11 @@ impl TocEntry {
 
 /// Convert hex in form `00 01 02` to bytes
 pub fn hex_to_bytes(hex: &str) -> Vec<u8> {
-    // Remove all non-hex characters (spaces, newlines, etc.)
-    let hex_str: String = hex.chars().filter(|c| c.is_ascii_hexdigit()).collect();
-
-    // Convert hex string to bytes
-    (0..hex_str.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&hex_str[i..i + 2], 16).expect("Invalid hex digit"))
+    // TODO Error handling
+    hex.chars()
+        .filter(|c| c.is_ascii_hexdigit())
+        .array_chunks::<2>()
+        .map(|n| u8::from_str_radix(&n.iter().collect::<String>(), 16).unwrap())
         .collect()
 }
 
@@ -39,7 +37,9 @@ pub fn hex_dump(bytes: &[u8]) -> String {
 #[allow(unsafe_code)]
 pub unsafe fn parse_cdrom_toc(bytes: Vec<u8>) -> CDROM_TOC {
     #[allow(unsafe_code)]
-    unsafe { *(bytes.as_ptr() as *const _) }
+    unsafe {
+        *(bytes.as_ptr() as *const _)
+    }
 }
 
 /// Converts a hex dump of raw TOC data to the format

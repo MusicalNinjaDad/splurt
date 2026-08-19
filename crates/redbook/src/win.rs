@@ -31,8 +31,8 @@ use windows_sys::Win32::{
     Storage::FileSystem::{FILE_SHARE_READ, OPEN_EXISTING},
 };
 
-use crate::{AudioCdExt, Disc, FRAME_SIZE, Frame, LEADIN, Msf, Track};
 use crate::hex::hex_dump;
+use crate::{AudioCdExt, Disc, FRAME_SIZE, Frame, LEADIN, Msf, Track};
 
 //(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
 pub const TRACK_MODE_CDDA: TRACK_MODE_TYPE = 2;

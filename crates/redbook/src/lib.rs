@@ -1,4 +1,5 @@
 #![feature(exact_div)]
+#![feature(iter_array_chunks)]
 #![feature(try_blocks)]
 // Unsafe restricted to dedicated wrapper modules
 #![deny(unsafe_code)]
