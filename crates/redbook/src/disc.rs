@@ -171,3 +171,53 @@ impl Disc {
         Ok(self)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod definitely_maybe {
+        use super::*;
+
+        #[test]
+        fn new() {
+            todo!("
+                1. load cdtoc::Toc as per tests/parse_toc;
+                2. create [Track] based on win::tests::audio (calculate the durations yourself and hardcode them)
+                3. identify and set correct value for leadout
+                4. call Disc::new().unwrap() with above values
+                5. validate as == a struct created by directly specifying field values 
+            ")
+        }
+
+        #[test]
+        fn set_release() {
+            todo!("
+                1. manually create a struct for definitely_maybe (as used for validation in test new)
+                2. manually set musicbrainz by loading (crates/redbook/tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/musicbrainz_disc.json)
+                3. call set_release
+                4. validate release_index has been correctly set
+            ")
+        }
+
+        #[test]
+        fn set_release_no_musicbrainz() {
+            todo!("
+                1. manually create a struct for definitely_maybe (as used for validation in test new)
+                2. leave musicbrainz as None
+                3. call set_release
+                4. validate release_index is_none
+            ")
+        }
+
+        #[test]
+        fn set_release_invalid() {
+            todo!("
+                1. manually create a struct for definitely_maybe (as used for validation in test new)
+                2. manually set musicbrainz by loading (crates/redbook/tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/musicbrainz_disc.json)
+                3. call set_release with an index which is too large
+                4. validate release_index is_none
+            ")
+        }
+    }
+}
