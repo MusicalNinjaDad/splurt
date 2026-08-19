@@ -94,7 +94,7 @@ fn test_leadout() {
     let toc_dump = load_hex_file(&path);
     let cdrom_toc = unsafe { CDROM_TOC::from_raw_bytes(toc_dump) };
 
-    let leadout = cdrom_toc.leadout();
+    let leadout = cdrom_toc.leadout().unwrap();
 
     // Leadout should be track 170 (0xAA)
     // The leadout frame should be > 0

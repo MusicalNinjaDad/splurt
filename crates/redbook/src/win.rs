@@ -519,7 +519,7 @@ pub trait CdromTocExt {
     fn iter_audio(&self) -> impl Iterator<Item = TocEntry>;
 
     /// The absolute start of the lead out
-    fn leadout(&self) -> Frame;
+    fn leadout(&self) -> Result<Frame, TocError>;
 }
 
 impl CdromTocExt for CDROM_TOC {
@@ -532,14 +532,11 @@ impl CdromTocExt for CDROM_TOC {
     }
 
     fn to_toc(&self) -> Result<Toc, TocError> {
-        let audio: Vec<u32> = self
-            .TrackData
-            .iter()
-            .filter(|track| (1..0xA0).contains(&track.TrackNumber))
-            .map(TocEntry::from)
+        let audio = self
+            .iter_audio()
             .map(|entry| entry.start.as_usize() as u32)
             .collect();
-        let leadout = self.leadout().as_usize() as u32;
+        let leadout = self.leadout()?.as_usize() as u32;
         Toc::from_parts(audio, None, leadout)
     }
 
@@ -550,13 +547,13 @@ impl CdromTocExt for CDROM_TOC {
             .map(TocEntry::from)
     }
 
-    fn leadout(&self) -> Frame {
+    fn leadout(&self) -> Result<Frame, TocError> {
         self.TrackData
             .iter()
             .find(|track| track.TrackNumber == 170)
             .map(TocEntry::from)
             .map(|entry| entry.start)
-            .unwrap_or_else(|| Frame::new(0))
+            .ok_or(TocError::SectorOrder)
     }
 }
 
@@ -643,9 +640,9 @@ mod tests {
         let toc = unsafe { CDROM_TOC::from_raw_bytes(toc_dump) };
         let leadout = toc.leadout();
         // Leadout should be > 0
-        assert!(leadout.as_usize() > 0);
+        assert!(leadout.unwrap().as_usize() > 0);
         // Leadout should include LEADIN
-        assert!(leadout.as_usize() >= LEADIN.as_usize());
+        assert!(leadout.unwrap().as_usize() >= LEADIN.as_usize());
     }
 
     #[test]
