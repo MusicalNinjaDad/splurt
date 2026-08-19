@@ -18,6 +18,7 @@ pub mod musicbrainz;
 pub mod win;
 
 pub use win::AudioCd;
+use windows_sys::Win32::Devices::Cdrom::TRACK_DATA;
 
 use std::{
     convert::TryFrom,
@@ -263,6 +264,14 @@ impl Frame {
 
     pub fn relative_to_leadin(self) -> Self {
         self - LEADIN
+    }
+}
+
+impl From<&TRACK_DATA> for Frame {
+    // TODO make fallible TryFrom
+    fn from(track: &TRACK_DATA) -> Self {
+        let relative = u32::from_be_bytes(track.Address);
+        Self(relative as usize) + LEADIN
     }
 }
 
