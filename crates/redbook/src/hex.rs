@@ -207,7 +207,7 @@ mod tests {
     #[test]
     fn hex_to_bytes_bad_length() {
         let r = hex_to_bytes("01 3");
-        assert!(r.is_err(), "{r:?}");
+        assert_matches!(r, Err(e) if e.kind == HexErrorKind::NotPairs);
     }
 
     #[test]
