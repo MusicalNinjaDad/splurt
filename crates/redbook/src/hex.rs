@@ -71,7 +71,8 @@ pub fn hex_to_bytes(hex: &str) -> Result<Vec<u8>, ParseHexError> {
     // TODO Error handling
     let values = hex
         .chars()
-        .filter(|c| c.is_ascii_hexdigit())
+        // alphanumeric to allow for ParseIntError InvalidDigit
+        .filter(|c| c.is_ascii_alphanumeric())
         .array_chunks::<2>();
     (values
         .clone()
@@ -133,6 +134,8 @@ pub fn parse_toc(bytes: Vec<u8>) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::{assert_matches, num::IntErrorKind};
+
     use super::*;
 
     #[test]
@@ -205,5 +208,18 @@ mod tests {
     fn hex_to_bytes_bad_length() {
         let r = hex_to_bytes("01 3");
         assert!(r.is_err(), "{r:?}");
+    }
+
+    #[test]
+    fn hex_to_bytes_bad_char() {
+        let r = hex_to_bytes("01 3g ff");
+        assert!(r.is_err(), "{r:?}");
+        assert_matches!(r,
+            Err(e)
+            if matches!(e.kind(),
+                HexErrorKind::InvalidValue(parse_err)
+                if *parse_err.kind() == IntErrorKind::InvalidDigit
+            )
+        );
     }
 }
