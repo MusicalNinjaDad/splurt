@@ -553,7 +553,7 @@ impl CdromTocExt for CDROM_TOC {
         self.TrackData
             .iter()
             .filter(|track| (1..0xA0).contains(&track.TrackNumber))
-            .map(move |track| {
+            .map(|track| {
                 let frame = Frame::from(track);
                 TocEntry {
                     track: track.TrackNumber,
