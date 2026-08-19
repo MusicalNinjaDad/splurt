@@ -221,13 +221,16 @@ impl AudioCd {
                 .unwrap()
             })
             .collect();
-        tracks.sort_by_key(|track| track.starting_frame);
+        tracks.sort_by_key(|track| track.toc_entry.start);
 
         let drive = CdDrive::open(path)?;
         let toc = drive.toc();
 
-        debug_assert_eq!(toc.FirstTrack, tracks.first().unwrap().track_number as u8);
-        debug_assert_eq!(toc.LastTrack, tracks.last().unwrap().track_number as u8);
+        debug_assert_eq!(
+            toc.FirstTrack,
+            tracks.first().unwrap().toc_entry.track as u8
+        );
+        debug_assert_eq!(toc.LastTrack, tracks.last().unwrap().toc_entry.track as u8);
         let leadout_address = toc
             .TrackData
             .iter()
@@ -252,7 +255,7 @@ impl AudioCd {
         // Create the Toc and Disc
         let audio: Vec<_> = tracks
             .iter()
-            .map(|track| track.starting_frame.as_usize() as u32)
+            .map(|track| track.toc_entry.start.as_usize() as u32)
             .collect();
         let data = None;
         let toc = cdtoc::Toc::from_parts(audio, data, leadout_starting_frame).unwrap();
@@ -271,7 +274,7 @@ impl AudioCdExt for AudioCd {
     fn track(&self, track_number: usize) -> Option<&Track> {
         self.tracks
             .iter()
-            .find(|track| track.track_number == track_number as u16)
+            .find(|track| track.toc_entry.track == track_number as u8)
     }
 
     fn leadout(&self) -> u32 {
@@ -282,7 +285,7 @@ impl AudioCdExt for AudioCd {
         let audio: Vec<_> = self
             .tracks
             .iter()
-            .map(|track| track.starting_frame.as_usize() as u32)
+            .map(|track| track.toc_entry.start.as_usize() as u32)
             .collect();
         let data = None;
         let leadout = self.leadout();
@@ -308,7 +311,7 @@ impl AudioCdExt for AudioCd {
         frames_to_read: u32,
         buf: &mut [u8],
     ) -> io::Result<u32> {
-        let offset = Sector::from_frame(track.starting_frame + frame_offset).offset();
+        let offset = Sector::from_frame(track.toc_entry.start + frame_offset).offset();
         let read_command = RAW_READ_INFO {
             DiskOffset: offset,
             SectorCount: frames_to_read,
@@ -496,10 +499,14 @@ impl TryFrom<CdaFile> for Track {
         debug_assert_eq!(starting_frame.relative_to_leadin(), starting_time);
         debug_assert_eq!(duration_frames, duration);
 
+        let toc_entry = TocEntry {
+            track: track_number as u8,
+            start: starting_frame,
+        };
+
         Ok(Track {
-            track_number,
+            toc_entry,
             windows_identifier,
-            starting_frame,
             duration_frames,
         })
     }

@@ -235,17 +235,16 @@ pub fn into_wav(pcm: Vec<u8>) -> Vec<u8> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Track {
-    pub track_number: u16,
-    pub windows_identifier: Option<u32>,
-    /// Absolute value, including lead-in (150 frames)
-    pub starting_frame: Frame,
+    pub toc_entry: TocEntry,
     pub duration_frames: Frame,
+    pub windows_identifier: Option<u32>,
 }
 
 /// Entry in a CD TOC (Table of Contents)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TocEntry {
     pub track: u8,
+    /// Absolute value, including lead-in (150 frames)
     pub start: Frame,
 }
 
