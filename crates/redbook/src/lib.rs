@@ -11,7 +11,6 @@
 //! CDDA CD digital audio as per RedBook (IEC 60908:1999)
 //!
 //! Frame IDs are always *absolute* and *include* the lead-in (150 frames)
-//! Timestamps are always *relative* to the start of the audio and *exclude* the lead-in (2s)
 
 pub mod hex;
 pub mod musicbrainz;
