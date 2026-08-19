@@ -1,5 +1,7 @@
 //! Hex parsing utilities for CD TOC data
 
+use std::num::ParseIntError;
+
 use crate::{Frame, Msf, TocEntry};
 use windows_sys::Win32::Devices::Cdrom::CDROM_TOC;
 
@@ -12,13 +14,13 @@ impl TocEntry {
 }
 
 /// Convert hex in form `00 01 02` to bytes
-pub fn hex_to_bytes(hex: &str) -> Vec<u8> {
+pub fn hex_to_bytes(hex: &str) -> Result<Vec<u8>, ParseIntError> {
     // TODO Error handling
     hex.chars()
         .filter(|c| c.is_ascii_hexdigit())
         .array_chunks::<2>()
-        .map(|n| u8::from_str_radix(&n.iter().collect::<String>(), 16).unwrap())
-        .collect()
+        .map(|n| u8::from_str_radix(&n.iter().collect::<String>(), 16))
+        .try_collect()
 }
 
 /// Convert bytes to a hex dump string in the form `00 01 02 ...`
@@ -103,35 +105,38 @@ mod tests {
     fn test_hex_dump_roundtrip() {
         let original: Vec<u8> = vec![0x00, 0x01, 0x02, 0x0a, 0xff];
         let dumped = hex_dump(&original);
-        let parsed = hex_to_bytes(&dumped);
+        let parsed = hex_to_bytes(&dumped).unwrap();
         assert_eq!(parsed, original);
     }
 
     #[test]
     fn test_hex_to_bytes_empty() {
-        assert_eq!(hex_to_bytes(""), Vec::<u8>::new());
+        assert_eq!(hex_to_bytes("").unwrap(), Vec::<u8>::new());
     }
 
     #[test]
     fn test_hex_to_bytes_single() {
-        assert_eq!(hex_to_bytes("00"), vec![0x00]);
-        assert_eq!(hex_to_bytes("ff"), vec![0xff]);
+        assert_eq!(hex_to_bytes("00").unwrap(), vec![0x00]);
+        assert_eq!(hex_to_bytes("ff").unwrap(), vec![0xff]);
     }
 
     #[test]
     fn test_hex_to_bytes_multiple() {
-        assert_eq!(hex_to_bytes("00 01 02"), vec![0x00, 0x01, 0x02]);
-        assert_eq!(hex_to_bytes("10203040"), vec![0x10, 0x20, 0x30, 0x40]);
+        assert_eq!(hex_to_bytes("00 01 02").unwrap(), vec![0x00, 0x01, 0x02]);
+        assert_eq!(
+            hex_to_bytes("10203040").unwrap(),
+            vec![0x10, 0x20, 0x30, 0x40]
+        );
     }
 
     #[test]
     fn test_hex_to_bytes_with_newlines() {
-        assert_eq!(hex_to_bytes("00\n01\n02"), vec![0x00, 0x01, 0x02]);
+        assert_eq!(hex_to_bytes("00\n01\n02").unwrap(), vec![0x00, 0x01, 0x02]);
     }
 
     #[test]
     fn test_hex_to_bytes_uppercase() {
-        assert_eq!(hex_to_bytes("FF"), vec![0xff]);
-        assert_eq!(hex_to_bytes("AB CD"), vec![0xab, 0xcd]);
+        assert_eq!(hex_to_bytes("FF").unwrap(), vec![0xff]);
+        assert_eq!(hex_to_bytes("AB CD").unwrap(), vec![0xab, 0xcd]);
     }
 }

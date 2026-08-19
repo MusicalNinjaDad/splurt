@@ -9,7 +9,7 @@ use redbook::hex::{hex_to_bytes, parse_cdrom_toc, parse_toc};
 /// Load a hex file and parse it as raw bytes
 fn load_hex_file(path: &PathBuf) -> Vec<u8> {
     let content = std::fs::read_to_string(path).expect("Failed to read file");
-    hex_to_bytes(&content)
+    hex_to_bytes(&content).unwrap()
 }
 
 #[test]
