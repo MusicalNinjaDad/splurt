@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use cdtoc::Toc;
+use cdtoc::{Toc, TocError};
 use redbook::{
     Frame,
     hex::{hex_to_bytes, parse_cdrom_toc, parse_toc},
@@ -16,7 +16,7 @@ fn load_hex_file(path: &PathBuf) -> Vec<u8> {
     hex_to_bytes(&content).unwrap()
 }
 
-fn toc_from_cdrom_toc(cdrom_toc: CDROM_TOC) -> Toc {
+fn toc_from_cdrom_toc(cdrom_toc: CDROM_TOC) -> Result<Toc, TocError> {
     let audio = cdrom_toc
         .TrackData
         .iter()
@@ -30,8 +30,8 @@ fn toc_from_cdrom_toc(cdrom_toc: CDROM_TOC) -> Toc {
         .find(|track| track.TrackNumber == 170)
         .map(Frame::from)
         .map(|frame| frame.as_usize() as u32)
-        .expect("leadout");
-    Toc::from_parts(audio, None, leadout).unwrap()
+        .unwrap_or_default();
+    Toc::from_parts(audio, None, leadout)
 }
 
 #[test]
@@ -62,5 +62,5 @@ fn compare() {
     let toc_dump = load_hex_file(&path.join("TOC.hex"));
     let toc_string = parse_toc(toc_dump);
     let toc = Toc::from_cdtoc(toc_string).unwrap();
-    assert_eq!(toc, toc_from_cdrom_toc(cdrom_toc))
+    assert_eq!(toc, toc_from_cdrom_toc(cdrom_toc).unwrap())
 }
