@@ -13,6 +13,7 @@ use std::{
     ptr::{null, null_mut},
 };
 
+use cdtoc::{Toc, TocError};
 use windows_sys::{
     Win32::{
         Devices::Cdrom::{
@@ -31,7 +32,7 @@ use windows_sys::Win32::{
     Storage::FileSystem::{FILE_SHARE_READ, OPEN_EXISTING},
 };
 
-use crate::hex::hex_dump;
+use crate::{TocEntry, hex::hex_dump};
 use crate::{AudioCdExt, Disc, FRAME_SIZE, Frame, LEADIN, Msf, Track};
 
 //(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
@@ -503,6 +504,36 @@ impl TryFrom<CdaFile> for Track {
         })
     }
 }
+
+/// Manipulation of [`CDROM_TOC`]
+pub trait CdromTocExt {
+    /// Parse raw bytes as a CDROM_TOC structure
+    ///
+    /// # Safety
+    /// The caller must ensure `bytes` is exactly the size of CDROM_TOC and properly aligned.
+    #[allow(unsafe_code)]
+    unsafe fn from_raw_bytes(bytes: Vec<u8>) -> CDROM_TOC {
+        #[allow(unsafe_code)]
+        unsafe {
+            *(bytes.as_ptr() as *const _)
+        }
+    }
+
+    fn to_toc(&self) -> Result<Toc, TocError> {
+        todo!("see crates/redbook/tests/parse_toc.rs")
+    }
+
+    fn iter_audio(&self) -> impl Iterator<Item = TocEntry> {
+        todo!()
+    }
+
+    /// The absolute start of the lead out
+    fn leadout(&self) -> Frame {
+        todo!("make sure to + LEADIN to the relative position provided in CDROM_TOC")
+    }
+}
+
+impl CdromTocExt for CDROM_TOC {}
 
 /// A pseudo-sector on an AudioCd
 ///
