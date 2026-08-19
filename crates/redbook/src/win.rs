@@ -211,8 +211,8 @@ pub struct AudioCd {
 
 impl AudioCd {
     pub fn new<P: AsRef<Path>>(path: P) -> io::Result<Self> {
-        // Windows already helpfully decodes the TOC for us. Parsing .cda files avoids calling
-        // ugly & unsafe ffi functions and wrangling the returned, nested structs.
+        // Windows already helpfully decodes the TOC for us. Parsing .cda files pre-calculates the
+        // durations and gives us a comparison to validate the raw TOC against.
         let mut tracks: Vec<_> = read_dir(&path)?
             .map(|track| {
                 Track::try_from(CdaFile {
@@ -224,47 +224,33 @@ impl AudioCd {
         tracks.sort_by_key(|track| track.toc_entry.start);
 
         let drive = CdDrive::open(path)?;
-        let toc = drive.toc();
 
-        debug_assert_eq!(
-            toc.FirstTrack,
-            tracks.first().unwrap().toc_entry.track as u8
-        );
-        debug_assert_eq!(toc.LastTrack, tracks.last().unwrap().toc_entry.track as u8);
-        let leadout_address = toc
-            .TrackData
-            .iter()
-            .find(|track| track.TrackNumber == 170)
-            .expect("leadout")
-            .Address;
-        // Windows reports positions relative to leadin.
-        // While spec expects absolute to be stored in the TOC
-        let leadout_starting_frame = u32::from_be_bytes(leadout_address) + 150;
-        dbg!(leadout_starting_frame);
-        dbg!(toc.FirstTrack);
-        dbg!(toc.LastTrack);
-        dbg!(toc.Length);
-        for track in toc.TrackData {
-            if track.TrackNumber != 0 {
-                // LeadOut is 170
-                dbg!(track.TrackNumber);
-                dbg!(track.Address);
-            }
-        }
+        let wintoc = drive.toc();
+        (wintoc.FirstTrack == tracks.first().unwrap().toc_entry.track as u8).ok_or(
+            io::Error::new(
+                ErrorKind::InvalidData,
+                "Mismatch between TOC and cda files: different first track number",
+            ),
+        )?;
+        (wintoc.LastTrack == tracks.last().unwrap().toc_entry.track as u8).ok_or(
+            io::Error::new(
+                ErrorKind::InvalidData,
+                "Mismatch between TOC and cda files: different last track number",
+            ),
+        )?;
 
-        // Create the Toc and Disc
-        let audio: Vec<_> = tracks
-            .iter()
-            .map(|track| track.toc_entry.start.as_usize() as u32)
-            .collect();
-        let data = None;
-        let toc = cdtoc::Toc::from_parts(audio, data, leadout_starting_frame).unwrap();
+        let toc = wintoc
+            .to_toc()
+            .map_err(|error| io::Error::new(ErrorKind::InvalidData, error))?;
+
+        let leadout = toc.leadout();
+
         let disc = Disc::from_toc(toc);
 
         Ok(Self {
             drive,
             tracks,
-            leadout_starting_frame,
+            leadout_starting_frame: leadout,
             disc,
         })
     }
