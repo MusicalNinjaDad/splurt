@@ -15,6 +15,7 @@ impl TocEntry {
     pub fn from_raw_toc_bytes(data: &[u8]) -> Self {
         let track = data[3];
         let start = Msf::new(data[8] as i8, data[9] as i8, data[10] as i8);
+        let start = Frame::from(start);
         Self { track, start }
     }
 }
@@ -107,12 +108,7 @@ pub fn parse_toc(bytes: Vec<u8>) -> String {
     let tracks = entries.len() - 1; // Special entry A2 (leadout)
     let timings = entries
         .iter()
-        .map(|entry| {
-            format!(
-                "{frames:02x}+",
-                frames = Frame::from(entry.start).as_usize()
-            )
-        })
+        .map(|entry| format!("{frames:02x}+", frames = entry.start.as_usize()))
         .collect::<String>();
     format!("{tracks:02x}+{timings}")
         .trim_end_matches("+")

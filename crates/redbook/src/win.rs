@@ -554,10 +554,10 @@ impl CdromTocExt for CDROM_TOC {
             .iter()
             .filter(|track| (1..0xA0).contains(&track.TrackNumber))
             .map(|track| {
-                let frame = Frame::from(track);
+                let start = Frame::from(track);
                 TocEntry {
                     track: track.TrackNumber,
-                    start: frame.into(),
+                    start,
                 }
             })
     }

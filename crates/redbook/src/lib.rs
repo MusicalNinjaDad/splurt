@@ -246,7 +246,7 @@ pub struct Track {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TocEntry {
     pub track: u8,
-    pub start: Msf,
+    pub start: Frame,
 }
 
 /// CD audio frame (1/75 sec). Basic unit of time for CD audio
