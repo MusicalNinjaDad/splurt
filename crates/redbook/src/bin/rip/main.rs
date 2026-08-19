@@ -152,16 +152,14 @@ fn main() -> Exit<()> {
         }
     };
 
-    match cd.disc_mut().cover_art() {
-        Ok(Some(data)) => {
+    cd.disc_mut().update_cover_art().ok();
+    match cd.disc().cover_art() {
+        Some(data) => {
             let mut cover = File::create_new("front.jpeg")?;
             cover.write_all(data)?
         }
-        Ok(None) => {
+        None => {
             dbg!("No cover art found");
-        }
-        Err(err) => {
-            dbg!(err);
         }
     };
 

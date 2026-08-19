@@ -32,7 +32,8 @@ use windows_sys::Win32::{
     Storage::FileSystem::{FILE_SHARE_READ, OPEN_EXISTING},
 };
 
-use crate::{AudioCdExt, Disc, FRAME_SIZE, Frame, LEADIN, Msf, Track};
+use crate::{AudioCdExt, FRAME_SIZE, Frame, LEADIN, Msf, Track};
+use crate::disc::Disc;
 use crate::{TocEntry, hex::hex_dump};
 
 //(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
@@ -268,7 +269,8 @@ impl AudioCd {
 
         let leadout = toc.leadout();
 
-        let disc = Disc::from_toc(toc);
+        let disc = Disc::new(toc, tracks.clone(), Frame::new(leadout as usize))
+            .map_err(|error| io::Error::new(ErrorKind::InvalidData, error))?;
 
         Ok(Self {
             drive,

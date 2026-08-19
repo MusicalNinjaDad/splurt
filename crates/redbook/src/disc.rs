@@ -43,6 +43,17 @@ pub enum DiscError {
     TocMismatch,
 }
 
+impl std::fmt::Display for DiscError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DiscError::IncorrectLeadout => write!(f, "incorrect leadout"),
+            DiscError::TocMismatch => write!(f, "TOC mismatch"),
+        }
+    }
+}
+
+impl std::error::Error for DiscError {}
+
 impl Disc {
     pub fn new<T: IntoIterator<Item = Track>>(
         toc: Toc,
@@ -87,6 +98,11 @@ impl Disc {
     /// Get the selected release
     pub fn release(&self) -> Option<&Release> {
         self.musicbrainz.as_ref()?.releases.get(self.release_index?)
+    }
+
+    /// Get the MusicBrainz data
+    pub fn musicbrainz(&self) -> Option<&DiscId> {
+        self.musicbrainz.as_ref()
     }
 
     /// Use the release at the given index, or reset selection to None.
@@ -169,6 +185,11 @@ impl Disc {
             dbg!(response);
         }
         Ok(self)
+    }
+
+    /// Get the cached cover art
+    pub fn cover_art(&self) -> Option<&[u8]> {
+        self.coverart.as_ref().map(|b| b.as_ref())
     }
 }
 

@@ -2,7 +2,6 @@
 #![feature(exact_size_is_empty)]
 #![feature(iter_array_chunks)]
 #![feature(iterator_try_collect)]
-#![feature(try_blocks)]
 // Unsafe restricted to dedicated wrapper modules
 #![deny(unsafe_code)]
 #![forbid(unsafe_op_in_unsafe_fn)]
@@ -17,6 +16,7 @@ pub mod hex;
 pub mod musicbrainz;
 pub mod win;
 
+pub use disc::Disc;
 pub use win::AudioCd;
 use windows_sys::Win32::Devices::Cdrom::TRACK_DATA;
 
@@ -29,8 +29,6 @@ use std::{
 
 use cdtoc::{Toc, TocError};
 use musicbrainz::DiscId;
-
-use crate::musicbrainz::Release;
 
 /// One cdda audio frame in bytes
 const FRAME_SIZE: usize = 2352;
@@ -69,10 +67,10 @@ pub trait AudioCdExt {
     fn toc(&self) -> Result<Toc, TocError>;
 
     /// Return a reference to the cached Disc data
-    fn disc(&self) -> &Disc;
+    fn disc(&self) -> &crate::disc::Disc;
 
     /// Return a mutable reference to the cached Disc data
-    fn disc_mut(&mut self) -> &mut Disc;
+    fn disc_mut(&mut self) -> &mut crate::disc::Disc;
 
     /// Read a full track, returning the raw data as a `Vec` of bytes.
     fn read_track(&self, track_number: usize) -> io::Result<Vec<u8>> {
@@ -133,7 +131,7 @@ pub trait AudioCdExt {
 
     /// Get cached MusicBrainz data, if available
     fn musicbrainz(&self) -> Option<&DiscId> {
-        self.disc().musicbrainz.as_ref()
+        self.disc().musicbrainz()
     }
 
     /// Rip a single track, returning track info and raw data.
@@ -419,119 +417,6 @@ impl PartialEq<Frame> for Msf {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct Disc {
-    pub toc: Toc,
-    pub musicbrainz: Option<DiscId>,
-    /// Selected release index from musicbrainz.releases. Use [`select_release()`]
-    /// or [set_release()] to set and [`release()`] to get.
-    ///
-    /// - None if no selection made yet
-    /// - Some(0) if no data present
-    /// - Some(0) if first release selected
-    /// - Some(n) if specific release selected
-    release_index: Option<usize>,
-    /// Cached coverart: None if musicbrainz is None
-    coverart: Option<Vec<u8>>,
-}
-
-impl Disc {
-    /// Create a Disc from a given Toc and attempt to identify it on MusicBrainz.
-    ///
-    /// Will only call MusicBrainz API once to avoid spamming the API
-    fn from_toc(toc: Toc) -> Self {
-        let discid = toc.musicbrainz_id().to_string();
-        let url = format!("https://musicbrainz.org/ws/2/discid/{discid}?inc=recordings&fmt=json");
-
-        let client = reqwest::blocking::Client::new();
-        let musicbrainz = try {
-            client
-                .get(url)
-                .header("User-Agent", "splurt/0.1.0")
-                .send()
-                .ok()?
-                .json::<DiscId>()
-                .ok()?
-        };
-        let release_index = match musicbrainz {
-            None => Some(0),
-            Some(ref mb_data) if mb_data.releases.is_empty() => Some(0),
-            Some(ref mb_data) if mb_data.releases.len() == 1 => Some(1),
-            _ => None,
-        };
-        Self {
-            toc,
-            musicbrainz,
-            release_index,
-            coverart: None,
-        }
-    }
-
-    /// Attempt to get the front cover art from the CoverArtArchive.
-    ///
-    /// - Will return None if no musicbrainz data is available
-    /// - Will cache the image to avoid spamming API on repeat calls
-    /// - Will not attempt to identify the MusicBrainz ID to avoid spamming API
-    pub fn cover_art(&mut self) -> io::Result<&Option<Vec<u8>>> {
-        if self.coverart.is_none() {
-            let release_mbid = self
-                .release()
-                .ok_or_else(|| io::Error::other("No releases found"))?
-                .id
-                .clone();
-
-            let client = reqwest::blocking::Client::new();
-            let url = format!("https://coverartarchive.org/release/{release_mbid}/front");
-            let response = client
-                .get(url)
-                .header("User-Agent", "splurt/0.1.0")
-                .send()
-                .map_err(io::Error::other)?;
-            if response.status().is_success() {
-                let image = response.bytes().map_err(io::Error::other)?.to_vec();
-                self.coverart = Some(image);
-            } else {
-                dbg!(response);
-            }
-        }
-        Ok(&self.coverart)
-    }
-
-    /// Get the selected release
-    pub fn release(&self) -> Option<&musicbrainz::Release> {
-        self.musicbrainz.as_ref()?.releases.get(self.release_index?)
-    }
-
-    /// Use the release at the given index, or reset selection to None.
-    /// Providing an invalid index will make no change.
-    ///
-    /// Returns a reference to the release set, to allow for validation.
-    pub fn set_release(&mut self, index: Option<usize>) -> Option<&Release> {
-        let Some(index) = index else {
-            self.release_index = None;
-            return None;
-        };
-
-        match self.musicbrainz.as_ref()?.releases.get(index) {
-            None => None,
-            Some(release) => {
-                self.release_index = Some(index);
-                Some(release)
-            }
-        }
-    }
-
-    /// Provides an iterator over the releases to allow for programatic selection.
-    ///
-    /// Takes a closure which accepts a slice of releases and returns the index of
-    /// the release to select.
-    pub fn select_release<F>(&mut self, selector: F) -> Option<&Release>
-    where
-        F: FnOnce(&[musicbrainz::Release]) -> Option<usize>,
-    {
-        self.set_release(selector(&self.musicbrainz.as_ref()?.releases))
-    }
-}
 
 #[cfg(test)]
 mod tests {
