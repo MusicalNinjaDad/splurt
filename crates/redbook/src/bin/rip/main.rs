@@ -5,11 +5,11 @@
 
 use clap::Parser;
 use exit_safely::Termination;
-use metaflac::Tag;
+use metaflac::{Tag, block::PictureType};
 use redbook::{AudioCd, AudioCdExt};
 use std::{
     convert::Infallible,
-    fs::File,
+    fs::{self, File},
     io::{self, Write},
     path::PathBuf,
     process::Termination as _T,
@@ -175,6 +175,14 @@ fn main() -> Exit<()> {
             let mut tag = Tag::read_from_path(&flac_filename).unwrap();
             let vorbis = tag.vorbis_comments_mut();
             vorbis.comments.extend(tags.comments);
+            if let Some(image) = cd
+                .disc()
+                .cover_art()
+                .map(|b| b.to_vec())
+                .or(fs::read("front.jpeg").ok())
+            {
+                tag.add_picture("image/jpeg", PictureType::CoverFront, image);
+            }
             dbg!(&tag);
             tag.write_to_path(&flac_filename).unwrap();
         }
