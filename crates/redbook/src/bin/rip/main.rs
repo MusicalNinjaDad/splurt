@@ -5,7 +5,6 @@
 
 use clap::Parser;
 use exit_safely::Termination;
-use flacenc::{component::BitRepr, error::Verify};
 use metaflac::Tag;
 use redbook::{AudioCd, AudioCdExt};
 use std::{
@@ -159,31 +158,15 @@ fn main() -> Exit<()> {
         .join(" "),
     );
 
-    let (channels, bits_per_sample, sample_rate) = (2, 16, 44100);
-    let config = flacenc::config::Encoder::default()
-        .into_verified()
-        .expect("Config data error.");
-    let samples: Vec<_> = ripped
-        .raw_data
-        .chunks_exact(2)
-        .map(|chunk| i16::from_le_bytes([chunk[0], chunk[1]]) as i32)
-        .collect();
-    let source =
-        flacenc::source::MemSource::from_samples(&samples, channels, bits_per_sample, sample_rate);
-    let flac_stream = flacenc::encode_with_fixed_block_size(&config, source, config.block_size)
-        .expect("Encode failed.");
-    let mut sink = flacenc::bitsink::ByteSink::new();
-    flac_stream.write(&mut sink).unwrap();
+    let flac = ripped.to_flac();
     let flac_filename = output_filename.with_extension("flac");
-    {
-        let mut dump = File::create_new(&flac_filename)?;
-        dump.write_all(sink.as_slice())?;
-        println!(
-            "Track {} ripped to {}",
-            track.track_number(),
-            output_filename.display()
-        );
-    }
+    let mut dump = File::create_new(&flac_filename)?;
+    dump.write_all(flac.as_slice())?;
+    println!(
+        "Track {} ripped to {}",
+        track.track_number(),
+        output_filename.display()
+    );
 
     if let Some(tags) = cd.disc().tag_for(track_number) {
         let mut tag = Tag::read_from_path(&flac_filename).unwrap();

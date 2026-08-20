@@ -17,6 +17,7 @@ pub mod musicbrainz;
 pub mod win;
 
 pub use disc::Disc;
+use flacenc::{bitsink::MemSink, component::BitRepr, error::Verify};
 pub use win::AudioCd;
 use windows_sys::Win32::Devices::Cdrom::TRACK_DATA;
 
@@ -138,36 +139,62 @@ pub struct RippedTrack {
     pub raw_data: Vec<u8>,
 }
 
-pub fn into_wav(pcm: Vec<u8>) -> Vec<u8> {
-    // based on https://github.com/Bloomca/rust-cd-da-reader/blob/fd71208262c199dc44d8a012731be298a848ea79/src/lib.rs#L226
-    // & https://github.com/Bloomca/rust-cd-da-reader/blob/main/src/utils.rs#L49
-    let pcm_data_size = pcm.len();
-    let mut wav = Vec::with_capacity(44 + pcm_data_size);
-    let pcm_data_size = pcm_data_size as u32;
+impl RippedTrack {
+    pub fn to_flac(&self) -> MemSink<u8> {
+        let (channels, bits_per_sample, sample_rate) = (2, 16, 44100);
+        let config = flacenc::config::Encoder::default()
+            .into_verified()
+            .expect("Config data error.");
+        let samples: Vec<_> = self
+            .raw_data
+            .chunks_exact(2)
+            .map(|chunk| i16::from_le_bytes([chunk[0], chunk[1]]) as i32)
+            .collect();
+        let source = flacenc::source::MemSource::from_samples(
+            &samples,
+            channels,
+            bits_per_sample,
+            sample_rate,
+        );
+        let flac_stream = flacenc::encode_with_fixed_block_size(&config, source, config.block_size)
+            .expect("Encode failed.");
+        let mut sink = flacenc::bitsink::ByteSink::new();
+        flac_stream.write(&mut sink).unwrap();
+        sink
+    }
 
-    // RIFF header
-    wav.extend_from_slice(b"RIFF");
-    wav.extend_from_slice(&(pcm_data_size + 36).to_le_bytes()); // file size - 8
-    wav.extend_from_slice(b"WAVE");
+    pub fn to_wav(&self) -> Vec<u8> {
+        let pcm = &self.raw_data;
 
-    // fmt chunk
-    wav.extend_from_slice(b"fmt ");
-    wav.extend_from_slice(&16u32.to_le_bytes()); // fmt chunk size
-    wav.extend_from_slice(&1u16.to_le_bytes()); // PCM format
-    wav.extend_from_slice(&2u16.to_le_bytes()); // channels
-    wav.extend_from_slice(&44100u32.to_le_bytes()); // sample rate
-    wav.extend_from_slice(&176400u32.to_le_bytes()); // byte rate
-    wav.extend_from_slice(&4u16.to_le_bytes()); // block align
-    wav.extend_from_slice(&16u16.to_le_bytes()); // bits per sample
+        // based on https://github.com/Bloomca/rust-cd-da-reader/blob/fd71208262c199dc44d8a012731be298a848ea79/src/lib.rs#L226
+        // & https://github.com/Bloomca/rust-cd-da-reader/blob/main/src/utils.rs#L49
+        let pcm_data_size = pcm.len();
+        let mut wav = Vec::with_capacity(44 + pcm_data_size);
+        let pcm_data_size = pcm_data_size as u32;
 
-    // data chunk header
-    wav.extend_from_slice(b"data");
-    wav.extend_from_slice(&pcm_data_size.to_le_bytes());
+        // RIFF header
+        wav.extend_from_slice(b"RIFF");
+        wav.extend_from_slice(&(pcm_data_size + 36).to_le_bytes()); // file size - 8
+        wav.extend_from_slice(b"WAVE");
 
-    wav.extend(&pcm);
-    wav
+        // fmt chunk
+        wav.extend_from_slice(b"fmt ");
+        wav.extend_from_slice(&16u32.to_le_bytes()); // fmt chunk size
+        wav.extend_from_slice(&1u16.to_le_bytes()); // PCM format
+        wav.extend_from_slice(&2u16.to_le_bytes()); // channels
+        wav.extend_from_slice(&44100u32.to_le_bytes()); // sample rate
+        wav.extend_from_slice(&176400u32.to_le_bytes()); // byte rate
+        wav.extend_from_slice(&4u16.to_le_bytes()); // block align
+        wav.extend_from_slice(&16u16.to_le_bytes()); // bits per sample
+
+        // data chunk header
+        wav.extend_from_slice(b"data");
+        wav.extend_from_slice(&pcm_data_size.to_le_bytes());
+
+        wav.extend(pcm);
+        wav
+    }
 }
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 /// Cheap to clone - all fields are `Copy` except ripped data which uses cheap-to-clone [`Bytes`]
 /// Borrow checker ensures validity of metadata for lifetime `<'meta>`
