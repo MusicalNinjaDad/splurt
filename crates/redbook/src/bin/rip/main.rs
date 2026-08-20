@@ -7,7 +7,7 @@ use clap::Parser;
 use exit_safely::Termination;
 use flacenc::{component::BitRepr, error::Verify};
 use metaflac::Tag;
-use redbook::{AudioCd, AudioCdExt, musicbrainz::ArtistCreditsExt};
+use redbook::{AudioCd, AudioCdExt};
 use std::{
     convert::Infallible,
     fs::File,
@@ -185,99 +185,13 @@ fn main() -> Exit<()> {
         );
     }
 
-    let mut tag = Tag::read_from_path(&flac_filename).unwrap();
-    let vorbis = tag.vorbis_comments_mut();
-
-    vorbis.set_track(track.track_number() as u32);
-    if let Some(id) = track.windows_identifier {
-        vorbis.set("WINDOWS_IDENTIFIER", vec![id.to_string()])
+    if let Some(tags) = cd.disc().tag_for(track_number) {
+        let mut tag = Tag::read_from_path(&flac_filename).unwrap();
+        let vorbis = tag.vorbis_comments_mut();
+        vorbis.comments.extend(tags.comments);
+        dbg!(&tag);
+        tag.write_to_path(&flac_filename).unwrap();
     }
-    if let Some(release) = cd.disc().release()
-        && let Some(meta) = track.meta()
-    {
-        vorbis.set_title(vec![track.title().clone().unwrap_or_default()]);
-
-        vorbis.set(
-            "SCRIPT",
-            vec![
-                release
-                    .text_representation
-                    .as_ref()
-                    .and_then(|text_rep| text_rep.script.clone())
-                    .unwrap_or_default(),
-            ],
-        );
-
-        vorbis.set(
-            "MUSICBRAINZ_TRACKID",
-            vec![meta.id.clone().unwrap_or_default()],
-        );
-
-        vorbis.set_album(vec![release.title.clone()]);
-        vorbis.set("MUSICBRAINZ_ALBUMID", vec![release.id.clone()]);
-
-        vorbis.set_album_artist(release.artist_credit.names().collect());
-
-        let track_artists = meta
-            .artist_credit
-            .as_ref()
-            .or(release.artist_credit.as_ref());
-        vorbis.set_artist(track_artists.names().collect());
-
-        vorbis.set(
-            "MUSICBRAINZ_ALBUMARTISTID",
-            track_artists.artist_ids().collect(),
-        );
-
-        let release_date = release.date.clone().unwrap_or_default();
-        let release_year = release_date.get(0..4).unwrap_or_default().to_string();
-        vorbis.set("RELEASEDATE", vec![release_date]);
-        vorbis.set("RELEASEYEAR", vec![release_year]);
-
-        let original_date = meta
-            .recording
-            .as_ref()
-            .and_then(|recording| recording.first_release_date.clone())
-            .unwrap_or_default();
-        let original_year = original_date.get(0..4).unwrap_or_default().to_string();
-        vorbis.set("ORIGINALDATE", vec![original_date]);
-        vorbis.set("ORIGINALYEAR", vec![original_year]);
-
-        vorbis.set("BARCODE", vec![release.barcode.clone().unwrap_or_default()]);
-        vorbis.set(
-            "RELEASECOUNTRY",
-            vec![release.country.clone().unwrap_or_default()],
-        );
-        vorbis.set(
-            "RELEASESTATUS",
-            vec![release.status.clone().unwrap_or_default()],
-        );
-
-        if let Some(media_list) = release.media.as_ref() {
-            let total_discs = media_list.len();
-            vorbis.set("TOTALDISCS", vec![total_discs.to_string()]);
-            vorbis.set("DISCTOTAL", vec![total_discs.to_string()]);
-            if let Some(track_count) = media_list.first().and_then(|media| media.track_count) {
-                vorbis.set("TOTALTRACKS", vec![track_count.to_string()]);
-                vorbis.set("TRACKTOTAL", vec![track_count.to_string()]);
-            };
-        }
-
-        vorbis.set(
-            "MEDIA",
-            vec![
-                release
-                    .media
-                    .as_ref()
-                    .and_then(|all_media| all_media.first())
-                    .and_then(|media| media.format.clone())
-                    .unwrap_or_default(),
-            ],
-        );
-        vorbis.set("DISCNUMBER", vec![1.to_string()]);
-    }
-    dbg!(&tag);
-    tag.write_to_path(&flac_filename).unwrap();
     let written_tag = Tag::read_from_path(&flac_filename).unwrap();
     dbg!(written_tag);
 

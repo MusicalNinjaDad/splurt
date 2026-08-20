@@ -2,10 +2,11 @@ use std::io;
 
 use bytes::Bytes;
 use cdtoc::Toc;
+use metaflac::block::VorbisComment;
 
 use crate::{
     Frame, Msf, Track,
-    musicbrainz::{DiscId, Release},
+    musicbrainz::{ArtistCreditsExt, DiscId, Release},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -230,6 +231,105 @@ impl Disc {
     /// Get the cached cover art
     pub fn cover_art(&self) -> Option<&[u8]> {
         self.coverart.as_ref().map(|b| b.as_ref())
+    }
+
+    pub fn tag_for(&self, track_number: usize) -> Option<VorbisComment> {
+        let mut vorbis = VorbisComment::new();
+        let track = self.track(track_number)?;
+
+        vorbis.set_track(track.track_number() as u32);
+
+        if let Some(id) = track.windows_identifier {
+            vorbis.set("WINDOWS_IDENTIFIER", vec![id.to_string()])
+        }
+
+        if let Some(release) = self.release() {
+            vorbis.set_album(vec![release.title.clone()]);
+            vorbis.set("MUSICBRAINZ_ALBUMID", vec![release.id.clone()]);
+
+            vorbis.set_album_artist(release.artist_credit.names().collect());
+            vorbis.set(
+                "MUSICBRAINZ_ALBUMARTISTID",
+                release.artist_credit.artist_ids().collect(),
+            );
+
+            let release_date = release.date.clone().unwrap_or_default();
+            let release_year = release_date.get(0..4).unwrap_or_default().to_string();
+            vorbis.set("RELEASEDATE", vec![release_date]);
+            vorbis.set("RELEASEYEAR", vec![release_year]);
+
+            vorbis.set(
+                "RELEASECOUNTRY",
+                vec![release.country.clone().unwrap_or_default()],
+            );
+            vorbis.set(
+                "RELEASESTATUS",
+                vec![release.status.clone().unwrap_or_default()],
+            );
+
+            vorbis.set("BARCODE", vec![release.barcode.clone().unwrap_or_default()]);
+
+            if let Some(media_list) = release.media.as_ref() {
+                let total_discs = media_list.len();
+                vorbis.set("TOTALDISCS", vec![total_discs.to_string()]);
+                vorbis.set("DISCTOTAL", vec![total_discs.to_string()]);
+                if let Some(track_count) = media_list.first().and_then(|media| media.track_count) {
+                    vorbis.set("TOTALTRACKS", vec![track_count.to_string()]);
+                    vorbis.set("TRACKTOTAL", vec![track_count.to_string()]);
+                };
+            }
+            if let Some(disc_number) = self.disc_index {
+                vorbis.set("DISCNUMBER", vec![(disc_number + 1).to_string()]);
+            }
+            vorbis.set(
+                "MEDIA",
+                vec![
+                    release
+                        .media
+                        .as_ref()
+                        .and_then(|all_media| all_media.first())
+                        .and_then(|media| media.format.clone())
+                        .unwrap_or_default(),
+                ],
+            );
+
+            vorbis.set(
+                "SCRIPT",
+                vec![
+                    release
+                        .text_representation
+                        .as_ref()
+                        .and_then(|text_rep| text_rep.script.clone())
+                        .unwrap_or_default(),
+                ],
+            );
+
+            if let Some(meta) = track.meta() {
+                vorbis.set_title(vec![track.title().clone().unwrap_or_default()]);
+
+                vorbis.set(
+                    "MUSICBRAINZ_TRACKID",
+                    vec![meta.id.clone().unwrap_or_default()],
+                );
+
+                let track_artists = meta
+                    .artist_credit
+                    .as_ref()
+                    .or(release.artist_credit.as_ref());
+                vorbis.set_artist(track_artists.names().collect());
+
+                let original_date = meta
+                    .recording
+                    .as_ref()
+                    .and_then(|recording| recording.first_release_date.clone())
+                    .unwrap_or_default();
+                let original_year = original_date.get(0..4).unwrap_or_default().to_string();
+                vorbis.set("ORIGINALDATE", vec![original_date]);
+                vorbis.set("ORIGINALYEAR", vec![original_year]);
+            }
+        }
+
+        Some(vorbis)
     }
 }
 
