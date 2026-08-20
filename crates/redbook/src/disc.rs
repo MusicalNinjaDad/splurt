@@ -16,7 +16,7 @@ use crate::{
 /// [`AudioCdExt`][crate::AudioCdExt] and therefore knows how to get data from the CD.
 pub struct Disc {
     toc: Toc,
-    tracks: Vec<Track>,
+    tracks: Vec<Track<'static>>,
     leadout: Frame,
     musicbrainz: Option<DiscId>,
     /// Selected release index from musicbrainz.releases. Use [`select_release()`]
@@ -61,7 +61,7 @@ impl From<DiscError> for std::io::Error {
 }
 
 impl Disc {
-    pub fn new<T: IntoIterator<Item = Track>>(
+    pub fn new<T: IntoIterator<Item = Track<'static>>>(
         toc: Toc,
         tracks: T,
         leadout: Frame,
@@ -216,7 +216,7 @@ mod tests {
             Toc::from_cdtoc(toc_string).unwrap()
         }
 
-        fn create_tracks() -> Vec<Track> {
+        fn create_tracks() -> Vec<Track<'static>> {
             vec![
                 Track {
                     toc_entry: TocEntry {
@@ -224,7 +224,7 @@ mod tests {
                         start: Frame::from(Msf::new(0x00, 0x02, 0x21)),
                     },
                     duration_frames: Frame::new(24242),
-                    windows_identifier: None,
+                    ..Default::default()
                 },
                 Track {
                     toc_entry: TocEntry {
@@ -232,7 +232,7 @@ mod tests {
                         start: Frame::from(Msf::new(0x05, 0x19, 0x32)),
                     },
                     duration_frames: Frame::new(23138),
-                    windows_identifier: None,
+                    ..Default::default()
                 },
                 Track {
                     toc_entry: TocEntry {
@@ -240,7 +240,7 @@ mod tests {
                         start: Frame::from(Msf::new(0x0A, 0x22, 0x0D)),
                     },
                     duration_frames: Frame::new(20762),
-                    windows_identifier: None,
+                    ..Default::default()
                 },
                 Track {
                     toc_entry: TocEntry {
@@ -248,7 +248,7 @@ mod tests {
                         start: Frame::from(Msf::new(0x0F, 0x0B, 0x00)),
                     },
                     duration_frames: Frame::new(20168),
-                    windows_identifier: None,
+                    ..Default::default()
                 },
                 Track {
                     toc_entry: TocEntry {
@@ -256,7 +256,7 @@ mod tests {
                         start: Frame::from(Msf::new(0x13, 0x27, 0x44)),
                     },
                     duration_frames: Frame::new(28272),
-                    windows_identifier: None,
+                    ..Default::default()
                 },
                 Track {
                     toc_entry: TocEntry {
@@ -264,7 +264,7 @@ mod tests {
                         start: Frame::from(Msf::new(0x19, 0x38, 0x41)),
                     },
                     duration_frames: Frame::new(21280),
-                    windows_identifier: None,
+                    ..Default::default()
                 },
                 Track {
                     toc_entry: TocEntry {
@@ -272,7 +272,7 @@ mod tests {
                         start: Frame::from(Msf::new(0x1E, 0x28, 0x2D)),
                     },
                     duration_frames: Frame::new(19338),
-                    windows_identifier: None,
+                    ..Default::default()
                 },
                 Track {
                     toc_entry: TocEntry {
@@ -280,7 +280,7 @@ mod tests {
                         start: Frame::from(Msf::new(0x22, 0x3A, 0x21)),
                     },
                     duration_frames: Frame::new(21700),
-                    windows_identifier: None,
+                    ..Default::default()
                 },
                 Track {
                     toc_entry: TocEntry {
@@ -288,7 +288,7 @@ mod tests {
                         start: Frame::from(Msf::new(0x27, 0x2F, 0x3A)),
                     },
                     duration_frames: Frame::new(11425),
-                    windows_identifier: None,
+                    ..Default::default()
                 },
                 Track {
                     toc_entry: TocEntry {
@@ -296,7 +296,7 @@ mod tests {
                         start: Frame::from(Msf::new(0x2A, 0x14, 0x08)),
                     },
                     duration_frames: Frame::new(29455),
-                    windows_identifier: None,
+                    ..Default::default()
                 },
                 Track {
                     toc_entry: TocEntry {
@@ -304,7 +304,7 @@ mod tests {
                         start: Frame::from(Msf::new(0x30, 0x34, 0x3F)),
                     },
                     duration_frames: Frame::new(14440),
-                    windows_identifier: None,
+                    ..Default::default()
                 },
             ]
         }
@@ -363,6 +363,9 @@ mod tests {
 
             disc.set_release(Some(999));
             assert!(disc.release_index.is_none());
+
+        
+        
         }
     }
 }

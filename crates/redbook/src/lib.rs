@@ -231,15 +231,16 @@ pub fn into_wav(pcm: Vec<u8>) -> Vec<u8> {
     wav
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Track {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct Track<'meta> {
     pub toc_entry: TocEntry,
     pub duration_frames: Frame,
     pub windows_identifier: Option<u32>,
+    meta: Option<&'meta musicbrainz::Track>
 }
 
 /// Entry in a CD TOC (Table of Contents)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct TocEntry {
     pub track: u8,
     /// Absolute value, including lead-in (150 frames)
@@ -247,7 +248,7 @@ pub struct TocEntry {
 }
 
 /// CD audio frame (1/75 sec). Basic unit of time for CD audio
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Frame(usize);
 
 impl Frame {
