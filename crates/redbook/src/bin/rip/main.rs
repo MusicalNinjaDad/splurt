@@ -34,6 +34,7 @@ fn main() -> Exit<()> {
     let drive = PathBuf::from_str(&ripper.drive)?;
     let mut cd = AudioCd::new(drive)?;
 
+    let _ = cd.disc_mut().update_musicbrainz();
     if cd.disc().release().is_none() {
         cd.disc_mut().select_release(|releases| {
             if ripper.non_interactive {
@@ -136,47 +137,50 @@ fn main() -> Exit<()> {
         }
     };
 
+    let track_numbers = match selected_track {
+        SelectedTrack::All => 1..=cd.disc().tracks().len(),
+        SelectedTrack::One(n) => n..=n,
+    };
+
+    let _ = cd.disc_mut().update_cover_art();
     if let Some(data) = cd.disc().cover_art() {
         let mut cover = File::create_new("front.jpeg")?;
         cover.write_all(data)?
     }
 
-    let track_number = match selected_track {
-        SelectedTrack::All => todo!("implement rip all"),
-        SelectedTrack::One(n) => n,
-    };
+    for track_number in track_numbers {
+        let ripped = cd.rip(track_number)?;
 
-    let ripped = cd.rip(track_number)?;
+        // define just in time, to allow for mutable borrows earlier
+        let track = cd.disc().track(track_number).unwrap();
+        let output_filename = PathBuf::from(
+            [
+                format!("{:02}", track_number),
+                track.title().unwrap_or_default(),
+            ]
+            .join(" "),
+        );
 
-    // define just in time, to allow for mutable borrows earlier
-    let track = cd.disc().track(track_number).unwrap();
-    let output_filename = PathBuf::from(
-        [
-            format!("{:02}", track_number),
-            track.title().unwrap_or_default(),
-        ]
-        .join(" "),
-    );
+        let flac = ripped.to_flac();
+        let flac_filename = output_filename.with_extension("flac");
+        let mut dump = File::create_new(&flac_filename)?;
+        dump.write_all(flac.as_slice())?;
+        println!(
+            "Track {} ripped to {}",
+            track.track_number(),
+            output_filename.display()
+        );
 
-    let flac = ripped.to_flac();
-    let flac_filename = output_filename.with_extension("flac");
-    let mut dump = File::create_new(&flac_filename)?;
-    dump.write_all(flac.as_slice())?;
-    println!(
-        "Track {} ripped to {}",
-        track.track_number(),
-        output_filename.display()
-    );
-
-    if let Some(tags) = cd.disc().tag_for(track_number) {
-        let mut tag = Tag::read_from_path(&flac_filename).unwrap();
-        let vorbis = tag.vorbis_comments_mut();
-        vorbis.comments.extend(tags.comments);
-        dbg!(&tag);
-        tag.write_to_path(&flac_filename).unwrap();
+        if let Some(tags) = cd.disc().tag_for(track_number) {
+            let mut tag = Tag::read_from_path(&flac_filename).unwrap();
+            let vorbis = tag.vorbis_comments_mut();
+            vorbis.comments.extend(tags.comments);
+            dbg!(&tag);
+            tag.write_to_path(&flac_filename).unwrap();
+        }
+        let written_tag = Tag::read_from_path(&flac_filename).unwrap();
+        dbg!(written_tag);
     }
-    let written_tag = Tag::read_from_path(&flac_filename).unwrap();
-    dbg!(written_tag);
 
     Exit::Ok(())
 }
