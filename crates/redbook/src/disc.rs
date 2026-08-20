@@ -112,7 +112,7 @@ impl Disc {
     }
 
     /// Returns an *owned* Option<Track> with metadata valid for 'self
-    /// 
+    ///
     /// - Holding on to the returned track will block any mutation to Self, in order
     ///   to maintain validity of the metadata.
     /// - Modifying the returned track will NOT modify the copy stored in Self

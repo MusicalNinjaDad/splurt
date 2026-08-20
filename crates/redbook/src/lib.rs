@@ -122,22 +122,19 @@ pub trait AudioCdExt {
     }
 
     /// Rip a single track, returning track info and raw data.
-    fn rip(&mut self, track_number: usize) -> io::Result<()> {
-        let raw = self.read_track(track_number)?;
-        dbg!(raw.len());
-        let mut track = self.disc_mut().track(track_number).unwrap();
-        dbg!(&track);
-        track.raw = Some(raw);
-        dbg!(track.raw.is_some());
-        Ok(())
+    fn rip(&mut self, track_number: usize) -> io::Result<RippedTrack> {
+        let raw_data = self.read_track(track_number)?;
+        Ok(RippedTrack {
+            track_number,
+            raw_data,
+        })
     }
 }
 
-/// A ripped CD audio track
+/// A small wrapper with the raw data for a track and the track_number
 #[derive(Debug, Clone)]
 pub struct RippedTrack {
     pub track_number: usize,
-    pub track_name: String,
     pub raw_data: Vec<u8>,
 }
 
@@ -180,7 +177,6 @@ pub struct Track<'meta> {
     pub duration_frames: Frame,
     pub windows_identifier: Option<u32>,
     meta: Option<&'meta musicbrainz::Track>,
-    raw: Option<Vec<u8>>,
 }
 
 impl<'meta> Track<'meta> {
@@ -194,10 +190,6 @@ impl<'meta> Track<'meta> {
 
     pub fn meta(&self) -> Option<&'meta musicbrainz::Track> {
         self.meta
-    }
-
-    pub fn raw(&self) -> Option<&Vec<u8>> {
-        self.raw.as_ref()
     }
 }
 

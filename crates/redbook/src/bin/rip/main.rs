@@ -148,11 +148,10 @@ fn main() -> Exit<()> {
         SelectedTrack::One(n) => n,
     };
 
-    cd.rip(track_number)?;
+    let ripped = cd.rip(track_number)?;
 
     // define just in time, to allow for mutable borrows earlier
     let track = cd.disc().track(track_number).unwrap();
-    dbg!(track.raw().is_some());
     let output_filename = PathBuf::from(
         [
             format!("{:02}", track_number),
@@ -165,9 +164,8 @@ fn main() -> Exit<()> {
     let config = flacenc::config::Encoder::default()
         .into_verified()
         .expect("Config data error.");
-    let samples: Vec<_> = track
-        .raw()
-        .unwrap()
+    let samples: Vec<_> = ripped
+        .raw_data
         .chunks_exact(2)
         .map(|chunk| i16::from_le_bytes([chunk[0], chunk[1]]) as i32)
         .collect();
