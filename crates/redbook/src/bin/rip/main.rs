@@ -33,7 +33,7 @@ use cli::Rip;
 use clap::Error as ClapError;
 
 fn main() -> Exit<()> {
-    let ripper = Rip::parse();
+    let ripper = Rip::try_parse()?;
 
     let drive = PathBuf::from_str(&ripper.drive)?;
     let mut cd = AudioCd::new(drive)?;
