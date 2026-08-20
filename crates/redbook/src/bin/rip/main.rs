@@ -224,7 +224,10 @@ fn main() -> Exit<()> {
             ],
         );
 
-        vorbis.set("MUSICBRAINZ_TRACKID", vec![meta.id.clone().unwrap_or_default()]);
+        vorbis.set(
+            "MUSICBRAINZ_TRACKID",
+            vec![meta.id.clone().unwrap_or_default()],
+        );
 
         vorbis.set_album(vec![release.title.clone()]);
         vorbis.set("MUSICBRAINZ_ALBUMID", vec![release.id.clone()]);
@@ -247,7 +250,9 @@ fn main() -> Exit<()> {
         vorbis.set("RELEASEDATE", vec![release_date]);
         vorbis.set("RELEASEYEAR", vec![release_year]);
 
-        let original_date = meta.recording.as_ref()
+        let original_date = meta
+            .recording
+            .as_ref()
             .and_then(|recording| recording.first_release_date.clone())
             .unwrap_or_default();
         let original_year = original_date.get(0..4).unwrap_or_default().to_string();
