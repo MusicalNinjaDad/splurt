@@ -112,7 +112,7 @@ impl Disc {
     }
 
     pub fn track(&self, track_number: usize) -> Option<Track<'_>> {
-        let mut track = self.tracks.get(track_number - 1).copied()?;
+        let mut track = self.tracks.get(track_number - 1).cloned()?;
         track.meta = self
             .release()
             .and_then(|r| r.media.as_ref())

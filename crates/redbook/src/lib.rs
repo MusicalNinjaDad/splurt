@@ -16,6 +16,7 @@ pub mod hex;
 pub mod musicbrainz;
 pub mod win;
 
+use bytes::Bytes;
 pub use disc::Disc;
 pub use win::AudioCd;
 use windows_sys::Win32::Devices::Cdrom::TRACK_DATA;
@@ -231,12 +232,16 @@ pub fn into_wav(pcm: Vec<u8>) -> Vec<u8> {
     wav
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+/// Cheap to clone - all fields are `Copy` except ripped data which uses cheap-to-clone [`Bytes`]
+/// Borrow checker ensures validity of metadata for lifetime `<'meta>`
+/// Usually constructed as `<'static>` then `clone`d when referencing metadata
 pub struct Track<'meta> {
     pub toc_entry: TocEntry,
     pub duration_frames: Frame,
     pub windows_identifier: Option<u32>,
     meta: Option<&'meta musicbrainz::Track>,
+    raw: Option<Bytes>,
 }
 
 /// Entry in a CD TOC (Table of Contents)
