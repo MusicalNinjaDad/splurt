@@ -205,7 +205,7 @@ impl Drop for CdDrive {
 pub struct AudioCd {
     drive: CdDrive,
     /// sorted by position on disc (starting frame)
-    tracks: Vec<Track>,
+    tracks: Vec<Track<'static>>,
     leadout_starting_frame: u32,
     disc: Disc,
 }
@@ -284,7 +284,7 @@ impl AudioCd {
 }
 
 impl AudioCdExt for AudioCd {
-    fn track(&self, track_number: usize) -> Option<&Track> {
+    fn track(&self, track_number: usize) -> Option<&Track<'_>> {
         self.tracks
             .iter()
             .find(|track| track.toc_entry.track == track_number as u8)
@@ -313,7 +313,7 @@ impl AudioCdExt for AudioCd {
         &mut self.disc
     }
 
-    fn tracks(&self) -> impl Iterator<Item = &Track> {
+    fn tracks(&self) -> impl Iterator<Item = &Track<'_>> {
         self.tracks.iter()
     }
 
@@ -395,7 +395,7 @@ pub struct CdaFile {
 }
 
 /// Parsing based on https://en.wikipedia.org/wiki/.cda_file
-impl TryFrom<CdaFile> for Track {
+impl TryFrom<CdaFile> for Track<'static> {
     type Error = io::Error;
 
     fn try_from(cda: CdaFile) -> Result<Self, Self::Error> {
@@ -521,6 +521,7 @@ impl TryFrom<CdaFile> for Track {
             toc_entry,
             windows_identifier,
             duration_frames,
+            ..Default::default()
         })
     }
 }

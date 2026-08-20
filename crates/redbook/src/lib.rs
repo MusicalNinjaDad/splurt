@@ -236,7 +236,7 @@ pub struct Track<'meta> {
     pub toc_entry: TocEntry,
     pub duration_frames: Frame,
     pub windows_identifier: Option<u32>,
-    meta: Option<&'meta musicbrainz::Track>
+    meta: Option<&'meta musicbrainz::Track>,
 }
 
 /// Entry in a CD TOC (Table of Contents)

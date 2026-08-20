@@ -28,7 +28,7 @@ pub struct Disc {
     /// - Some(n) if specific release selected
     release_index: Option<usize>,
     /// The 0-indexed disc number. Needed for multi-disc releases.
-    /// Will be None or Some(0) for single-disc releases.
+    /// Automatically set to Some(0) for single-disc releases.
     ///
     /// - None if no release is selected
     /// - Some(n) if release is selected
@@ -106,9 +106,24 @@ impl Disc {
         self.musicbrainz.as_ref()?.releases.get(self.release_index?)
     }
 
-    /// Get the MusicBrainz data
+    /// Get the full MusicBrainz data
     pub fn musicbrainz(&self) -> Option<&DiscId> {
         self.musicbrainz.as_ref()
+    }
+
+    pub fn track(&self, track_number: usize) -> Option<Track<'_>> {
+        let mut track = self.tracks.get(track_number - 1).copied()?;
+        track.meta = self
+            .release()
+            .and_then(|r| r.media.as_ref())
+            .and_then(|all_media| all_media.get(self.disc_index?))
+            .and_then(|media| media.tracks.as_ref())
+            .and_then(|tracks| {
+                tracks.iter().find(|trk| {
+                    trk.number.as_ref().and_then(|n| n.parse().ok()) == Some(track_number)
+                })
+            });
+        Some(track)
     }
 
     /// Use the release at the given index, or reset selection to None.
@@ -128,7 +143,17 @@ impl Disc {
             }
             _ => None,
         };
+        let _ = self.reset_disc_index();
         self
+    }
+
+    /// Reset the disc index to None (multi-disc / unknown release) / Some(0) (single-disc)
+    pub fn reset_disc_index(&mut self) -> Option<usize> {
+        self.disc_index = match self.release()?.media.as_ref()?.len() {
+            ..=1 => Some(0),
+            _ => None,
+        };
+        self.disc_index
     }
 
     /// Provides an iterator over the releases to allow for programatic selection.
@@ -375,7 +400,7 @@ mod tests {
 
             disc.set_release(Some(2));
             let columbia = disc.track(5).unwrap();
-            assert_eq!(columbia.title(), Some("Columbia"));
+            assert_eq!(columbia.meta.unwrap().title, Some("Columbia".to_string()));
         }
     }
 }
