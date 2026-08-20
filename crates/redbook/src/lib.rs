@@ -44,10 +44,10 @@ pub const LEADIN: Frame = Frame(150);
 /// Functions common to redbook audio CDs.
 pub trait AudioCdExt {
     /// Obtain Track details
-    fn track(&self, track_number: usize) -> Option<&Track>;
+    fn track(&self, track_number: usize) -> Option<&Track<'_>>;
 
     /// Get all tracks from the CD
-    fn tracks(&self) -> impl Iterator<Item = &Track>;
+    fn tracks(&self) -> impl Iterator<Item = &Track<'_>>;
 
     /// Frame address for leadout
     fn leadout(&self) -> u32;
