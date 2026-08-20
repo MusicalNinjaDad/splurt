@@ -40,6 +40,7 @@ clap.workspace = true
 exit_safely.workspace = true
 flacenc.workspace = true
 metaflac.workspace = true
+musicbrainz_rs = {version = "0.13.0", git = "https://github.com/RustyNova016/musicbrainz_rs", features = ["sync", "native_tls"]}
 reqwest = { workspace = true, features = ["blocking", "native-tls", "json"] }
 serde.workspace = true
 serde_json.workspace = true

@@ -3,6 +3,7 @@ use std::io;
 use bytes::Bytes;
 use cdtoc::Toc;
 use metaflac::block::VorbisComment;
+use musicbrainz_rs::{Fetch, MusicBrainzClient};
 
 use crate::{
     Frame, Msf, Track,
@@ -183,6 +184,24 @@ impl Disc {
     /// Attempt to update the data from musicbrainz
     pub fn update_musicbrainz(&mut self) -> io::Result<()> {
         let discid = self.toc.musicbrainz_id().to_string();
+
+        let mb_client = MusicBrainzClient::new("splurt_musicbrainz_rs/0.1.0");
+        let mut mb_stuff = musicbrainz_rs::entity::discid::Discid::fetch();
+        mb_stuff
+            .id(&discid)
+            .with_artists()
+            .with_artist_credits()
+            .with_release_groups()
+            .with_recordings()
+            .with_tags();
+        let api_call = mb_stuff.as_api_request(&mb_client).unwrap();
+        dbg!(api_call.uri());
+        dbg!(api_call.headers());
+        dbg!(api_call.body());
+
+        let mb_rs_json = mb_stuff.execute().unwrap();
+        dbg!(mb_rs_json);
+
         let url = format!("https://musicbrainz.org/ws/2/discid/{discid}?inc=recordings&fmt=json");
 
         let client = reqwest::blocking::Client::new();
