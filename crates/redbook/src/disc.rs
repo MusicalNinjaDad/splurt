@@ -111,6 +111,11 @@ impl Disc {
         self.musicbrainz.as_ref()
     }
 
+    /// Returns an *owned* Option<Track> with metadata valid for 'self
+    /// 
+    /// - Holding on to the returned track will block any mutation to Self, in order
+    ///   to maintain validity of the metadata.
+    /// - Modifying the returned track will NOT modify the copy stored in Self
     pub fn track(&self, track_number: usize) -> Option<Track<'_>> {
         let mut track = self.tracks.get(track_number - 1).cloned()?;
         track.meta = self
