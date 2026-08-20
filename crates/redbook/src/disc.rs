@@ -449,5 +449,18 @@ mod tests {
             disc.set_release(Some(2));
             assert_eq!(disc.tracks().len(), 11);
         }
+
+        #[test]
+        fn tracks_data() {
+            let mut disc = create_disc();
+            let json = include_str!(
+                "../tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/musicbrainz_disc.json"
+            );
+            disc.musicbrainz = Some(serde_json::from_str(json).unwrap());
+
+            disc.set_release(Some(2));
+            let columbia = disc.tracks().nth(4).unwrap();
+            assert_eq!(columbia.title(), Some("Columbia".to_string()));
+        }
     }
 }
