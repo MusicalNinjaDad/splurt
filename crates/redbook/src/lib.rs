@@ -137,8 +137,11 @@ pub trait AudioCdExt {
     /// Rip a single track, returning track info and raw data.
     fn rip(&mut self, track_number: usize) -> io::Result<()> {
         let raw = self.read_track(track_number)?;
+        dbg!(raw.len());
         let mut track = self.disc_mut().track(track_number).unwrap();
+        dbg!(&track);
         track.raw = Some(raw);
+        dbg!(track.raw.is_some());
         Ok(())
     }
 }

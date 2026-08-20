@@ -166,6 +166,7 @@ fn main() -> Exit<()> {
 
     // define just in time, to allow for mutable borrows earlier
     let track = cd.disc().track(track_number).unwrap();
+    dbg!(track.raw().is_some());
     let output_filename = PathBuf::from(
         [
             format!("{:02}", track_number),
