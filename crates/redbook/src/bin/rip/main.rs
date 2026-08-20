@@ -5,7 +5,10 @@
 
 use clap::Parser;
 use exit_safely::Termination;
-use metaflac::{Tag, block::PictureType};
+use metaflac::{
+    Block, Tag,
+    block::{Picture, PictureType},
+};
 use redbook::{AudioCd, AudioCdExt};
 use std::{
     convert::Infallible,
@@ -16,6 +19,7 @@ use std::{
     str::FromStr,
 };
 use try_v2::Try;
+use zune_jpeg::{JpegDecoder, zune_core::bytestream::ZCursor};
 
 #[derive(Debug, Clone, Copy)]
 enum SelectedTrack {
@@ -181,7 +185,21 @@ fn main() -> Exit<()> {
                 .map(|b| b.to_vec())
                 .or(fs::read("front.jpeg").ok())
             {
-                tag.add_picture("image/jpeg", PictureType::CoverFront, image);
+                let mut jpg_info = JpegDecoder::new(ZCursor::from(&image));
+                let _ = jpg_info.decode_headers();
+                let width = jpg_info.info().unwrap().width as u32;
+                let height = jpg_info.info().unwrap().height as u32;
+                let cover = Picture {
+                    picture_type: PictureType::CoverFront,
+                    mime_type: "image/jpeg".to_string(),
+                    description: "Front Cover".to_string(),
+                    width,
+                    height,
+                    depth: 24,
+                    num_colors: 0,
+                    data: image,
+                };
+                tag.push_block(Block::Picture(cover));
             }
             dbg!(&tag);
             tag.write_to_path(&flac_filename).unwrap();
