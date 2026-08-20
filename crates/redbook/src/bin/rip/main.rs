@@ -126,7 +126,6 @@ fn main() -> Exit<()> {
                     let valid = cd
                         .disc()
                         .tracks()
-                        .iter()
                         .any(|t| t.toc_entry.track as usize == choice);
                     valid.ok_or_else(|| {
                         println!("oops ... I can't find track number {choice}");
