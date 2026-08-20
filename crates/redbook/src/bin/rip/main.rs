@@ -123,7 +123,8 @@ fn main() -> Exit<()> {
                         println!("oops ... try again {input_trimmed} is not a number");
                     })?;
 
-                    let valid = cd.disc()
+                    let valid = cd
+                        .disc()
                         .tracks()
                         .iter()
                         .any(|t| t.toc_entry.track as usize == choice);
