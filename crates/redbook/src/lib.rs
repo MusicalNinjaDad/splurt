@@ -27,7 +27,6 @@ use std::{
     time::Duration,
 };
 
-use cdtoc::{Toc, TocError};
 use musicbrainz::DiscId;
 
 /// One cdda audio frame in bytes
@@ -43,15 +42,6 @@ pub const LEADIN: Frame = Frame(150);
 
 /// Functions common to redbook audio CDs.
 pub trait AudioCdExt {
-    /// Obtain Track details
-    fn track(&self, track_number: usize) -> Option<&Track<'_>>;
-
-    /// Get all tracks from the CD
-    fn tracks(&self) -> impl Iterator<Item = &Track<'_>>;
-
-    /// Frame address for leadout
-    fn leadout(&self) -> u32;
-
     /// Reads `frames_to_read` worth of data starting at `track` + `frame_offset` into `buf`
     ///
     /// Returns the number of bytes read
@@ -63,9 +53,6 @@ pub trait AudioCdExt {
         buf: &mut [u8],
     ) -> io::Result<u32>;
 
-    /// Return a [Toc] for the Cd
-    fn toc(&self) -> Result<Toc, TocError>;
-
     /// Return a reference to the cached Disc data
     fn disc(&self) -> &crate::disc::Disc;
 
@@ -74,8 +61,8 @@ pub trait AudioCdExt {
 
     /// Read a full track, returning the raw data as a `Vec` of bytes.
     fn read_track(&self, track_number: usize) -> io::Result<Vec<u8>> {
-        let track = self.track(track_number).unwrap();
-        dbg!(track);
+        let track = self.disc().track(track_number).unwrap();
+        dbg!(&track);
         let track_size = track.duration_frames.as_usize().strict_mul(FRAME_SIZE);
         debug_assert!(track_size > 0);
 
@@ -105,7 +92,7 @@ pub trait AudioCdExt {
                 "about to read chunk {i}. We have read {frame_offset} frames, but only {bytes_read_so_far} bytes so far"
             );
 
-            let bytes_read = self.read_chunk(track, frame_offset, frames_to_read, buf)?;
+            let bytes_read = self.read_chunk(&track, frame_offset, frames_to_read, buf)?;
             bytes_read_so_far += i64::from(bytes_read);
         }
 
@@ -122,7 +109,7 @@ pub trait AudioCdExt {
             .as_usize()
             .strict_rem(MAX_CHUNK_FRAMES);
 
-        let bytes_read = self.read_chunk(track, frame_offset, frames_to_read as u32, last_buf)?;
+        let bytes_read = self.read_chunk(&track, frame_offset, frames_to_read as u32, last_buf)?;
         bytes_read_so_far += i64::from(bytes_read);
 
         dbg!(bytes_read_so_far);

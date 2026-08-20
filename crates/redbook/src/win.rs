@@ -204,9 +204,6 @@ impl Drop for CdDrive {
 #[derive(Debug, PartialEq, Eq)]
 pub struct AudioCd {
     drive: CdDrive,
-    /// sorted by position on disc (starting frame)
-    tracks: Vec<Track<'static>>,
-    leadout_starting_frame: u32,
     disc: Disc,
 }
 
@@ -270,51 +267,21 @@ impl AudioCd {
 
         let leadout = toc.leadout();
 
-        let mut disc = Disc::new(toc, tracks.clone(), Frame::new(leadout as usize))?;
+        let mut disc = Disc::new(toc, tracks, Frame::new(leadout as usize))?;
         let _ = disc.update_musicbrainz();
         let _ = disc.update_cover_art();
 
-        Ok(Self {
-            drive,
-            tracks,
-            leadout_starting_frame: leadout,
-            disc,
-        })
+        Ok(Self { drive, disc })
     }
 }
 
 impl AudioCdExt for AudioCd {
-    fn track(&self, track_number: usize) -> Option<&Track<'_>> {
-        self.tracks
-            .iter()
-            .find(|track| track.toc_entry.track == track_number as u8)
-    }
-
-    fn leadout(&self) -> u32 {
-        self.leadout_starting_frame
-    }
-
-    fn toc(&self) -> Result<cdtoc::Toc, cdtoc::TocError> {
-        let audio: Vec<_> = self
-            .tracks
-            .iter()
-            .map(|track| track.toc_entry.start.as_usize() as u32)
-            .collect();
-        let data = None;
-        let leadout = self.leadout();
-        cdtoc::Toc::from_parts(audio, data, leadout)
-    }
-
     fn disc(&self) -> &Disc {
         &self.disc
     }
 
     fn disc_mut(&mut self) -> &mut Disc {
         &mut self.disc
-    }
-
-    fn tracks(&self) -> impl Iterator<Item = &Track<'_>> {
-        self.tracks.iter()
     }
 
     fn read_chunk(

@@ -126,6 +126,10 @@ impl Disc {
         Some(track)
     }
 
+    pub fn tracks(&self) -> &Vec<Track<'_>> {
+        &self.tracks
+    }
+
     /// Use the release at the given index, or reset selection to None.
     /// Providing an invalid index will make no change.
     ///

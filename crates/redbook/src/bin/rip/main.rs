@@ -96,23 +96,8 @@ fn main() -> Exit<()> {
         (false, None) => {
             println!("\nAvailable tracks:");
 
-            let release = cd.disc().release();
-            for track in cd.tracks() {
-                let track_name = release
-                    .and_then(|r| r.media.as_ref())
-                    .and_then(|media| media.first())
-                    .and_then(|media| media.tracks.as_ref())
-                    .and_then(|tracks| {
-                        tracks
-                            .iter()
-                            .find(|trk| {
-                                trk.number.as_ref().and_then(|n| n.parse().ok())
-                                    == Some(track.toc_entry.track)
-                            })
-                            .and_then(|trk| trk.title.as_ref())
-                    })
-                    .map(|title| title.as_str())
-                    .unwrap_or("Unknown");
+            for track in cd.disc().tracks() {
+                let track_name = track.title().unwrap_or_else(|| "Unknown".to_string());
                 println!("{n}. {track_name}", n = track.toc_entry.track);
             }
             println!("a. All tracks");
@@ -138,9 +123,9 @@ fn main() -> Exit<()> {
                         println!("oops ... try again {input_trimmed} is not a number");
                     })?;
 
-                    let valid = cd
+                    let valid = cd.disc()
                         .tracks()
-                        .into_iter()
+                        .iter()
                         .any(|t| t.toc_entry.track as usize == choice);
                     valid.ok_or_else(|| {
                         println!("oops ... I can't find track number {choice}");
