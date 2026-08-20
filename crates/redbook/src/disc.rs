@@ -131,8 +131,8 @@ impl Disc {
         Some(track)
     }
 
-    pub fn tracks(&self) -> &Vec<Track<'_>> {
-        &self.tracks
+    pub fn tracks(&self) -> Tracks<'_> {
+        Tracks { disc: self, i: 0 }
     }
 
     /// Use the release at the given index, or reset selection to None.
@@ -230,6 +230,32 @@ impl Disc {
     /// Get the cached cover art
     pub fn cover_art(&self) -> Option<&[u8]> {
         self.coverart.as_ref().map(|b| b.as_ref())
+    }
+}
+
+#[derive(Debug)]
+pub struct Tracks<'meta> {
+    disc: &'meta Disc,
+    i: usize,
+}
+
+impl<'meta> Iterator for Tracks<'meta> {
+    type Item = Track<'meta>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // disc.track() uses 1-indexing so we can be very lazy
+        self.i += 1;
+        self.disc.track(self.i)
+    }
+}
+
+impl<'m> ExactSizeIterator for Tracks<'m> {
+    fn len(&self) -> usize {
+        self.disc.tracks.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
@@ -410,6 +436,18 @@ mod tests {
             disc.set_release(Some(2));
             let columbia = disc.track(5).unwrap();
             assert_eq!(columbia.title(), Some("Columbia".to_string()));
+        }
+
+        #[test]
+        fn tracks_len() {
+            let mut disc = create_disc();
+            let json = include_str!(
+                "../tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/musicbrainz_disc.json"
+            );
+            disc.musicbrainz = Some(serde_json::from_str(json).unwrap());
+
+            disc.set_release(Some(2));
+            assert_eq!(disc.tracks().len(), 11);
         }
     }
 }
