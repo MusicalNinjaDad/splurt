@@ -16,7 +16,6 @@ pub mod hex;
 pub mod musicbrainz;
 pub mod win;
 
-use bytes::Bytes;
 pub use disc::Disc;
 pub use win::AudioCd;
 use windows_sys::Win32::Devices::Cdrom::TRACK_DATA;
@@ -136,61 +135,11 @@ pub trait AudioCdExt {
     }
 
     /// Rip a single track, returning track info and raw data.
-    fn rip(&mut self, track_number: usize) -> io::Result<RippedTrack> {
-        let release = self
-            .disc()
-            .release()
-            // TODO handle no releases vs none selected
-            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No releases found"))?;
-
-        let track_name = release
-            .media
-            .as_ref()
-            .unwrap()
-            .first()
-            .unwrap()
-            .tracks
-            .as_ref()
-            .unwrap()
-            .iter()
-            .find(|track| {
-                track.number.as_ref().and_then(|number| number.parse().ok()) == Some(track_number)
-            })
-            .unwrap()
-            .title
-            .as_ref()
-            .unwrap()
-            .clone();
-
-        Ok(RippedTrack {
-            track_number,
-            track_name,
-            raw_data: self.read_track(track_number)?,
-        })
-    }
-
-    /// Rip all tracks, returning a vector of RippedTrack.
-    fn rip_all(&mut self) -> io::Result<Vec<RippedTrack>> {
-        let release = self
-            .disc()
-            .release()
-            // TODO handle no releases vs none selected
-            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No releases found"))?;
-
-        let track_numbers: Vec<usize> = release
-            .media
-            .as_ref()
-            .unwrap()
-            .first()
-            .unwrap()
-            .tracks
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|track| track.number.as_ref().and_then(|n| n.parse().ok()).unwrap())
-            .collect();
-
-        track_numbers.iter().map(|&n| self.rip(n)).collect()
+    fn rip(&mut self, track_number: usize) -> io::Result<()> {
+        let raw = self.read_track(track_number)?;
+        let mut track = self.disc_mut().track(track_number).unwrap();
+        track.raw = Some(raw);
+        Ok(())
     }
 }
 
@@ -241,7 +190,25 @@ pub struct Track<'meta> {
     pub duration_frames: Frame,
     pub windows_identifier: Option<u32>,
     meta: Option<&'meta musicbrainz::Track>,
-    raw: Option<Bytes>,
+    raw: Option<Vec<u8>>,
+}
+
+impl<'meta> Track<'meta> {
+    pub fn track_number(&self) -> u8 {
+        self.toc_entry.track
+    }
+
+    pub fn title(&self) -> Option<String> {
+        self.meta.and_then(|track| track.title.clone())
+    }
+
+    pub fn meta(&self) -> Option<&'meta musicbrainz::Track> {
+        self.meta
+    }
+
+    pub fn raw(&self) -> Option<&Vec<u8>> {
+        self.raw.as_ref()
+    }
 }
 
 /// Entry in a CD TOC (Table of Contents)

@@ -7,7 +7,7 @@ use clap::Parser;
 use exit_safely::Termination;
 use flacenc::{component::BitRepr, error::Verify};
 use metaflac::Tag;
-use redbook::{AudioCd, AudioCdExt, RippedTrack, into_wav, musicbrainz::ArtistCreditsExt};
+use redbook::{AudioCd, AudioCdExt, musicbrainz::ArtistCreditsExt};
 use std::{
     convert::Infallible,
     fs::File,
@@ -157,157 +157,140 @@ fn main() -> Exit<()> {
         cover.write_all(data)?
     }
 
-    let ripped_tracks: Vec<RippedTrack> = match selected_track {
-        SelectedTrack::All => cd.rip_all()?,
-        SelectedTrack::One(n) => vec![cd.rip(n)?],
+    let track_number = match selected_track {
+        SelectedTrack::All => todo!("implement rip all"),
+        SelectedTrack::One(n) => n,
     };
 
+    cd.rip(track_number)?;
+
     // define just in time, to allow for mutable borrows earlier
-    let release = cd.disc().release();
-    for track in &ripped_tracks {
-        let mbtrk = release.and_then(|release| release.track(track.track_number));
+    let track = cd.disc().track(track_number).unwrap();
+    let output_filename = PathBuf::from(
+        [
+            format!("{:02}", track_number),
+            track.title().unwrap_or_default(),
+        ]
+        .join(" "),
+    );
 
-        let output_filename = PathBuf::from(
-            [
-                format!("{:02}", track.track_number),
-                track.track_name.clone(),
-            ]
-            .join(" "),
-        );
-
-        let mut dump = File::create_new(output_filename.with_extension("wav"))?;
-        let wav = into_wav(track.raw_data.clone());
-        dump.write_all(&wav)?;
+    let (channels, bits_per_sample, sample_rate) = (2, 16, 44100);
+    let config = flacenc::config::Encoder::default()
+        .into_verified()
+        .expect("Config data error.");
+    let samples: Vec<_> = track
+        .raw()
+        .unwrap()
+        .chunks_exact(2)
+        .map(|chunk| i16::from_le_bytes([chunk[0], chunk[1]]) as i32)
+        .collect();
+    let source =
+        flacenc::source::MemSource::from_samples(&samples, channels, bits_per_sample, sample_rate);
+    let flac_stream = flacenc::encode_with_fixed_block_size(&config, source, config.block_size)
+        .expect("Encode failed.");
+    let mut sink = flacenc::bitsink::ByteSink::new();
+    flac_stream.write(&mut sink).unwrap();
+    let flac_filename = output_filename.with_extension("flac");
+    {
+        let mut dump = File::create_new(&flac_filename)?;
+        dump.write_all(sink.as_slice())?;
         println!(
             "Track {} ripped to {}",
-            track.track_number,
+            track.track_number(),
             output_filename.display()
         );
-
-        let (channels, bits_per_sample, sample_rate) = (2, 16, 44100);
-        let config = flacenc::config::Encoder::default()
-            .into_verified()
-            .expect("Config data error.");
-        let samples: Vec<i32> = track
-            .raw_data
-            .chunks_exact(2)
-            .map(|chunk| i16::from_le_bytes([chunk[0], chunk[1]]) as i32)
-            .collect();
-        let source = flacenc::source::MemSource::from_samples(
-            &samples,
-            channels,
-            bits_per_sample,
-            sample_rate,
-        );
-        let flac_stream = flacenc::encode_with_fixed_block_size(&config, source, config.block_size)
-            .expect("Encode failed.");
-        let mut sink = flacenc::bitsink::ByteSink::new();
-        flac_stream.write(&mut sink).unwrap();
-        let flac_filename = output_filename.with_extension("flac");
-        {
-            let mut dump = File::create_new(&flac_filename)?;
-            dump.write_all(sink.as_slice())?;
-            println!(
-                "Track {} ripped to {}",
-                track.track_number,
-                output_filename.display()
-            );
-        }
-
-        let mut tag = Tag::read_from_path(&flac_filename).unwrap();
-        let vorbis = tag.vorbis_comments_mut();
-
-        vorbis.set_title(vec![track.track_name.clone()]);
-        vorbis.set_track(track.track_number as u32);
-        if let Some(id) = cd
-            .track(track.track_number)
-            .and_then(|trk| trk.windows_identifier)
-        {
-            vorbis.set("WINDOWS_IDENTIFIER", vec![id.to_string()])
-        }
-        if let Some(release) = cd.disc().release() {
-            vorbis.set(
-                "SCRIPT",
-                vec![
-                    release
-                        .text_representation
-                        .as_ref()
-                        .and_then(|text_rep| text_rep.script.clone())
-                        .unwrap_or_default(),
-                ],
-            );
-
-            vorbis.set(
-                "MUSICBRAINZ_TRACKID",
-                vec![mbtrk.and_then(|trk| trk.id.clone()).unwrap_or_default()],
-            );
-
-            vorbis.set_album(vec![release.title.clone()]);
-            vorbis.set("MUSICBRAINZ_ALBUMID", vec![release.id.clone()]);
-
-            vorbis.set_album_artist(release.artist_credit.names().collect());
-
-            let track_artists = mbtrk
-                .and_then(|trk| trk.artist_credit.as_ref())
-                .or(release.artist_credit.as_ref());
-            vorbis.set_artist(track_artists.names().collect());
-
-            vorbis.set(
-                "MUSICBRAINZ_ALBUMARTISTID",
-                track_artists.artist_ids().collect(),
-            );
-
-            let release_date = release.date.clone().unwrap_or_default();
-            let release_year = release_date.get(0..4).unwrap_or_default().to_string();
-            vorbis.set("RELEASEDATE", vec![release_date]);
-            vorbis.set("RELEASEYEAR", vec![release_year]);
-
-            let original_date = mbtrk
-                .and_then(|trk| trk.recording.as_ref())
-                .and_then(|recording| recording.first_release_date.clone())
-                .unwrap_or_default();
-            let original_year = original_date.get(0..4).unwrap_or_default().to_string();
-            vorbis.set("ORIGINALDATE", vec![original_date]);
-            vorbis.set("ORIGINALYEAR", vec![original_year]);
-
-            vorbis.set("BARCODE", vec![release.barcode.clone().unwrap_or_default()]);
-            vorbis.set(
-                "RELEASECOUNTRY",
-                vec![release.country.clone().unwrap_or_default()],
-            );
-            vorbis.set(
-                "RELEASESTATUS",
-                vec![release.status.clone().unwrap_or_default()],
-            );
-
-            if let Some(media_list) = release.media.as_ref() {
-                let total_discs = media_list.len();
-                vorbis.set("TOTALDISCS", vec![total_discs.to_string()]);
-                vorbis.set("DISCTOTAL", vec![total_discs.to_string()]);
-                if let Some(track_count) = media_list.first().and_then(|media| media.track_count) {
-                    vorbis.set("TOTALTRACKS", vec![track_count.to_string()]);
-                    vorbis.set("TRACKTOTAL", vec![track_count.to_string()]);
-                };
-            }
-
-            vorbis.set(
-                "MEDIA",
-                vec![
-                    release
-                        .media
-                        .as_ref()
-                        .and_then(|all_media| all_media.first())
-                        .and_then(|media| media.format.clone())
-                        .unwrap_or_default(),
-                ],
-            );
-            vorbis.set("DISCNUMBER", vec![1.to_string()]);
-        }
-        dbg!(&tag);
-        tag.write_to_path(&flac_filename).unwrap();
-        let written_tag = Tag::read_from_path(&flac_filename).unwrap();
-        dbg!(written_tag);
     }
+
+    let mut tag = Tag::read_from_path(&flac_filename).unwrap();
+    let vorbis = tag.vorbis_comments_mut();
+
+    vorbis.set_track(track.track_number() as u32);
+    if let Some(id) = track.windows_identifier {
+        vorbis.set("WINDOWS_IDENTIFIER", vec![id.to_string()])
+    }
+    if let Some(release) = cd.disc().release()
+        && let Some(meta) = track.meta()
+    {
+        vorbis.set_title(vec![track.title().clone().unwrap_or_default()]);
+
+        vorbis.set(
+            "SCRIPT",
+            vec![
+                release
+                    .text_representation
+                    .as_ref()
+                    .and_then(|text_rep| text_rep.script.clone())
+                    .unwrap_or_default(),
+            ],
+        );
+
+        vorbis.set("MUSICBRAINZ_TRACKID", vec![meta.id.clone().unwrap_or_default()]);
+
+        vorbis.set_album(vec![release.title.clone()]);
+        vorbis.set("MUSICBRAINZ_ALBUMID", vec![release.id.clone()]);
+
+        vorbis.set_album_artist(release.artist_credit.names().collect());
+
+        let track_artists = meta
+            .artist_credit
+            .as_ref()
+            .or(release.artist_credit.as_ref());
+        vorbis.set_artist(track_artists.names().collect());
+
+        vorbis.set(
+            "MUSICBRAINZ_ALBUMARTISTID",
+            track_artists.artist_ids().collect(),
+        );
+
+        let release_date = release.date.clone().unwrap_or_default();
+        let release_year = release_date.get(0..4).unwrap_or_default().to_string();
+        vorbis.set("RELEASEDATE", vec![release_date]);
+        vorbis.set("RELEASEYEAR", vec![release_year]);
+
+        let original_date = meta.recording.as_ref()
+            .and_then(|recording| recording.first_release_date.clone())
+            .unwrap_or_default();
+        let original_year = original_date.get(0..4).unwrap_or_default().to_string();
+        vorbis.set("ORIGINALDATE", vec![original_date]);
+        vorbis.set("ORIGINALYEAR", vec![original_year]);
+
+        vorbis.set("BARCODE", vec![release.barcode.clone().unwrap_or_default()]);
+        vorbis.set(
+            "RELEASECOUNTRY",
+            vec![release.country.clone().unwrap_or_default()],
+        );
+        vorbis.set(
+            "RELEASESTATUS",
+            vec![release.status.clone().unwrap_or_default()],
+        );
+
+        if let Some(media_list) = release.media.as_ref() {
+            let total_discs = media_list.len();
+            vorbis.set("TOTALDISCS", vec![total_discs.to_string()]);
+            vorbis.set("DISCTOTAL", vec![total_discs.to_string()]);
+            if let Some(track_count) = media_list.first().and_then(|media| media.track_count) {
+                vorbis.set("TOTALTRACKS", vec![track_count.to_string()]);
+                vorbis.set("TRACKTOTAL", vec![track_count.to_string()]);
+            };
+        }
+
+        vorbis.set(
+            "MEDIA",
+            vec![
+                release
+                    .media
+                    .as_ref()
+                    .and_then(|all_media| all_media.first())
+                    .and_then(|media| media.format.clone())
+                    .unwrap_or_default(),
+            ],
+        );
+        vorbis.set("DISCNUMBER", vec![1.to_string()]);
+    }
+    dbg!(&tag);
+    tag.write_to_path(&flac_filename).unwrap();
+    let written_tag = Tag::read_from_path(&flac_filename).unwrap();
+    dbg!(written_tag);
 
     Exit::Ok(())
 }

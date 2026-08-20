@@ -400,7 +400,7 @@ mod tests {
 
             disc.set_release(Some(2));
             let columbia = disc.track(5).unwrap();
-            assert_eq!(columbia.meta.unwrap().title, Some("Columbia".to_string()));
+            assert_eq!(columbia.title(), Some("Columbia".to_string()));
         }
     }
 }
