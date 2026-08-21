@@ -2,6 +2,7 @@
 #![feature(exact_size_is_empty)]
 #![feature(iter_array_chunks)]
 #![feature(iterator_try_collect)]
+#![feature(negative_impls)]
 #![feature(path_absolute_method)]
 #![feature(try_blocks)]
 // Unsafe restricted to dedicated wrapper modules
