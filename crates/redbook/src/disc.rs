@@ -129,6 +129,11 @@ impl Disc {
         self.release().map(|release| release.title.clone())
     }
 
+    pub fn main_artist(&self) -> Option<String> {
+        self.release()
+            .and_then(|release| release.artist_credit.names().nth(0))
+    }
+
     /// Returns an *owned* Option<Track> with metadata valid for 'self
     ///
     /// - Holding on to the returned track will block any mutation to Self, in order

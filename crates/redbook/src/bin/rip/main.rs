@@ -156,7 +156,10 @@ fn main() -> Exit<()> {
     };
 
     let disc_title = cd.disc().title().unwrap_or_else(|| "Unknown".to_string());
-    let artist = cd.disc().title().unwrap_or_else(|| "Unknown".to_string());
+    let artist = cd
+        .disc()
+        .main_artist()
+        .unwrap_or_else(|| "Unknown".to_string());
     let output_dir = PathBuf::from(artist).join(disc_title);
     fs::create_dir_all(&output_dir)?;
 
