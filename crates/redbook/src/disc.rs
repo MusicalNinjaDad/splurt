@@ -297,6 +297,8 @@ impl Disc {
         Some(written_to_path)
     }
 
+    /// Will only be None if given an invalid track number.
+    /// Otherwise at least "TRACKNUMBER" will be set.
     pub fn tag_for(&self, track_number: usize) -> Option<VorbisComment> {
         let mut vorbis = VorbisComment::new();
         let track = self.track(track_number)?;
