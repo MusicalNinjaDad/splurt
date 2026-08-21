@@ -67,13 +67,13 @@ pub trait AudioCdExt {
     /// Read a full track, returning the raw data as a `Vec` of bytes.
     fn read_track(&self, track_number: usize) -> io::Result<Vec<u8>> {
         let track = self.disc().track(track_number).unwrap();
-        dbg!(&track);
+        tracing::info!(track_number = track.track_number(), "read_track");
         let track_size = track.duration_frames.as_usize().strict_mul(FRAME_SIZE);
         debug_assert!(track_size > 0);
 
         // Vec needs to be initialised to split into chunks. Performance cost insignificant vs IO.
         let mut data = vec![0_u8; track_size];
-        dbg!(data.len());
+        tracing::trace!(data_len = data.len());
 
         // TODO: Handle very short tracks < MAX_CHUNK_FRAMES
         let (bufs, last_buf) = data.as_chunks_mut::<MAX_CHUNK_BYTES>();
@@ -117,7 +117,7 @@ pub trait AudioCdExt {
         let bytes_read = self.read_chunk(&track, frame_offset, frames_to_read as u32, last_buf)?;
         bytes_read_so_far += i64::from(bytes_read);
 
-        dbg!(bytes_read_so_far);
+        tracing::trace!(bytes_read_so_far);
         Ok(data)
     }
 
