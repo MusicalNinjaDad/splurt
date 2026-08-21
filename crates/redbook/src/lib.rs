@@ -215,6 +215,28 @@ impl<'meta> Track<'meta> {
         self.meta.map(|track| track.title.clone())
     }
 
+    /// Returns the most likely representation on the track listing, as we expect it was
+    /// written on the back of the CD. The only adjusments we makeare to ensure that numerical
+    /// track numbers are always 2 digits long, in order to allow alphabetical sorting to work.
+    ///
+    /// E.g. "05 Columbia"
+    /// 
+    /// This will use the text representation for track_number from musicbrainz if available,
+    /// falling back to the two digit track number.
+    pub fn filename(&self) -> String {
+        let track_num = self
+            .meta()
+            .map(|trk| {
+                let trk_num = trk.number.clone();
+                match trk_num.len() {
+                    1 if trk_num.parse::<usize>().is_ok() => format!("0{trk_num}"),
+                    _ => trk_num,
+                }
+            })
+            .unwrap_or_else(|| format!("{:02}", self.toc_entry.track));
+        [track_num, self.title().unwrap_or_default()].join(" ")
+    }
+
     pub fn meta(&self) -> Option<&'meta musicbrainz::Track> {
         self.meta
     }

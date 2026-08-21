@@ -170,12 +170,7 @@ fn main() -> Exit<()> {
         // define just in time, to allow for mutable borrows earlier
         let track = cd.disc().track(track_number).unwrap();
         
-        let track_num = track
-            .meta()
-            .map(|trk| trk.number.clone())
-            .unwrap_or_else(|| format!("{:02}", track_number));
-        let filename = [track_num, track.title().unwrap_or_default()].join(" ");
-        let output_path = output_dir.join(filename);
+        let output_path = output_dir.join(track.filename());
 
         let flac = ripped.to_flac();
         let flac_filename = output_path.with_extension("flac");
