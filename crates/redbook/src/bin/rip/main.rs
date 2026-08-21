@@ -44,12 +44,21 @@ fn main() -> Exit<()> {
             if ripper.non_interactive {
                 releases
                     .iter()
-                    .max_by_key(|release| &release.date)
+                    .max_by_key(|release| {
+                        release
+                            .date
+                            .as_ref()
+                            .map(|date| date.into_naive_date(9999, 12, 12).ok())
+                    })
                     .and_then(|release| releases.iter().position(|r| r.id == release.id))
             } else {
                 println!("Multiple releases found. Please select one:");
                 releases.iter().enumerate().for_each(|(i, release)| {
-                    let date = release.date.as_deref().unwrap_or("unknown");
+                    let date = release
+                        .date
+                        .as_ref()
+                        .map(ToString::to_string)
+                        .unwrap_or("unknown".to_string());
                     let country = release.country.as_deref().unwrap_or("unknown");
                     let barcode = release.barcode.as_deref().unwrap_or("none");
                     println!(
