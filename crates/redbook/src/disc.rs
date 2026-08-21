@@ -223,7 +223,6 @@ impl Disc {
         let native_tls = native_tls
             .provider(ureq::tls::TlsProvider::NativeTls)
             .build();
-        dbg!(&native_tls);
 
         let agent = ureq::Agent::config_builder();
         let agent = agent
@@ -231,23 +230,17 @@ impl Disc {
             .user_agent("splurt_musicbrainz_rs/0.1.0")
             .build()
             .new_agent();
-        dbg!(&agent);
 
         let api_client = ApiClient::builder();
         let api_client = api_client.agent(agent).build();
-        dbg!(&api_client);
 
         let mb_client = MusicBrainzClient::builder();
         let mb_client = mb_client.api_client(api_client).build();
-        dbg!(&mb_client);
 
         let mut mb_stuff = Discid::fetch();
         mb_stuff.id(&discid).with_artists().with_recordings();
 
         let api_call = mb_stuff.as_api_request(&mb_client).unwrap();
-        dbg!(api_call.uri());
-        dbg!(api_call.headers());
-        dbg!(api_call.body());
 
         self.musicbrainz = Some(
             mb_stuff
