@@ -3,13 +3,6 @@
 #![feature(try_trait_v2)]
 #![feature(try_trait_v2_residual)]
 
-use clap::Parser;
-use exit_safely::Termination;
-use metaflac::{
-    Block, Tag,
-    block::{Picture, PictureType},
-};
-use redbook::{AudioCd, AudioCdExt, AudioCdExtMut, RippedTrack, tagging::PictureExt};
 use std::{
     convert::Infallible,
     fs::{self, File},
@@ -20,6 +13,15 @@ use std::{
     sync::mpsc,
     thread,
 };
+
+use clap::Parser;
+use exit_safely::Termination;
+use metaflac::{
+    Block, Tag,
+    block::{Picture, PictureType},
+};
+use redbook::{AudioCd, AudioCdExt, AudioCdExtMut, RippedTrack, tagging::PictureExt};
+use tracing_subscriber::{fmt::layer, filter::LevelFilter, EnvFilter, Registry};
 use try_v2::Try;
 
 #[derive(Debug, Clone, Copy)]
@@ -33,8 +35,56 @@ use cli::Rip;
 
 use clap::Error as ClapError;
 
+fn init_tracing(args: &Rip) {
+    let stdout_filter = match (args.verbose, args.quiet) {
+        (0, 0) => LevelFilter::INFO,
+        (1, _) => LevelFilter::DEBUG,
+        (2.., _) => LevelFilter::TRACE,
+        (_, 1..) => LevelFilter::OFF,
+    };
+
+    let stderr_filter = match args.quiet {
+        0 => LevelFilter::WARN,
+        _ => LevelFilter::OFF,
+    };
+
+    let stdout_layer = layer().with_filter(stdout_filter);
+    let stderr_layer = layer()
+        .with_filter(stderr_filter)
+        .with_writer(std::io::stderr);
+
+    let file_layer = if let Some(path) = args.debug.as_ref().or(args.trace.as_ref()) {
+        let level = if args.debug.is_some() {
+            LevelFilter::DEBUG
+        } else {
+            LevelFilter::TRACE
+        };
+        let file = std::fs::File::create(path).expect("create log file");
+        let mut file_layer = layer().with_writer(file);
+        if args.json {
+            file_layer = file_layer.json();
+        }
+        Some(file_layer.with_filter(level))
+    } else {
+        None
+    };
+
+    let registry = Registry::default()
+        .with(stdout_layer)
+        .with(stderr_layer);
+
+    if let Some(layer) = file_layer {
+        registry = registry.with(layer);
+    }
+
+    tracing::subscriber::set_global_default(registry.into())
+        .expect("Failed to set tracing subscriber");
+}
+
 fn main() -> Exit<()> {
     let ripper = Rip::try_parse()?;
+    
+    init_tracing(&ripper);
 
     let drive = PathBuf::from_str(&ripper.drive)?;
     let mut cd = AudioCd::new(drive)?;
@@ -98,6 +148,10 @@ fn main() -> Exit<()> {
             }
         });
     };
+
+    let disc_title = cd.disc().title().unwrap_or_else(|| "Unknown".to_string());
+    let _album_span = tracing::info_span!("rip_album", album = %disc_title);
+    let _album_enter = _album_span.enter();
 
     let selected_track = match (ripper.all, ripper.track_number) {
         (true, Some(_)) => {
@@ -175,9 +229,26 @@ fn main() -> Exit<()> {
     let (ripped_tracks_tx, ripped_tracks_rx) = mpsc::channel::<RippedTrack>();
 
     let ripper = thread::spawn(move || {
-        for track_number in track_numbers {
+        for track_number in track_numbers.clone() {
             try {
+                let track = cd.disc().track(track_number).unwrap();
+                let track_name = track.title().unwrap_or_default();
+                tracing::info!(
+                    target: "rip",
+                    track = track_number,
+                    name = %track_name,
+                    "rip_track_start"
+                );
+                let start = std::time::Instant::now();
                 let ripped = cd.rip(track_number).ok()?;
+                let duration = start.elapsed();
+                tracing::info!(
+                    target: "rip",
+                    track = track_number,
+                    name = %track_name,
+                    duration_secs = ?duration.as_secs_f64(),
+                    "rip_track_done"
+                );
                 ripped_tracks_tx.send(ripped).ok()?;
             };
         }
@@ -188,7 +259,16 @@ fn main() -> Exit<()> {
             while let Ok(ripped) = ripped_tracks_rx.recv() {
                 let track_number = ripped.track_number;
                 let track = disc.track(track_number).unwrap();
+                let track_name = track.title().unwrap_or_default();
 
+                tracing::debug!(
+                    target: "encode",
+                    track = track_number,
+                    name = %track_name,
+                    "encode_start"
+                );
+                let start = std::time::Instant::now();
+                
                 let flac_path = output_dir.join(track.filename()).with_extension("flac");
                 let flac = ripped.to_flac();
                 let mut flac_file = File::create_new(&flac_path)?;
@@ -198,15 +278,13 @@ fn main() -> Exit<()> {
                     track.track_number(),
                     flac_path.display()
                 );
-
+                let bytes_written = flac.as_slice().len();
+                
                 let mut tag = Tag::read_from_path(&flac_path).unwrap();
-                dbg!(&tag);
                 if let Some(tags) = disc.tag_for(track_number) {
-                    dbg!(&tags);
                     let vorbis = tag.vorbis_comments_mut();
                     vorbis.comments.extend(tags.comments);
                 }
-                dbg!(&tag);
 
                 if let Some(cover) =
                     disc.cover_art()
@@ -215,14 +293,19 @@ fn main() -> Exit<()> {
                             Picture::from_jpeg(PictureType::CoverFront, "Front Cover", data)
                         }))
                 {
-                    dbg!(&cover);
                     tag.push_block(Block::Picture(cover));
                 }
 
                 tag.write_to_path(&flac_path).unwrap();
-
-                let written_tag = Tag::read_from_path(&flac_path).unwrap();
-                dbg!(written_tag);
+                
+                let duration = start.elapsed();
+                tracing::debug!(
+                    target: "encode",
+                    track = track_number,
+                    bytes = bytes_written,
+                    duration_secs = ?duration.as_secs_f64(),
+                    "encode_done"
+                );
             }
         };
         drop(ripped_tracks_rx);
