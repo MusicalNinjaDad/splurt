@@ -20,6 +20,8 @@ pub mod musicbrainz;
 pub mod tagging;
 pub mod win;
 
+use tracing::trace;
+
 pub use disc::Disc;
 use flacenc::{bitsink::MemSink, component::BitRepr, error::Verify};
 pub use win::AudioCd;
@@ -289,18 +291,35 @@ impl From<&TRACK_DATA> for TocEntry {
 
 impl From<Msf> for Frame {
     fn from(msf: Msf) -> Self {
+        trace!(
+            target: "frame_conversion",
+            min = msf.min,
+            sec = msf.sec,
+            frame = msf.frame,
+            "Frame::from(Msf)"
+        );
         Self((((msf.min as usize * 60) + msf.sec as usize) * 75) + msf.frame as usize)
     }
 }
 
 impl From<Duration> for Frame {
     fn from(duration: Duration) -> Self {
+        trace!(
+            target: "frame_conversion",
+            secs = duration.as_secs(),
+            "Frame::from(Duration)"
+        );
         Msf::from(duration).into()
     }
 }
 
 impl From<Frame> for Duration {
     fn from(frames: Frame) -> Self {
+        trace!(
+            target: "frame_conversion",
+            frames = frames.as_usize(),
+            "Duration::from(Frame)"
+        );
         Msf::from(frames).into()
     }
 }
@@ -388,6 +407,11 @@ impl Sub<Frame> for Msf {
 
 impl From<Duration> for Msf {
     fn from(duration: Duration) -> Self {
+        trace!(
+            target: "frame_conversion",
+            secs = duration.as_secs(),
+            "Msf::from(Duration)"
+        );
         let ms = duration.as_millis();
         let secs = ms / 1000;
         let min = secs / 60;
@@ -411,6 +435,11 @@ impl From<Msf> for Duration {
 
 impl From<Frame> for Msf {
     fn from(frames: Frame) -> Self {
+        trace!(
+            target: "frame_conversion",
+            frames = frames.as_usize(),
+            "Msf::from(Frame)"
+        );
         let frames = frames.as_usize();
         let secs = frames / 75;
         let min = secs / 60;
