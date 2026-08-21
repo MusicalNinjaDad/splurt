@@ -60,9 +60,6 @@ pub trait AudioCdExt {
     /// Return a reference to the cached Disc data
     fn disc(&self) -> &crate::disc::Disc;
 
-    /// Return a mutable reference to the cached Disc data
-    fn disc_mut(&mut self) -> &mut crate::disc::Disc;
-
     /// Read a full track, returning the raw data as a `Vec` of bytes.
     fn read_track(&self, track_number: usize) -> io::Result<Vec<u8>> {
         let track = self.disc().track(track_number).unwrap();
@@ -133,6 +130,11 @@ pub trait AudioCdExt {
             raw_data,
         })
     }
+}
+
+pub trait AudioCdExtMut {
+    /// Return a mutable reference to the cached Disc data
+    fn disc_mut(&mut self) -> &mut crate::disc::Disc;
 }
 
 /// A small wrapper with the raw data for a track and the track_number

@@ -11,6 +11,7 @@ use std::{
     io::{self, ErrorKind},
     path::{Path, PathBuf},
     ptr::{null, null_mut},
+    sync::Arc,
 };
 
 use cdtoc::{Toc, TocError};
@@ -32,8 +33,8 @@ use windows_sys::Win32::{
     Storage::FileSystem::{FILE_SHARE_READ, OPEN_EXISTING},
 };
 
-use crate::disc::Disc;
 use crate::{AudioCdExt, FRAME_SIZE, Frame, LEADIN, Msf, Track};
+use crate::{AudioCdExtMut, disc::Disc};
 use crate::{TocEntry, hex::hex_dump};
 
 //(?) https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ne-ntddcdrm-_track_mode_type
@@ -207,6 +208,11 @@ pub struct AudioCd {
     disc: Disc,
 }
 
+pub struct ReadOnlyAudioCd {
+    drive: CdDrive,
+    disc: Arc<Disc>,
+}
+
 impl AudioCd {
     /// Opens drive, reads CD
     pub fn new<P: AsRef<Path>>(path: P) -> io::Result<Self> {
@@ -273,13 +279,15 @@ impl AudioCd {
     }
 }
 
+impl AudioCdExtMut for AudioCd {
+    fn disc_mut(&mut self) -> &mut Disc {
+        &mut self.disc
+    }
+}
+
 impl AudioCdExt for AudioCd {
     fn disc(&self) -> &Disc {
         &self.disc
-    }
-
-    fn disc_mut(&mut self) -> &mut Disc {
-        &mut self.disc
     }
 
     fn read_chunk(

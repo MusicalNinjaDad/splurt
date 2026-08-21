@@ -9,7 +9,7 @@ use metaflac::{
     Block, Tag,
     block::{Picture, PictureType},
 };
-use redbook::{AudioCd, AudioCdExt, tagging::PictureExt};
+use redbook::{AudioCd, AudioCdExt, AudioCdExtMut, tagging::PictureExt};
 use std::{
     convert::Infallible,
     fs::{self, File},
