@@ -1,0 +1,17 @@
+[[hooks]]
+name = "graphify-nudge-search"
+type = "pre_tool"
+match = "grep"
+command = "/opt/cargo/bin/graphify hook-guard search"
+timeout = 5.0
+strict = false
+description = "Nudge toward `graphify query` instead of raw grep."
+
+[[hooks]]
+name = "graphify-nudge-read"
+type = "pre_tool"
+match = "read_file"
+command = "/opt/cargo/bin/graphify hook-guard read"
+timeout = 5.0
+strict = false
+description = "Nudge toward `graphify query` instead of raw file reads."
