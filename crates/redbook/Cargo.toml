@@ -48,7 +48,11 @@ reqwest = { workspace = true, features = ["blocking", "native-tls", "json"] }
 serde.workspace = true
 serde_json.workspace = true
 try_v2.workspace = true
+tracing = "0.1"
 zune-jpeg.workspace = true
+
+[dev-dependencies]
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 
 [build-dependencies]
 build_safely.workspace = true
