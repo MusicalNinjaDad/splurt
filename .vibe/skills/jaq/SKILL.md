@@ -1,5 +1,5 @@
 ---
-name: parse-json
+name: jaq
 description: Load this skill when you need to parse, query, or transform JSON data using jaq (Just Another Query Tool), a lightweight jq-compatible command-line JSON processor.
 ---
 
