@@ -274,14 +274,14 @@ impl Drop for CdDrive {
 }
 
 /// An AudioCd with potentially mutable metadata.
-/// 
+///
 /// # Thread safety
-/// 
+///
 /// This is !Send to avoid metadata diverging between threads.
-/// 
+///
 /// Calls to [disc().clone()][AudioCdExt::disc] should be treated as having created a true
 /// clone of the metadata as any future mutation will use [Arc::make_mut].
-/// 
+///
 /// It is recommended that you call [lock()][Self::lock] to obtain a [ReadOnlyAudioCd] before
 /// spawning any threads.
 #[derive(Debug, PartialEq)]
@@ -295,12 +295,12 @@ impl !Send for AudioCd {}
 /// An AudioCd where metadata can no longer be mutated - ensuring safe Sync usage of
 /// [disc()][AudioCdExt::disc] and allowing, for example, separate threads to [rip][AudioCdExt::rip]
 /// and encode [to_flac][crate::RippedTrack::to_flac]
-/// 
+///
 /// # Thread safety
-/// 
+///
 /// `ReadOnlyAudioCd` is [`Send`] as an entire struct but not [`Sync`] as the underlying mechanisms
 /// to read data from the Cd are not synchronised.
-/// 
+///
 /// [`Sync`] references to the metadata can be obtained via [`disc().clone()`][AudioCdExt::disc]
 /// and safely passed to other threads.
 pub struct ReadOnlyAudioCd {
