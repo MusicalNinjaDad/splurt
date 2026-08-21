@@ -167,21 +167,19 @@ fn main() -> Exit<()> {
 
         // define just in time, to allow for mutable borrows earlier
         let track = cd.disc().track(track_number).unwrap();
-        
-        let output_path = output_dir.join(track.filename());
 
+        let flac_path = output_dir.join(track.filename()).with_extension("flac");
         let flac = ripped.to_flac();
-        let flac_filename = output_path.with_extension("flac");
-        let mut dump = File::create_new(&flac_filename)?;
-        dump.write_all(flac.as_slice())?;
+        let mut flac_file = File::create_new(&flac_path)?;
+        flac_file.write_all(flac.as_slice())?;
         println!(
             "Track {} ripped to {}",
             track.track_number(),
-            output_path.display()
+            flac_path.display()
         );
 
         if let Some(tags) = cd.disc().tag_for(track_number) {
-            let mut tag = Tag::read_from_path(&flac_filename).unwrap();
+            let mut tag = Tag::read_from_path(&flac_path).unwrap();
             let vorbis = tag.vorbis_comments_mut();
             vorbis.comments.extend(tags.comments);
             if let Some(image) = cd
@@ -207,9 +205,9 @@ fn main() -> Exit<()> {
                 tag.push_block(Block::Picture(cover));
             }
             dbg!(&tag);
-            tag.write_to_path(&flac_filename).unwrap();
+            tag.write_to_path(&flac_path).unwrap();
         }
-        let written_tag = Tag::read_from_path(&flac_filename).unwrap();
+        let written_tag = Tag::read_from_path(&flac_path).unwrap();
         dbg!(written_tag);
     }
 

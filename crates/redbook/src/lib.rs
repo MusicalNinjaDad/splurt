@@ -222,7 +222,7 @@ impl<'meta> Track<'meta> {
     /// track numbers are always 2 digits long, in order to allow alphabetical sorting to work.
     ///
     /// E.g. "05 Columbia"
-    /// 
+    ///
     /// This will use the text representation for track_number from musicbrainz if available,
     /// falling back to the two digit track number.
     pub fn filename(&self) -> String {
