@@ -1,3 +1,10 @@
+//! MusicBrainz entity extensions for tagging
+//!
+//! # Tracing
+//!
+//! This module currently does not emit tracing spans as it only contains
+//! trait implementations for extending Vorbis comments with MusicBrainz metadata.
+
 use metaflac::block::VorbisComment;
 use musicbrainz_rs::entity::release::{ReleaseScript, ReleaseStatus};
 pub use musicbrainz_rs::entity::{

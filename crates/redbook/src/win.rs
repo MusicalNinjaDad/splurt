@@ -1,4 +1,15 @@
-//! Safe and sane wrappers around windows APIs
+//! Safe and sane wrappers around Windows APIs for CD drive access
+//!
+//! # Tracing
+//!
+//! This module emits the following spans:
+//! - `CdDrive::open` (INFO): Drive opening with `path` field
+//! - `CdDrive::read_chunk` (TRACE): Chunk reading with `track`, `frame_offset`, and `frames_to_read` fields
+//! - `AudioCd::new` (INFO): Audio CD initialization with `path` field
+//!
+//! Events:
+//! - `CdDrive::open` warnings on failure with `bytes_read` field
+//! - `CdDrive::read_chunk` warnings on failure with `bytes_read` field
 
 // RULES for this file:
 // - Use .strict_... for all math functions
@@ -14,7 +25,8 @@ use std::{
     sync::Arc,
 };
 
-use tracing::{trace, warn};
+#[allow(unused_imports)]
+use tracing::{info_span, trace, trace_span, warn};
 
 use cdtoc::{Toc, TocError};
 use windows_sys::{

@@ -1,5 +1,11 @@
 //! Hex parsing utilities for CD TOC data
-
+//!
+//! # Tracing
+//!
+//! This module emits the following spans:
+//! - `hex_to_bytes` (TRACE): Hex string parsing with `len` field
+//! - `hex_dump` (TRACE): Byte dumping with `bytes.len()` field
+//! - `parse_toc` (DEBUG): TOC parsing with entry count
 use std::{
     error::Error,
     fmt::{Debug, Display},

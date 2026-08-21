@@ -1,3 +1,10 @@
+//! Tagging utilities for FLAC metadata
+//!
+//! # Tracing
+//!
+//! This module currently does not emit tracing spans as it only contains
+//! trait implementations for metadata manipulation.
+
 use metaflac::block::{Picture, PictureType};
 use zune_jpeg::{JpegDecoder, zune_core::bytestream::ZCursor};
 

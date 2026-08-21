@@ -1,3 +1,22 @@
+//! Disc metadata and MusicBrainz integration
+//!
+//! # Tracing
+//!
+//! This module emits the following spans:
+//! - `Disc::new` (INFO): Disc creation with `track_count` and `album_name` fields
+//! - `Disc::track` (DEBUG): Track lookup with `track_number` field
+//! - `Disc::tracks` (DEBUG): Track iteration
+//! - `Disc::set_release` (DEBUG): Release selection with `index` field
+//! - `Disc::tag_for` (DEBUG): Tag generation with `track_number` and `title` fields
+//! - `Disc::update_musicbrainz` (INFO): MusicBrainz update with `discid` field
+//! - `Disc::update_cover_art` (INFO): Cover art retrieval
+//!
+//! Events:
+//! - `musicbrainz_retrieved` (INFO): On successful MusicBrainz lookup with `releases` count
+//! - `musicbrainz_failed` (ERROR): On MusicBrainz lookup failure with `error` field
+//! - `coverart_retrieved` (INFO): On successful cover art retrieval with `size_bytes` field
+//! - `coverart_failed` (WARN): On cover art retrieval failure with `url`, `status`, and `reason` fields
+
 use std::{
     fs::File,
     io::{self, Write},
@@ -240,7 +259,7 @@ impl Disc {
         let mut mb_stuff = Discid::fetch();
         mb_stuff.id(&discid).with_artists().with_recordings();
 
-        let api_call = mb_stuff.as_api_request(&mb_client).unwrap();
+        let _api_call = mb_stuff.as_api_request(&mb_client).unwrap();
 
         self.musicbrainz = Some(
             mb_stuff
