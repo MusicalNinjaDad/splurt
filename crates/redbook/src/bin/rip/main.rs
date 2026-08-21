@@ -164,7 +164,9 @@ fn main() -> Exit<()> {
     fs::create_dir_all(&output_dir)?;
 
     let _ = cd.disc_mut().update_cover_art();
-    cd.disc().save_cover_art(&output_dir);
+    if let Some(Err(error_saving_coverart)) = cd.disc().save_cover_art(&output_dir) {
+        dbg!(error_saving_coverart);
+    };
 
     for track_number in track_numbers {
         let ripped = cd.rip(track_number)?;

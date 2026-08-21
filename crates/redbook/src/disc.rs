@@ -287,6 +287,7 @@ impl Disc {
     /// Save the cover art as "front.jpeg"
     ///
     /// Returns None if no cover art is available, else the absolute location of the saved file.
+    #[must_use = "may be `Some(Err(_))`"]
     pub fn save_cover_art<P: AsRef<Path>>(&self, directory: P) -> Option<io::Result<PathBuf>> {
         let data = self.cover_art()?;
         let written_to_path = try {
