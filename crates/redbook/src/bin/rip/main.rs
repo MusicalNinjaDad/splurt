@@ -9,7 +9,7 @@ use metaflac::{
     Block, Tag,
     block::{Picture, PictureType},
 };
-use redbook::{AudioCd, AudioCdExt, AudioCdExtMut, tagging::PictureExt};
+use redbook::{AudioCd, AudioCdExt, AudioCdExtMut, RippedTrack, tagging::PictureExt};
 use std::{
     convert::Infallible,
     fs::{self, File},
@@ -17,6 +17,8 @@ use std::{
     path::PathBuf,
     process::Termination as _T,
     str::FromStr,
+    sync::mpsc,
+    thread,
 };
 use try_v2::Try;
 
@@ -167,48 +169,72 @@ fn main() -> Exit<()> {
         dbg!(error_saving_coverart);
     };
 
-    for track_number in track_numbers {
-        let ripped = cd.rip(track_number)?;
+    let cd = cd.lock();
+    let disc = cd.disc().clone();
 
-        // define just in time, to allow for mutable borrows earlier
-        let track = cd.disc().track(track_number).unwrap();
+    let (ripped_tracks_tx, ripped_tracks_rx) = mpsc::channel::<RippedTrack>();
 
-        let flac_path = output_dir.join(track.filename()).with_extension("flac");
-        let flac = ripped.to_flac();
-        let mut flac_file = File::create_new(&flac_path)?;
-        flac_file.write_all(flac.as_slice())?;
-        println!(
-            "Track {} ripped to {}",
-            track.track_number(),
-            flac_path.display()
-        );
-
-        let mut tag = Tag::read_from_path(&flac_path).unwrap();
-        dbg!(&tag);
-        if let Some(tags) = cd.disc().tag_for(track_number) {
-            dbg!(&tags);
-            let vorbis = tag.vorbis_comments_mut();
-            vorbis.comments.extend(tags.comments);
+    let ripper = thread::spawn(move || {
+        for track_number in track_numbers {
+            try {
+                let ripped = cd.rip(track_number).ok()?;
+                ripped_tracks_tx.send(ripped).ok()?;
+            };
         }
-        dbg!(&tag);
+    });
 
-        if let Some(cover) =
-            cd.disc()
-                .cover_art()
-                .cloned()
-                .or(fs::read(output_dir.join("front.jpeg"))
-                    .ok()
-                    .map(|data| Picture::from_jpeg(PictureType::CoverFront, "Front Cover", data)))
-        {
-            dbg!(&cover);
-            tag.push_block(Block::Picture(cover));
-        }
+    let encoder = thread::spawn(move || {
+        let enc = try {
+            while let Ok(ripped) = ripped_tracks_rx.recv() {
+                let track_number = ripped.track_number;
+                let track = disc.track(track_number).unwrap();
 
-        tag.write_to_path(&flac_path).unwrap();
+                let flac_path = output_dir.join(track.filename()).with_extension("flac");
+                let flac = ripped.to_flac();
+                let mut flac_file = File::create_new(&flac_path)?;
+                flac_file.write_all(flac.as_slice())?;
+                println!(
+                    "Track {} ripped to {}",
+                    track.track_number(),
+                    flac_path.display()
+                );
 
-        let written_tag = Tag::read_from_path(&flac_path).unwrap();
-        dbg!(written_tag);
-    }
+                let mut tag = Tag::read_from_path(&flac_path).unwrap();
+                dbg!(&tag);
+                if let Some(tags) = disc.tag_for(track_number) {
+                    dbg!(&tags);
+                    let vorbis = tag.vorbis_comments_mut();
+                    vorbis.comments.extend(tags.comments);
+                }
+                dbg!(&tag);
+
+                if let Some(cover) =
+                    disc.cover_art()
+                        .cloned()
+                        .or(fs::read(output_dir.join("front.jpeg")).ok().map(|data| {
+                            Picture::from_jpeg(PictureType::CoverFront, "Front Cover", data)
+                        }))
+                {
+                    dbg!(&cover);
+                    tag.push_block(Block::Picture(cover));
+                }
+
+                tag.write_to_path(&flac_path).unwrap();
+
+                let written_tag = Tag::read_from_path(&flac_path).unwrap();
+                dbg!(written_tag);
+            }
+        };
+        drop(ripped_tracks_rx);
+        enc
+    });
+
+    ripper
+        .join()
+        .map_err(|panicked| Exit::Error(format!("ripping panicked: {panicked:?}")))?;
+    encoder
+        .join()
+        .map_err(|panicked| Exit::Error(format!("encoding panicked: {panicked:?}")))??;
 
     Exit::Ok(())
 }

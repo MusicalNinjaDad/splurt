@@ -25,7 +25,11 @@ pub use win::AudioCd;
 use windows_sys::Win32::Devices::Cdrom::TRACK_DATA;
 
 use std::{
-    convert::TryFrom, io, ops::{Add, Rem, Sub}, sync::Arc, time::Duration,
+    convert::TryFrom,
+    io,
+    ops::{Add, Rem, Sub},
+    sync::Arc,
+    time::Duration,
 };
 
 use musicbrainz::Discid;
