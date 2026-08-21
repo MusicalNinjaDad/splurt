@@ -10,10 +10,10 @@ use musicbrainz_rs::{
 
 use crate::{
     Frame, Msf, Track,
-    musicbrainz::{ArtistCreditsExt, DiscId, Release},
+    musicbrainz::{ArtistCreditsExt, Discid, Release, VorbisTagExt},
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 /// Logically: a physical CD.
 ///
 /// This is the main starting point for all data and actions you take on the CD itself.
@@ -23,7 +23,7 @@ pub struct Disc {
     toc: Toc,
     tracks: Vec<Track<'static>>,
     leadout: Frame,
-    musicbrainz: Option<DiscId>,
+    musicbrainz: Option<Discid>,
     /// Selected release index from musicbrainz.releases. Use [`select_release()`]
     /// or [set_release()] to set and [`release()`] to get.
     ///
@@ -108,11 +108,15 @@ impl Disc {
 
     /// Get the selected release
     pub fn release(&self) -> Option<&Release> {
-        self.musicbrainz.as_ref()?.releases.get(self.release_index?)
+        self.musicbrainz
+            .as_ref()?
+            .releases
+            .as_ref()?
+            .get(self.release_index?)
     }
 
     /// Get the full MusicBrainz data
-    pub fn musicbrainz(&self) -> Option<&DiscId> {
+    pub fn musicbrainz(&self) -> Option<&Discid> {
         self.musicbrainz.as_ref()
     }
 
@@ -129,9 +133,9 @@ impl Disc {
             .and_then(|all_media| all_media.get(self.disc_index?))
             .and_then(|media| media.tracks.as_ref())
             .and_then(|tracks| {
-                tracks.iter().find(|trk| {
-                    trk.number.as_ref().and_then(|n| n.parse().ok()) == Some(track_number)
-                })
+                tracks
+                    .iter()
+                    .find(|trk| trk.number.parse() == Ok(track_number))
             });
         Some(track)
     }
@@ -150,7 +154,8 @@ impl Disc {
                 if self
                     .musicbrainz
                     .as_ref()
-                    .and_then(|disc_id| disc_id.releases.get(index))
+                    .and_then(|disc_id| disc_id.releases.as_ref())
+                    .and_then(|release| release.get(index))
                     .is_some() =>
             {
                 Some(index)
@@ -178,7 +183,7 @@ impl Disc {
     where
         F: FnOnce(&[Release]) -> Option<usize>,
     {
-        if let Some(releases) = self.musicbrainz.as_ref().map(|disc_id| &disc_id.releases) {
+        if let Some(Some(releases)) = self.musicbrainz.as_ref().map(|disc_id| &disc_id.releases) {
             self.set_release(selector(releases));
         }
         self
@@ -210,7 +215,7 @@ impl Disc {
         let mb_client = mb_client.api_client(api_client).build();
         dbg!(&mb_client);
 
-        let mut mb_stuff = musicbrainz_rs::entity::discid::Discid::fetch();
+        let mut mb_stuff = Discid::fetch();
         mb_stuff.id(&discid).with_artists().with_recordings();
 
         let api_call = mb_stuff.as_api_request(&mb_client).unwrap();
@@ -218,25 +223,19 @@ impl Disc {
         dbg!(api_call.headers());
         dbg!(api_call.body());
 
-        let mb_rs_json = mb_stuff.execute_with_client(&mb_client).unwrap();
-        dbg!(mb_rs_json);
-
-        let url = format!("https://musicbrainz.org/ws/2/discid/{discid}?inc=recordings&fmt=json");
-
-        let client = reqwest::blocking::Client::new();
         self.musicbrainz = Some(
-            client
-                .get(url)
-                .header("User-Agent", "splurt/0.1.0")
-                .send()
-                .map_err(io::Error::other)?
-                .json::<DiscId>()
+            mb_stuff
+                .execute_with_client(&mb_client)
                 .map_err(io::Error::other)?,
         );
-        self.release_index = match self.musicbrainz {
+        self.release_index = match self
+            .musicbrainz
+            .as_ref()
+            .and_then(|mb| mb.releases.as_ref())
+        {
             None => Some(0),
-            Some(ref mb_data) if mb_data.releases.is_empty() => Some(0),
-            Some(ref mb_data) if mb_data.releases.len() == 1 => Some(1),
+            Some(ref releases) if releases.is_empty() => Some(0),
+            Some(ref releases) if releases.len() == 1 => Some(1),
             _ => None,
         };
         Ok(())
@@ -291,8 +290,18 @@ impl Disc {
                 release.artist_credit.artist_ids().collect(),
             );
 
-            let release_date = release.date.clone().unwrap_or_default();
-            let release_year = release_date.get(0..4).unwrap_or_default().to_string();
+            let release_date = release
+                .date
+                .as_ref()
+                .map(ToString::to_string)
+                .unwrap_or_default();
+            let release_year = release
+                .date
+                .as_ref()
+                .and_then(|date| date.year())
+                .as_ref()
+                .map(ToString::to_string)
+                .unwrap_or_default();
             vorbis.set("RELEASEDATE", vec![release_date]);
             vorbis.set("RELEASEYEAR", vec![release_year]);
 
@@ -300,10 +309,7 @@ impl Disc {
                 "RELEASECOUNTRY",
                 vec![release.country.clone().unwrap_or_default()],
             );
-            vorbis.set(
-                "RELEASESTATUS",
-                vec![release.status.clone().unwrap_or_default()],
-            );
+            release.status.as_ref().unwrap().extend_vorbis(&mut vorbis);
 
             vorbis.set("BARCODE", vec![release.barcode.clone().unwrap_or_default()]);
 
@@ -311,7 +317,7 @@ impl Disc {
                 let total_discs = media_list.len();
                 vorbis.set("TOTALDISCS", vec![total_discs.to_string()]);
                 vorbis.set("DISCTOTAL", vec![total_discs.to_string()]);
-                if let Some(track_count) = media_list.first().and_then(|media| media.track_count) {
+                if let Some(track_count) = media_list.first().map(|media| media.track_count) {
                     vorbis.set("TOTALTRACKS", vec![track_count.to_string()]);
                     vorbis.set("TRACKTOTAL", vec![track_count.to_string()]);
                 };
@@ -331,24 +337,17 @@ impl Disc {
                 ],
             );
 
-            vorbis.set(
-                "SCRIPT",
-                vec![
-                    release
-                        .text_representation
-                        .as_ref()
-                        .and_then(|text_rep| text_rep.script.clone())
-                        .unwrap_or_default(),
-                ],
-            );
+            release
+                .text_representation
+                .as_ref()
+                .and_then(|text_rep| text_rep.script.as_ref())
+                .unwrap()
+                .extend_vorbis(&mut vorbis);
 
             if let Some(meta) = track.meta() {
                 vorbis.set_title(vec![track.title().clone().unwrap_or_default()]);
 
-                vorbis.set(
-                    "MUSICBRAINZ_TRACKID",
-                    vec![meta.id.clone().unwrap_or_default()],
-                );
+                vorbis.set("MUSICBRAINZ_TRACKID", vec![meta.id.clone()]);
 
                 let track_artists = meta
                     .artist_credit
@@ -361,7 +360,7 @@ impl Disc {
                     .as_ref()
                     .and_then(|recording| recording.first_release_date.clone())
                     .unwrap_or_default();
-                let original_year = original_date.get(0..4).unwrap_or_default().to_string();
+                let original_year = original_date.year().unwrap_or_default().to_string();
                 vorbis.set("ORIGINALDATE", vec![original_date]);
                 vorbis.set("ORIGINALYEAR", vec![original_year]);
             }
