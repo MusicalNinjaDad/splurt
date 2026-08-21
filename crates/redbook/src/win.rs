@@ -284,6 +284,23 @@ pub struct ReadOnlyAudioCd {
     disc: Arc<Disc>,
 }
 
+impl AudioCdExt for ReadOnlyAudioCd {
+    fn read_chunk(
+        &self,
+        track: &Track,
+        frame_offset: usize,
+        frames_to_read: u32,
+        buf: &mut [u8],
+    ) -> io::Result<u32> {
+        self.drive
+            .read_chunk(track, frame_offset, frames_to_read, buf)
+    }
+
+    fn disc(&self) -> &crate::disc::Disc {
+        &self.disc
+    }
+}
+
 impl AudioCd {
     /// Opens drive, reads CD
     pub fn new<P: AsRef<Path>>(path: P) -> io::Result<Self> {
@@ -348,6 +365,13 @@ impl AudioCd {
 
         Ok(Self { drive, disc })
     }
+
+    pub fn lock(self) -> ReadOnlyAudioCd {
+        ReadOnlyAudioCd {
+            drive: self.drive,
+            disc: Arc::from(self.disc),
+        }
+    }
 }
 
 impl AudioCdExtMut for AudioCd {
@@ -368,7 +392,8 @@ impl AudioCdExt for AudioCd {
         frames_to_read: u32,
         buf: &mut [u8],
     ) -> io::Result<u32> {
-        self.drive.read_chunk(track, frame_offset, frames_to_read, buf)
+        self.drive
+            .read_chunk(track, frame_offset, frames_to_read, buf)
     }
 }
 
