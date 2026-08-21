@@ -21,7 +21,7 @@ use metaflac::{
     block::{Picture, PictureType},
 };
 use redbook::{AudioCd, AudioCdExt, AudioCdExtMut, RippedTrack, tagging::PictureExt};
-use tracing_subscriber::{fmt::layer, filter::LevelFilter, EnvFilter, Registry};
+use tracing_subscriber::{EnvFilter, Registry, filter::LevelFilter, fmt::layer};
 use try_v2::Try;
 
 #[derive(Debug, Clone, Copy)]
@@ -69,9 +69,7 @@ fn init_tracing(args: &Rip) {
         None
     };
 
-    let registry = Registry::default()
-        .with(stdout_layer)
-        .with(stderr_layer);
+    let registry = Registry::default().with(stdout_layer).with(stderr_layer);
 
     if let Some(layer) = file_layer {
         registry = registry.with(layer);
@@ -83,7 +81,7 @@ fn init_tracing(args: &Rip) {
 
 fn main() -> Exit<()> {
     let ripper = Rip::try_parse()?;
-    
+
     init_tracing(&ripper);
 
     let drive = PathBuf::from_str(&ripper.drive)?;
@@ -268,7 +266,7 @@ fn main() -> Exit<()> {
                     "encode_start"
                 );
                 let start = std::time::Instant::now();
-                
+
                 let flac_path = output_dir.join(track.filename()).with_extension("flac");
                 let flac = ripped.to_flac();
                 let mut flac_file = File::create_new(&flac_path)?;
@@ -279,7 +277,7 @@ fn main() -> Exit<()> {
                     flac_path.display()
                 );
                 let bytes_written = flac.as_slice().len();
-                
+
                 let mut tag = Tag::read_from_path(&flac_path).unwrap();
                 if let Some(tags) = disc.tag_for(track_number) {
                     let vorbis = tag.vorbis_comments_mut();
@@ -297,7 +295,7 @@ fn main() -> Exit<()> {
                 }
 
                 tag.write_to_path(&flac_path).unwrap();
-                
+
                 let duration = start.elapsed();
                 tracing::debug!(
                     target: "encode",

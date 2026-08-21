@@ -298,10 +298,10 @@ impl Disc {
             .header("User-Agent", "splurt/0.1.0")
             .send()
             .map_err(io::Error::other)?;
-        
+
         let _span = tracing::info_span!("update_cover_art", url = %url);
         let _enter = _span.enter();
-        
+
         if response.status().is_success() {
             let image = response.bytes().map_err(io::Error::other)?;
             let cover = Picture::from_jpeg(PictureType::CoverFront, "Front Cover", image.clone());

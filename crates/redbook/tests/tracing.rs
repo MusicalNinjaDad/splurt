@@ -4,9 +4,9 @@
 
 use tracing::subscriber::DefaultGuard;
 use tracing_subscriber::{
-    fmt, layer::{Layer, SubscriberExt},
+    EnvFilter, Registry, fmt,
+    layer::{Layer, SubscriberExt},
     util::SubscriberInitExt,
-    EnvFilter, Registry,
 };
 
 /// Guard that holds the subscriber
@@ -18,21 +18,18 @@ impl TestTracingGuard {
     /// Create a new test tracing guard with the specified filter
     pub fn new(filter: &str) -> Self {
         let env_filter = EnvFilter::try_new(filter).expect("invalid filter");
-        
-        let subscriber = Registry::default()
-            .with(
-                fmt::layer()
-                    .with_test_writer()
-                    .with_ansi(false)
-                    .with_target(false)
-                    .with_filter(env_filter),
-            );
-        
+
+        let subscriber = Registry::default().with(
+            fmt::layer()
+                .with_test_writer()
+                .with_ansi(false)
+                .with_target(false)
+                .with_filter(env_filter),
+        );
+
         let guard = subscriber.set_default();
-        
-        Self {
-            _subscriber: guard,
-        }
+
+        Self { _subscriber: guard }
     }
 }
 

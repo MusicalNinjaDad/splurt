@@ -211,7 +211,12 @@ impl CdDrive {
         frames_to_read: u32,
         buf: &mut [u8],
     ) -> io::Result<u32> {
-        let _span = tracing::trace_span!("CdDrive::read_chunk", track = track.toc_entry.track, frame_offset, frames_to_read);
+        let _span = tracing::trace_span!(
+            "CdDrive::read_chunk",
+            track = track.toc_entry.track,
+            frame_offset,
+            frames_to_read
+        );
         let _enter = _span.enter();
         let offset = Sector::from_frame(track.toc_entry.start + frame_offset).offset();
         let read_command = RAW_READ_INFO {
