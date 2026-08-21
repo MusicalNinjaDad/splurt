@@ -14,7 +14,7 @@ use std::{
     sync::Arc,
 };
 
-use tracing::{info, trace, warn};
+use tracing::{trace, warn};
 
 use cdtoc::{Toc, TocError};
 use windows_sys::{

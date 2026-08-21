@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use tracing::{info, Span};
+use tracing::info;
 
 use cdtoc::Toc;
 use metaflac::block::{Picture, PictureType, VorbisComment};
