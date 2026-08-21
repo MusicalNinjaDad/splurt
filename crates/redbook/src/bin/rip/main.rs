@@ -21,7 +21,13 @@ use metaflac::{
     block::{Picture, PictureType},
 };
 use redbook::{AudioCd, AudioCdExt, AudioCdExtMut, RippedTrack, tagging::PictureExt};
-use tracing_subscriber::{EnvFilter, Registry, filter::LevelFilter, fmt::layer};
+use tracing::Subscriber;
+use tracing_subscriber::{
+    Registry,
+    filter::LevelFilter,
+    fmt::layer,
+    layer::{Layer, SubscriberExt},
+};
 use try_v2::Try;
 
 #[derive(Debug, Clone, Copy)]
@@ -50,33 +56,29 @@ fn init_tracing(args: &Rip) {
 
     let stdout_layer = layer().with_filter(stdout_filter);
     let stderr_layer = layer()
-        .with_filter(stderr_filter)
-        .with_writer(std::io::stderr);
+        .with_writer(std::io::stderr)
+        .with_filter(stderr_filter);
 
-    let file_layer = if let Some(path) = args.debug.as_ref().or(args.trace.as_ref()) {
-        let level = if args.debug.is_some() {
-            LevelFilter::DEBUG
+    let registry: Box<dyn Subscriber + Send + Sync> =
+        if let Some(path) = args.debug.as_ref().or(args.trace.as_ref()) {
+            let level = if args.debug.is_some() {
+                LevelFilter::DEBUG
+            } else {
+                LevelFilter::TRACE
+            };
+            let file = std::fs::File::create(path).expect("create log file");
+            let file_layer = layer().with_writer(file).with_filter(level);
+            Box::new(
+                Registry::default()
+                    .with(stdout_layer)
+                    .with(stderr_layer)
+                    .with(file_layer),
+            )
         } else {
-            LevelFilter::TRACE
+            Box::new(Registry::default().with(stdout_layer).with(stderr_layer))
         };
-        let file = std::fs::File::create(path).expect("create log file");
-        let mut file_layer = layer().with_writer(file);
-        if args.json {
-            file_layer = file_layer.json();
-        }
-        Some(file_layer.with_filter(level))
-    } else {
-        None
-    };
 
-    let registry = Registry::default().with(stdout_layer).with(stderr_layer);
-
-    if let Some(layer) = file_layer {
-        registry = registry.with(layer);
-    }
-
-    tracing::subscriber::set_global_default(registry.into())
-        .expect("Failed to set tracing subscriber");
+    tracing::subscriber::set_global_default(registry).expect("Failed to set tracing subscriber");
 }
 
 fn main() -> Exit<()> {
