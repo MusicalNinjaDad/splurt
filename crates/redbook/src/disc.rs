@@ -78,7 +78,7 @@ impl Disc {
         leadout: Frame,
     ) -> Result<Self, DiscError> {
         let tracks: Vec<_> = tracks.into_iter().collect();
-        let _span = info_span!("Disc::new", track_count = tracks.len());
+        let _span = tracing::info_span!("Disc::new", track_count = tracks.len());
         let _enter = _span.enter();
 
         if toc.leadout() != leadout.as_usize() as u32 {
@@ -216,7 +216,7 @@ impl Disc {
     /// Attempt to update the data from musicbrainz
     pub fn update_musicbrainz(&mut self) -> io::Result<()> {
         let discid = self.toc.musicbrainz_id().to_string();
-        let _span = info_span!("update_musicbrainz", discid = %discid);
+        let _span = tracing::info_span!("update_musicbrainz", discid = %discid);
         let _enter = _span.enter();
 
         let native_tls = ureq::tls::TlsConfig::builder();
@@ -280,7 +280,7 @@ impl Disc {
             .send()
             .map_err(io::Error::other)?;
         
-        let _span = info_span!("update_cover_art", url = %url);
+        let _span = tracing::info_span!("update_cover_art", url = %url);
         let _enter = _span.enter();
         
         if response.status().is_success() {
@@ -291,7 +291,7 @@ impl Disc {
         } else {
             let status = response.status();
             let reason = response.text().ok();
-            warn!(url = %url, status = %status, reason = ?reason, "coverart_failed");
+            tracing::warn!(url = %url, status = %status, reason = ?reason, "coverart_failed");
         }
         Ok(())
     }
