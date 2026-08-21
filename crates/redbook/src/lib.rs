@@ -13,6 +13,39 @@
 //! CDDA CD digital audio as per RedBook (IEC 60908:1999)
 //!
 //! Frame IDs are always *absolute* and *include* the lead-in (150 frames)
+//!
+//! # Tracing
+//!
+//! This library uses the `tracing` crate for observability. It emits spans and events at various levels:
+//!
+//! - **TRACE**: Low-level operations like hex parsing, frame conversions
+//! - **DEBUG**: Mid-level operations like disc creation, track lookups
+//! - **INFO**: High-level operations like MusicBrainz updates, album ripping
+//! - **WARN**: Error conditions like failed cover art retrieval
+//!
+//! To use tracing in your application, initialize a subscriber before using the library:
+//!
+//! ```ignore
+//! use tracing_subscriber::fmt;
+//!
+//! // Initialize for stdout
+//! fmt::init();
+//!
+//! // Or with a custom filter
+//! tracing_subscriber::fmt()
+//!     .with_env_filter("redbook=debug")
+//!     .init();
+//! ```
+//!
+//! The CLI (`rip` binary) supports verbosity flags:
+//!
+//! - `-v`: DEBUG level to stdout
+//! - `-vv`: TRACE level to stdout
+//! - `-q`: Suppress INFO level
+//! - `-qq`: Suppress INFO and WARN levels
+//! - `--debug FILE`: DEBUG level to file
+//! - `--trace FILE`: TRACE level to file
+//! - `--json`: JSON output format
 
 pub mod disc;
 pub mod hex;
