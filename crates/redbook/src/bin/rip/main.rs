@@ -160,11 +160,7 @@ fn main() -> Exit<()> {
     let output_dir = PathBuf::from(artist).join(disc_title);
 
     let _ = cd.disc_mut().update_cover_art();
-    if let Some(data) = cd.disc().cover_art() {
-        let filename = output_dir.join("front.jpeg");
-        let mut cover = File::create_new(filename)?;
-        cover.write_all(data)?
-    }
+    cd.disc().save_cover_art(&output_dir);
 
     for track_number in track_numbers {
         let ripped = cd.rip(track_number)?;

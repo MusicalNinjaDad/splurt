@@ -2,6 +2,8 @@
 #![feature(exact_size_is_empty)]
 #![feature(iter_array_chunks)]
 #![feature(iterator_try_collect)]
+#![feature(path_absolute_method)]
+#![feature(try_blocks)]
 // Unsafe restricted to dedicated wrapper modules
 #![deny(unsafe_code)]
 #![forbid(unsafe_op_in_unsafe_fn)]

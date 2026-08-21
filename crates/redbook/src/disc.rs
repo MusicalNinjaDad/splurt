@@ -1,4 +1,8 @@
-use std::io;
+use std::{
+    fs::File,
+    io::{self, Write},
+    path::{Path, PathBuf},
+};
 
 use bytes::Bytes;
 use cdtoc::Toc;
@@ -273,6 +277,24 @@ impl Disc {
     /// Get the cached cover art
     pub fn cover_art(&self) -> Option<&[u8]> {
         self.coverart.as_ref().map(|b| b.as_ref())
+    }
+
+    /// Save the cover art as "front.jpeg"
+    ///
+    /// Returns None if no cover art is available, else the absolute location of the saved file.
+    pub fn save_cover_art<P: AsRef<Path>>(&self, directory: P) -> Option<io::Result<PathBuf>> {
+        let data = self.cover_art()?;
+        let written_to_path = try {
+            let path = directory
+                .as_ref()
+                .to_owned()
+                .join("front.jpeg")
+                .absolute()?;
+            let mut cover = File::create_new(&path)?;
+            cover.write_all(data)?;
+            path
+        };
+        Some(written_to_path)
     }
 
     pub fn tag_for(&self, track_number: usize) -> Option<VorbisComment> {
