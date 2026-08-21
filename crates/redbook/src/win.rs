@@ -14,6 +14,8 @@ use std::{
     sync::Arc,
 };
 
+use tracing::{info, trace, warn};
+
 use cdtoc::{Toc, TocError};
 use windows_sys::{
     Win32::{
@@ -89,6 +91,9 @@ impl CdDrive {
     ///   this occurs in your binary even on error.
     pub fn open<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let path: PathBuf = PathBuf::from(path.as_ref());
+        let path_str = path.display().to_string();
+        let _span = tracing::info_span!("CdDrive::open", path = %path_str);
+        let _enter = _span.enter();
         let windrive = format!(r"\\.\{}", path.display());
         let lpfilename = WinString::from(windrive.as_str());
         let dwdesiredaccess = GENERIC_READ;
@@ -143,7 +148,7 @@ impl CdDrive {
             )
         };
         if read_toc == 0 {
-            dbg!(bytes_read);
+            tracing::warn!(bytes_read = bytes_read);
             return Err(io::Error::last_os_error());
         };
         assert!(bytes_read <= TOC_SIZE as u32);
@@ -194,6 +199,8 @@ impl CdDrive {
         frames_to_read: u32,
         buf: &mut [u8],
     ) -> io::Result<u32> {
+        let _span = tracing::trace_span!("CdDrive::read_chunk", track = track.toc_entry.track, frame_offset, frames_to_read);
+        let _enter = _span.enter();
         let offset = Sector::from_frame(track.toc_entry.start + frame_offset).offset();
         let read_command = RAW_READ_INFO {
             DiskOffset: offset,
@@ -204,7 +211,7 @@ impl CdDrive {
         let bytes_to_read = frames_to_read * FRAME_SIZE as u32;
 
         let mut bytes_read: u32 = 0;
-        dbg!(offset);
+        tracing::trace!(offset = offset);
 
         #[allow(unsafe_code)]
         // SAFETY - inline based on https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ni-ntddcdrm-ioctl_cdrom_raw_read
@@ -248,7 +255,7 @@ impl CdDrive {
             )
         };
         if read_chunk == 0 {
-            dbg!(bytes_read);
+            tracing::warn!(bytes_read = bytes_read);
             return Err(io::Error::last_os_error());
         }
         debug_assert_eq!(
@@ -328,6 +335,9 @@ impl AudioCdExt for ReadOnlyAudioCd {
 impl AudioCd {
     /// Opens drive, reads CD
     pub fn new<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+        let path_str = path.as_ref().display().to_string();
+        let _span = tracing::info_span!("AudioCd::new", path = %path_str);
+        let _enter = _span.enter();
         // Windows already helpfully decodes the TOC for us. Parsing .cda files pre-calculates the
         // durations and gives us a comparison to validate the raw TOC against.
         let mut tracks: Vec<_> = read_dir(&path)?
