@@ -16,6 +16,7 @@
 pub mod disc;
 pub mod hex;
 pub mod musicbrainz;
+pub mod tagging;
 pub mod win;
 
 pub use disc::Disc;

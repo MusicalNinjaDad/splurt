@@ -4,9 +4,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use bytes::Bytes;
 use cdtoc::Toc;
-use metaflac::block::VorbisComment;
+use metaflac::block::{Picture, PictureType, VorbisComment};
 use musicbrainz_rs::{
     Fetch, MusicBrainzClient,
     api_bindium::{ApiClient, ureq},
@@ -15,6 +14,7 @@ use musicbrainz_rs::{
 use crate::{
     Frame, Msf, Track,
     musicbrainz::{ArtistCreditsExt, Discid, Release, VorbisTagExt},
+    tagging::PictureExt,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -43,7 +43,7 @@ pub struct Disc {
     /// - Some(n) if release is selected
     disc_index: Option<usize>,
     /// Cached coverart: if available
-    coverart: Option<Bytes>,
+    coverart: Option<Picture>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -272,7 +272,8 @@ impl Disc {
             .map_err(io::Error::other)?;
         if response.status().is_success() {
             let image = response.bytes().map_err(io::Error::other)?;
-            self.coverart = Some(image);
+            let cover = Picture::from_jpeg(PictureType::CoverFront, "Front Cover", image);
+            self.coverart = Some(cover);
         } else {
             dbg!(response);
         }
@@ -280,8 +281,8 @@ impl Disc {
     }
 
     /// Get the cached cover art
-    pub fn cover_art(&self) -> Option<&[u8]> {
-        self.coverart.as_ref().map(|b| b.as_ref())
+    pub fn cover_art(&self) -> Option<&Picture> {
+        self.coverart.as_ref()
     }
 
     /// Save the cover art as "front.jpeg"
@@ -289,7 +290,7 @@ impl Disc {
     /// Returns None if no cover art is available, else the absolute location of the saved file.
     #[must_use = "may be `Some(Err(_))`"]
     pub fn save_cover_art<P: AsRef<Path>>(&self, directory: P) -> Option<io::Result<PathBuf>> {
-        let data = self.cover_art()?;
+        let data = &self.cover_art()?.data;
         let written_to_path = try {
             let path = directory
                 .as_ref()

@@ -9,7 +9,7 @@ use metaflac::{
     Block, Tag,
     block::{Picture, PictureType},
 };
-use redbook::{AudioCd, AudioCdExt};
+use redbook::{AudioCd, AudioCdExt, tagging::PictureExt};
 use std::{
     convert::Infallible,
     fs::{self, File},
@@ -19,7 +19,6 @@ use std::{
     str::FromStr,
 };
 use try_v2::Try;
-use zune_jpeg::{JpegDecoder, zune_core::bytestream::ZCursor};
 
 #[derive(Debug, Clone, Copy)]
 enum SelectedTrack {
@@ -193,26 +192,14 @@ fn main() -> Exit<()> {
         }
         dbg!(&tag);
 
-        if let Some(image) = cd
-            .disc()
-            .cover_art()
-            .map(|b| b.to_vec())
-            .or(fs::read(output_dir.join("front.jpeg")).ok())
+        if let Some(cover) =
+            cd.disc()
+                .cover_art()
+                .cloned()
+                .or(fs::read(output_dir.join("front.jpeg"))
+                    .ok()
+                    .map(|data| Picture::from_jpeg(PictureType::CoverFront, "Front Cover", data)))
         {
-            let mut jpg_info = JpegDecoder::new(ZCursor::from(&image));
-            let _ = jpg_info.decode_headers();
-            let width = jpg_info.info().unwrap().width as u32;
-            let height = jpg_info.info().unwrap().height as u32;
-            let cover = Picture {
-                picture_type: PictureType::CoverFront,
-                mime_type: "image/jpeg".to_string(),
-                description: "Front Cover".to_string(),
-                width,
-                height,
-                depth: 24,
-                num_colors: 0,
-                data: image,
-            };
             dbg!(&cover);
             tag.push_block(Block::Picture(cover));
         }
