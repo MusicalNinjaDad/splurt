@@ -4,6 +4,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use tracing::{info, Span};
+
 use cdtoc::Toc;
 use metaflac::block::{Picture, PictureType, VorbisComment};
 use musicbrainz_rs::{
@@ -76,6 +78,8 @@ impl Disc {
         leadout: Frame,
     ) -> Result<Self, DiscError> {
         let tracks: Vec<_> = tracks.into_iter().collect();
+        let _span = info_span!("Disc::new", track_count = tracks.len());
+        let _enter = _span.enter();
 
         if toc.leadout() != leadout.as_usize() as u32 {
             return Err(DiscError::IncorrectLeadout);
@@ -140,6 +144,8 @@ impl Disc {
     ///   to maintain validity of the metadata.
     /// - Modifying the returned track will NOT modify the copy stored in Self
     pub fn track(&self, track_number: usize) -> Option<Track<'_>> {
+        let _span = tracing::debug_span!("Disc::track", track_number = track_number);
+        let _enter = _span.enter();
         let mut track = self.tracks.get(track_number - 1).cloned()?;
         track.meta = self
             .release()
@@ -155,6 +161,8 @@ impl Disc {
     }
 
     pub fn tracks(&self) -> Tracks<'_> {
+        let _span = tracing::debug_span!("Disc::tracks", track_count = self.tracks.len());
+        let _enter = _span.enter();
         Tracks { disc: self, i: 0 }
     }
 
@@ -163,6 +171,8 @@ impl Disc {
     ///
     /// Returns a reference to the release set, to allow for validation.
     pub fn set_release(&mut self, index: Option<usize>) -> &mut Self {
+        let _span = tracing::debug_span!("Disc::set_release", index = ?index);
+        let _enter = _span.enter();
         self.release_index = match index {
             Some(index)
                 if self
@@ -206,6 +216,8 @@ impl Disc {
     /// Attempt to update the data from musicbrainz
     pub fn update_musicbrainz(&mut self) -> io::Result<()> {
         let discid = self.toc.musicbrainz_id().to_string();
+        let _span = info_span!("update_musicbrainz", discid = %discid);
+        let _enter = _span.enter();
 
         let native_tls = ureq::tls::TlsConfig::builder();
         let native_tls = native_tls
@@ -242,6 +254,10 @@ impl Disc {
                 .execute_with_client(&mb_client)
                 .map_err(io::Error::other)?,
         );
+        if let Some(ref mb) = self.musicbrainz {
+            let release_count = mb.releases.as_ref().map(|r| r.len()).unwrap_or(0);
+            info!(releases = release_count, "musicbrainz_retrieved");
+        }
         self.release_index = match self
             .musicbrainz
             .as_ref()
@@ -266,16 +282,23 @@ impl Disc {
         let client = reqwest::blocking::Client::new();
         let url = format!("https://coverartarchive.org/release/{release_mbid}/front");
         let response = client
-            .get(url)
+            .get(&url)
             .header("User-Agent", "splurt/0.1.0")
             .send()
             .map_err(io::Error::other)?;
+        
+        let _span = info_span!("update_cover_art", url = %url);
+        let _enter = _span.enter();
+        
         if response.status().is_success() {
             let image = response.bytes().map_err(io::Error::other)?;
-            let cover = Picture::from_jpeg(PictureType::CoverFront, "Front Cover", image);
+            let cover = Picture::from_jpeg(PictureType::CoverFront, "Front Cover", image.clone());
             self.coverart = Some(cover);
+            info!(size_bytes = image.len(), "coverart_retrieved");
         } else {
-            dbg!(response);
+            let status = response.status();
+            let reason = response.text().ok();
+            warn!(url = %url, status = %status, reason = ?reason, "coverart_failed");
         }
         Ok(())
     }
@@ -307,6 +330,8 @@ impl Disc {
     /// Will only be None if given an invalid track number.
     /// Otherwise at least "TRACKNUMBER" will be set.
     pub fn tag_for(&self, track_number: usize) -> Option<VorbisComment> {
+        let _span = tracing::debug_span!("Disc::tag_for", track_number = track_number);
+        let _enter = _span.enter();
         let mut vorbis = VorbisComment::new();
         let track = self.track(track_number)?;
 
