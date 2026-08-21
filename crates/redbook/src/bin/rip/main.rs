@@ -158,6 +158,7 @@ fn main() -> Exit<()> {
     let disc_title = cd.disc().title().unwrap_or_else(|| "Unknown".to_string());
     let artist = cd.disc().title().unwrap_or_else(|| "Unknown".to_string());
     let output_dir = PathBuf::from(artist).join(disc_title);
+    fs::create_dir_all(&output_dir)?;
 
     let _ = cd.disc_mut().update_cover_art();
     cd.disc().save_cover_art(&output_dir);
