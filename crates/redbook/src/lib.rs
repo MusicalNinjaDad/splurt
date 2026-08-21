@@ -221,7 +221,7 @@ impl<'meta> Track<'meta> {
     /// written on the back of the CD. The only adjusments we makeare to ensure that numerical
     /// track numbers are always 2 digits long, in order to allow alphabetical sorting to work.
     ///
-    /// E.g. "05 Columbia"
+    /// E.g. "05 Columbia", "A1 Speak to Me"
     ///
     /// This will use the text representation for track_number from musicbrainz if available,
     /// falling back to the two digit track number.
