@@ -155,7 +155,9 @@ fn main() -> Exit<()> {
         SelectedTrack::One(n) => n..=n,
     };
 
-    let output_dir = PathBuf::from(cd.disc().title().unwrap_or_else(|| "Unknown".to_string()));
+    let disc_title = cd.disc().title().unwrap_or_else(|| "Unknown".to_string());
+    let artist = cd.disc().title().unwrap_or_else(|| "Unknown".to_string());
+    let output_dir = PathBuf::from(artist).join(disc_title);
 
     let _ = cd.disc_mut().update_cover_art();
     if let Some(data) = cd.disc().cover_art() {
