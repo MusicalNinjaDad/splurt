@@ -234,8 +234,8 @@ impl Disc {
             .and_then(|mb| mb.releases.as_ref())
         {
             None => Some(0),
-            Some(ref releases) if releases.is_empty() => Some(0),
-            Some(ref releases) if releases.len() == 1 => Some(1),
+            Some(releases) if releases.is_empty() => Some(0),
+            Some(releases) if releases.len() == 1 => Some(1),
             _ => None,
         };
         Ok(())
