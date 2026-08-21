@@ -6,6 +6,8 @@ use std::{
     num::ParseIntError,
 };
 
+use tracing::instrument;
+
 use crate::{
     Frame, Msf, TocEntry,
     hex::HexErrorKind::{InvalidValue, NotPairs},
@@ -67,6 +69,7 @@ impl From<ParseIntError> for ParseHexError {
 }
 
 /// Convert hex in form `00 01 02` to bytes
+#[instrument(level = "trace", skip(hex), fields(len = hex.len()))]
 pub fn hex_to_bytes(hex: &str) -> Result<Vec<u8>, ParseHexError> {
     // TODO Error handling
     let values = hex
@@ -86,6 +89,7 @@ pub fn hex_to_bytes(hex: &str) -> Result<Vec<u8>, ParseHexError> {
 }
 
 /// Convert bytes to a hex dump string in the form `00 01 02 ...`
+#[instrument(level = "trace", skip(bytes), fields(byte_count = bytes.len()))]
 pub fn hex_dump(bytes: &[u8]) -> String {
     bytes
         .iter()
@@ -98,6 +102,7 @@ pub fn hex_dump(bytes: &[u8]) -> String {
 /// `[audio trackcount]+[first audio track address]+[second audio track address]`
 /// as used by [cdtoc::Toc::from_cdtoc] and described at
 /// https://forum.dbpoweramp.com/forum/other-topics/developers-corner/16082-flac-ogg-vorbis-storage-of-cdtoc?16705-FLAC-amp-Ogg-Vorbis-Storage-of-CDTOC=&s=3ca0c65ee58fc45489103bb1c39bfac0&viewfull=1#post76686
+#[instrument(level = "debug", skip(bytes), fields(entry_count = bytes.len() / 11))]
 pub fn parse_toc(bytes: Vec<u8>) -> String {
     let mut entries: Vec<_> = bytes
         .chunks_exact(11)
