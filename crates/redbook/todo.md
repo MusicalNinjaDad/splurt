@@ -22,10 +22,10 @@
   - [x] incl artwork
   - [x] open bug with musicbrainz_rs re ring (commit b51ab9c31c45f11c2c86e884621d625e1bb786dc)
 - [ ] GUI with slint
-- [ ] Consider replacing Vec u8 with crate bytes Bytes
+- [x] Consider replacing Vec u8 with crate bytes Bytes
 - [ ] Multi-Disc albums
-- [ ] Store details in Track, simplify tagging
-- [ ] Remove RipAll and loop in app
+- [x] Store details in Track, simplify tagging
+- [x] Remove RipAll and loop in app
 - [ ] Tidy int types and as casts
 - [ ] add logging
   - [ ] check for let _
