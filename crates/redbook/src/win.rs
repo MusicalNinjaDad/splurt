@@ -273,12 +273,16 @@ impl Drop for CdDrive {
     }
 }
 
+/// An AudioCd with potentially mutable metadata. While this is Send + Sync you risk the metadata
+/// diverging between threads. It is recommended to call [lock()][Self::lock] to obtain a
+/// [ReadOnlyAudioCd] before calling [disc().clone()][AudioCdExt::disc]
 #[derive(Debug, PartialEq)]
 pub struct AudioCd {
     drive: CdDrive,
-    disc: Disc,
+    disc: Arc<Disc>,
 }
 
+/// An AudioCd where metadata can no longer be mutated - ensuring safe Sync usage of [disc()][AudioCdExt::disc]
 pub struct ReadOnlyAudioCd {
     drive: CdDrive,
     disc: Arc<Disc>,
@@ -296,7 +300,7 @@ impl AudioCdExt for ReadOnlyAudioCd {
             .read_chunk(track, frame_offset, frames_to_read, buf)
     }
 
-    fn disc(&self) -> &crate::disc::Disc {
+    fn disc(&self) -> &Arc<crate::Disc> {
         &self.disc
     }
 }
@@ -361,7 +365,7 @@ impl AudioCd {
 
         let leadout = toc.leadout();
 
-        let disc = Disc::new(toc, tracks, Frame::new(leadout as usize))?;
+        let disc = Arc::new(Disc::new(toc, tracks, Frame::new(leadout as usize))?);
 
         Ok(Self { drive, disc })
     }
@@ -369,19 +373,19 @@ impl AudioCd {
     pub fn lock(self) -> ReadOnlyAudioCd {
         ReadOnlyAudioCd {
             drive: self.drive,
-            disc: Arc::from(self.disc),
+            disc: self.disc,
         }
     }
 }
 
 impl AudioCdExtMut for AudioCd {
     fn disc_mut(&mut self) -> &mut Disc {
-        &mut self.disc
+        Arc::make_mut(&mut self.disc)
     }
 }
 
 impl AudioCdExt for AudioCd {
-    fn disc(&self) -> &Disc {
+    fn disc(&self) -> &Arc<crate::Disc> {
         &self.disc
     }
 

@@ -25,10 +25,7 @@ pub use win::AudioCd;
 use windows_sys::Win32::Devices::Cdrom::TRACK_DATA;
 
 use std::{
-    convert::TryFrom,
-    io,
-    ops::{Add, Rem, Sub},
-    time::Duration,
+    convert::TryFrom, io, ops::{Add, Rem, Sub}, sync::Arc, time::Duration,
 };
 
 use musicbrainz::Discid;
@@ -58,7 +55,7 @@ pub trait AudioCdExt {
     ) -> io::Result<u32>;
 
     /// Return a reference to the cached Disc data
-    fn disc(&self) -> &crate::disc::Disc;
+    fn disc(&self) -> &Arc<crate::Disc>;
 
     /// Read a full track, returning the raw data as a `Vec` of bytes.
     fn read_track(&self, track_number: usize) -> io::Result<Vec<u8>> {
@@ -133,7 +130,9 @@ pub trait AudioCdExt {
 }
 
 pub trait AudioCdExtMut {
-    /// Return a mutable reference to the cached Disc data
+    /// Return a mutable reference to the cached Disc data. Warning - as disc
+    /// is backed by an Arc this will clone the internal data if other references
+    /// currently exist. See [Arc::make_mut] for details on the underlying mechanism.
     fn disc_mut(&mut self) -> &mut crate::disc::Disc;
 }
 
