@@ -155,9 +155,12 @@ fn main() -> Exit<()> {
         SelectedTrack::One(n) => n..=n,
     };
 
+    let output_dir = PathBuf::from(cd.disc().title().unwrap_or_else(|| "Unknown".to_string()));
+
     let _ = cd.disc_mut().update_cover_art();
     if let Some(data) = cd.disc().cover_art() {
-        let mut cover = File::create_new("front.jpeg")?;
+        let filename = output_dir.join("front.jpeg");
+        let mut cover = File::create_new(filename)?;
         cover.write_all(data)?
     }
 
@@ -166,22 +169,22 @@ fn main() -> Exit<()> {
 
         // define just in time, to allow for mutable borrows earlier
         let track = cd.disc().track(track_number).unwrap();
-        let output_filename = PathBuf::from(
-            [
-                format!("{:02}", track_number),
-                track.title().unwrap_or_default(),
-            ]
-            .join(" "),
-        );
+        
+        let track_num = track
+            .meta()
+            .map(|trk| trk.number.clone())
+            .unwrap_or_else(|| format!("{:02}", track_number));
+        let filename = [track_num, track.title().unwrap_or_default()].join(" ");
+        let output_path = output_dir.join(filename);
 
         let flac = ripped.to_flac();
-        let flac_filename = output_filename.with_extension("flac");
+        let flac_filename = output_path.with_extension("flac");
         let mut dump = File::create_new(&flac_filename)?;
         dump.write_all(flac.as_slice())?;
         println!(
             "Track {} ripped to {}",
             track.track_number(),
-            output_filename.display()
+            output_path.display()
         );
 
         if let Some(tags) = cd.disc().tag_for(track_number) {

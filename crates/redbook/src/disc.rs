@@ -120,6 +120,11 @@ impl Disc {
         self.musicbrainz.as_ref()
     }
 
+    /// Get the title of the CD
+    pub fn title(&self) -> Option<String> {
+        self.release().map(|release| release.title.clone())
+    }
+
     /// Returns an *owned* Option<Track> with metadata valid for 'self
     ///
     /// - Holding on to the returned track will block any mutation to Self, in order
