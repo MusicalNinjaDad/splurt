@@ -131,7 +131,7 @@ impl Disc {
 
     pub fn main_artist(&self) -> Option<String> {
         self.release()
-            .and_then(|release| release.artist_credit.names().nth(0))
+            .and_then(|release| release.artist_credit.main_artist())
     }
 
     /// Returns an *owned* Option<Track> with metadata valid for 'self
@@ -320,7 +320,7 @@ impl Disc {
             vorbis.set_album(vec![release.title.clone()]);
             vorbis.set("MUSICBRAINZ_ALBUMID", vec![release.id.clone()]);
 
-            vorbis.set_album_artist(release.artist_credit.names().collect());
+            vorbis.set_album_artist(release.artist_credit.artist_names().collect());
             vorbis.set(
                 "MUSICBRAINZ_ALBUMARTISTID",
                 release.artist_credit.artist_ids().collect(),
@@ -389,7 +389,7 @@ impl Disc {
                     .artist_credit
                     .as_ref()
                     .or(release.artist_credit.as_ref());
-                vorbis.set_artist(track_artists.names().collect());
+                vorbis.set_artist(track_artists.artist_names().collect());
 
                 let original_date = meta
                     .recording
