@@ -28,7 +28,7 @@ use std::{
     time::Duration,
 };
 
-use musicbrainz::DiscId;
+use musicbrainz::Discid;
 
 /// One cdda audio frame in bytes
 const FRAME_SIZE: usize = 2352;
@@ -118,7 +118,7 @@ pub trait AudioCdExt {
     }
 
     /// Get cached MusicBrainz data, if available
-    fn musicbrainz(&self) -> Option<&DiscId> {
+    fn musicbrainz(&self) -> Option<&Discid> {
         self.disc().musicbrainz()
     }
 
@@ -195,7 +195,7 @@ impl RippedTrack {
         wav
     }
 }
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 /// Cheap to clone - all fields are `Copy` except ripped data which uses cheap-to-clone [`Bytes`]
 /// Borrow checker ensures validity of metadata for lifetime `<'meta>`
 /// Usually constructed as `<'static>` then `clone`d when referencing metadata
@@ -212,7 +212,7 @@ impl<'meta> Track<'meta> {
     }
 
     pub fn title(&self) -> Option<String> {
-        self.meta.and_then(|track| track.title.clone())
+        self.meta.map(|track| track.title.clone())
     }
 
     pub fn meta(&self) -> Option<&'meta musicbrainz::Track> {
