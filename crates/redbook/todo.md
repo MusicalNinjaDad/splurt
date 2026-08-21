@@ -30,3 +30,4 @@
 - [ ] add logging
   - [ ] check for let _
 - [ ] AI image recognition to generate coverart description
+- [ ] Multi-thread
