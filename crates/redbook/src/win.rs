@@ -186,6 +186,77 @@ impl CdDrive {
     pub fn toc(&self) -> &CDROM_TOC {
         &self.toc
     }
+
+    pub fn read_chunk(
+        &self,
+        track: &Track,
+        frame_offset: usize,
+        frames_to_read: u32,
+        buf: &mut [u8],
+    ) -> io::Result<u32> {
+        let offset = Sector::from_frame(track.toc_entry.start + frame_offset).offset();
+        let read_command = RAW_READ_INFO {
+            DiskOffset: offset,
+            SectorCount: frames_to_read,
+            TrackMode: TRACK_MODE_CDDA,
+        };
+
+        let bytes_to_read = frames_to_read * FRAME_SIZE as u32;
+
+        let mut bytes_read: u32 = 0;
+        dbg!(offset);
+
+        #[allow(unsafe_code)]
+        // SAFETY - inline based on https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ni-ntddcdrm-ioctl_cdrom_raw_read
+        let read_chunk = unsafe {
+            // SAFETY check: Buffer is expected size.
+            // Runtime check as `buf` is provided by caller
+            (bytes_to_read == buf.len() as u32)
+                .ok_or_else(|| io::Error::new(
+                    ErrorKind::InvalidInput,
+                    format!("buffer incorrectly sized for track data. Require {bytes_to_read} bytes, buffer is {len} bytes", len = buf.len())
+                )
+            )?;
+
+            // SAFETY check: Buffer is exact size for Sector count.
+            // Debug check as we generated SectorCount and have validated bytes_to_read above.
+            debug_assert_eq!(
+                read_command.SectorCount,
+                bytes_to_read
+                    .div_exact(FRAME_SIZE.try_into().unwrap())
+                    .expect("no remainder")
+            );
+
+            DeviceIoControl(
+                *self.handle(),
+                IOCTL_CDROM_RAW_READ,
+                // If the IOCTL is from user mode, Irp->AssociatedIrp.SystemBuffer contains a RAW_READ_INFO
+                // structure that specifies the starting disk offset, the sector count, and the track mode
+                // (XA or CDDA) for the read.
+                &read_command as *const _ as *const _,
+                // Parameters.DeviceIoControl.InputBufferLength specifies the size, in bytes, of the
+                // structure, which must be >= sizeof(RAW_READ_INFO)
+                size_of_val(&read_command) as u32,
+                // Cannot reallocate without risking invalidating pointer. We create frame with capacity
+                // equal to read_command.SectorCount * Sectorsize.
+                buf as *mut _ as *mut _,
+                // Parameters.DeviceIoControl.OutputBufferLength
+                // specifies the size of the buffer to be read, which must be >= sizeof(SectorCount * RAW_SECTOR_SIZE)
+                bytes_to_read,
+                &mut bytes_read as *mut _,
+                null_mut(),
+            )
+        };
+        if read_chunk == 0 {
+            dbg!(bytes_read);
+            return Err(io::Error::last_os_error());
+        }
+        debug_assert_eq!(
+            bytes_read, bytes_to_read,
+            "intended to read {bytes_to_read} bytes from offset {offset} but only got {bytes_read}"
+        );
+        Ok(bytes_read)
+    }
 }
 
 impl Drop for CdDrive {
@@ -297,68 +368,7 @@ impl AudioCdExt for AudioCd {
         frames_to_read: u32,
         buf: &mut [u8],
     ) -> io::Result<u32> {
-        let offset = Sector::from_frame(track.toc_entry.start + frame_offset).offset();
-        let read_command = RAW_READ_INFO {
-            DiskOffset: offset,
-            SectorCount: frames_to_read,
-            TrackMode: TRACK_MODE_CDDA,
-        };
-
-        let bytes_to_read = frames_to_read * FRAME_SIZE as u32;
-
-        let mut bytes_read: u32 = 0;
-        dbg!(offset);
-
-        #[allow(unsafe_code)]
-        // SAFETY - inline based on https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddcdrm/ni-ntddcdrm-ioctl_cdrom_raw_read
-        let read_chunk = unsafe {
-            // SAFETY check: Buffer is expected size.
-            // Runtime check as `buf` is provided by caller
-            (bytes_to_read == buf.len() as u32)
-                .ok_or_else(|| io::Error::new(
-                    ErrorKind::InvalidInput,
-                    format!("buffer incorrectly sized for track data. Require {bytes_to_read} bytes, buffer is {len} bytes", len = buf.len())
-                )
-            )?;
-
-            // SAFETY check: Buffer is exact size for Sector count.
-            // Debug check as we generated SectorCount and have validated bytes_to_read above.
-            debug_assert_eq!(
-                read_command.SectorCount,
-                bytes_to_read
-                    .div_exact(FRAME_SIZE.try_into().unwrap())
-                    .expect("no remainder")
-            );
-
-            DeviceIoControl(
-                *self.drive.handle(),
-                IOCTL_CDROM_RAW_READ,
-                // If the IOCTL is from user mode, Irp->AssociatedIrp.SystemBuffer contains a RAW_READ_INFO
-                // structure that specifies the starting disk offset, the sector count, and the track mode
-                // (XA or CDDA) for the read.
-                &read_command as *const _ as *const _,
-                // Parameters.DeviceIoControl.InputBufferLength specifies the size, in bytes, of the
-                // structure, which must be >= sizeof(RAW_READ_INFO)
-                size_of_val(&read_command) as u32,
-                // Cannot reallocate without risking invalidating pointer. We create frame with capacity
-                // equal to read_command.SectorCount * Sectorsize.
-                buf as *mut _ as *mut _,
-                // Parameters.DeviceIoControl.OutputBufferLength
-                // specifies the size of the buffer to be read, which must be >= sizeof(SectorCount * RAW_SECTOR_SIZE)
-                bytes_to_read,
-                &mut bytes_read as *mut _,
-                null_mut(),
-            )
-        };
-        if read_chunk == 0 {
-            dbg!(bytes_read);
-            return Err(io::Error::last_os_error());
-        }
-        debug_assert_eq!(
-            bytes_read, bytes_to_read,
-            "intended to read {bytes_to_read} bytes from offset {offset} but only got {bytes_read}"
-        );
-        Ok(bytes_read)
+        self.drive.read_chunk(track, frame_offset, frames_to_read, buf)
     }
 }
 
