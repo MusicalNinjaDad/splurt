@@ -178,35 +178,41 @@ fn main() -> Exit<()> {
             flac_path.display()
         );
 
+        let mut tag = Tag::read_from_path(&flac_path).unwrap();
+        dbg!(&tag);
         if let Some(tags) = cd.disc().tag_for(track_number) {
-            let mut tag = Tag::read_from_path(&flac_path).unwrap();
+            dbg!(&tags);
             let vorbis = tag.vorbis_comments_mut();
             vorbis.comments.extend(tags.comments);
-            if let Some(image) = cd
-                .disc()
-                .cover_art()
-                .map(|b| b.to_vec())
-                .or(fs::read("front.jpeg").ok())
-            {
-                let mut jpg_info = JpegDecoder::new(ZCursor::from(&image));
-                let _ = jpg_info.decode_headers();
-                let width = jpg_info.info().unwrap().width as u32;
-                let height = jpg_info.info().unwrap().height as u32;
-                let cover = Picture {
-                    picture_type: PictureType::CoverFront,
-                    mime_type: "image/jpeg".to_string(),
-                    description: "Front Cover".to_string(),
-                    width,
-                    height,
-                    depth: 24,
-                    num_colors: 0,
-                    data: image,
-                };
-                tag.push_block(Block::Picture(cover));
-            }
-            dbg!(&tag);
-            tag.write_to_path(&flac_path).unwrap();
         }
+        dbg!(&tag);
+
+        if let Some(image) = cd
+            .disc()
+            .cover_art()
+            .map(|b| b.to_vec())
+            .or(fs::read(output_dir.join("front.jpeg")).ok())
+        {
+            let mut jpg_info = JpegDecoder::new(ZCursor::from(&image));
+            let _ = jpg_info.decode_headers();
+            let width = jpg_info.info().unwrap().width as u32;
+            let height = jpg_info.info().unwrap().height as u32;
+            let cover = Picture {
+                picture_type: PictureType::CoverFront,
+                mime_type: "image/jpeg".to_string(),
+                description: "Front Cover".to_string(),
+                width,
+                height,
+                depth: 24,
+                num_colors: 0,
+                data: image,
+            };
+            dbg!(&cover);
+            tag.push_block(Block::Picture(cover));
+        }
+
+        tag.write_to_path(&flac_path).unwrap();
+
         let written_tag = Tag::read_from_path(&flac_path).unwrap();
         dbg!(written_tag);
     }
