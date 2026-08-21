@@ -201,7 +201,7 @@ impl Drop for CdDrive {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub struct AudioCd {
     drive: CdDrive,
     disc: Disc,
