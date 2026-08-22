@@ -21,13 +21,7 @@ use metaflac::{
     block::{Picture, PictureType},
 };
 use redbook::{AudioCd, AudioCdExt, AudioCdExtMut, RippedTrack, tagging::PictureExt};
-use tracing::Subscriber;
-use tracing_subscriber::{
-    Registry,
-    filter::LevelFilter,
-    fmt::layer,
-    layer::{Layer, SubscriberExt},
-};
+use tracing::{debug, info, info_span};
 use try_v2::Try;
 
 #[derive(Debug, Clone, Copy)]
@@ -37,54 +31,15 @@ enum SelectedTrack {
 }
 
 mod cli;
-use cli::Rip;
+mod _tracing;
+pub(crate) use cli::Rip;
 
 use clap::Error as ClapError;
-
-fn init_tracing(args: &Rip) {
-    let stdout_filter = match (args.verbose, args.quiet) {
-        (0, 0) => LevelFilter::INFO,
-        (1, _) => LevelFilter::DEBUG,
-        (2.., _) => LevelFilter::TRACE,
-        (_, 1..) => LevelFilter::OFF,
-    };
-
-    let stderr_filter = match args.quiet {
-        0 => LevelFilter::WARN,
-        _ => LevelFilter::OFF,
-    };
-
-    let stdout_layer = layer().with_filter(stdout_filter);
-    let stderr_layer = layer()
-        .with_writer(std::io::stderr)
-        .with_filter(stderr_filter);
-
-    let registry: Box<dyn Subscriber + Send + Sync> =
-        if let Some(path) = args.debug.as_ref().or(args.trace.as_ref()) {
-            let level = if args.debug.is_some() {
-                LevelFilter::DEBUG
-            } else {
-                LevelFilter::TRACE
-            };
-            let file = std::fs::File::create(path).expect("create log file");
-            let file_layer = layer().with_writer(file).with_filter(level);
-            Box::new(
-                Registry::default()
-                    .with(stdout_layer)
-                    .with(stderr_layer)
-                    .with(file_layer),
-            )
-        } else {
-            Box::new(Registry::default().with(stdout_layer).with(stderr_layer))
-        };
-
-    tracing::subscriber::set_global_default(registry).expect("Failed to set tracing subscriber");
-}
 
 fn main() -> Exit<()> {
     let ripper = Rip::try_parse()?;
 
-    init_tracing(&ripper);
+    ripper.init_tracing()?;
 
     let drive = PathBuf::from_str(&ripper.drive)?;
     let mut cd = AudioCd::new(drive)?;
@@ -150,7 +105,7 @@ fn main() -> Exit<()> {
     };
 
     let disc_title = cd.disc().title().unwrap_or_else(|| "Unknown".to_string());
-    let _album_span = tracing::info_span!("rip_album", album = %disc_title);
+    let _album_span = info_span!("rip_album", album = %disc_title);
     let _album_enter = _album_span.enter();
 
     let selected_track = match (ripper.all, ripper.track_number) {
@@ -233,7 +188,7 @@ fn main() -> Exit<()> {
             try {
                 let track = cd.disc().track(track_number).unwrap();
                 let track_name = track.title().unwrap_or_default();
-                tracing::info!(
+                info!(
                     target: "rip",
                     track = track_number,
                     name = %track_name,
@@ -242,7 +197,7 @@ fn main() -> Exit<()> {
                 let start = std::time::Instant::now();
                 let ripped = cd.rip(track_number).ok()?;
                 let duration = start.elapsed();
-                tracing::info!(
+                info!(
                     target: "rip",
                     track = track_number,
                     name = %track_name,
@@ -261,7 +216,7 @@ fn main() -> Exit<()> {
                 let track = disc.track(track_number).unwrap();
                 let track_name = track.title().unwrap_or_default();
 
-                tracing::debug!(
+                debug!(
                     target: "encode",
                     track = track_number,
                     name = %track_name,
@@ -299,7 +254,7 @@ fn main() -> Exit<()> {
                 tag.write_to_path(&flac_path).unwrap();
 
                 let duration = start.elapsed();
-                tracing::debug!(
+                debug!(
                     target: "encode",
                     track = track_number,
                     bytes = bytes_written,
@@ -331,6 +286,7 @@ pub enum Exit<T: _T> {
     Error(String) = 1,
     InvocationError(String) = 2,
     IO(String) = 3,
+    Logging(String) = 4
 }
 
 impl<T: _T> From<ClapError> for Exit<T> {

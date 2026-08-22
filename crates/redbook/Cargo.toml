@@ -49,7 +49,7 @@ serde.workspace = true
 serde_json.workspace = true
 try_v2.workspace = true
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["fmt", "json"] }
 zune-jpeg.workspace = true
 
 [dev-dependencies]

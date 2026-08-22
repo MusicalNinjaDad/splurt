@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 
 #[derive(Parser)]
 #[command(version)]
@@ -17,15 +17,35 @@ pub struct Rip {
     /// Non-interactive mode: use the latest release for CDs with multiple releases
     #[arg(short = 'n', long)]
     pub non_interactive: bool,
-    // Tracing verbosity flags
+    /// Increase verbosity, can be provided multiple times (e.g. -vv) to be even more verbose.
     #[arg(short = 'v', action = clap::ArgAction::Count)]
     pub verbose: u8,
-    #[arg(short = 'q', action = clap::ArgAction::Count)]
+    /// Reduce verbosity, can be provided multiple times (e.g. -qq) to be even quieter.
+    #[arg(short = 'q', action = clap::ArgAction::Count, conflicts_with = "verbose")]
     pub quiet: u8,
+    /// Output information to <LOGFILE>. Not affected by -v / -q
     #[arg(long, value_name = "LOGFILE")]
-    pub debug: Option<PathBuf>,
-    #[arg(long, value_name = "LOGFILE")]
-    pub trace: Option<PathBuf>,
-    #[arg(long)]
-    pub json: bool,
+    pub log: Option<PathBuf>,
+    /// Information level to ouput to logfile
+    #[arg(long, value_name = "LOGLEVEL", value_enum, default_value_os_t, requires = "log")]
+    pub loglevel: LogLevel,
+    /// Logfile format
+    #[arg(long, value_name = "FORMAT", value_enum, default_value_os_t, requires = "log")]
+    pub format: LogFormat,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Default)]
+pub enum LogLevel {
+    Warn,
+    Info,
+    #[default]
+    Debug,
+    Trace,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Default)]
+pub enum LogFormat {
+    #[default]
+    Human,
+    Json,
 }
