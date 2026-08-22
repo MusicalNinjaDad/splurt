@@ -30,6 +30,7 @@ enum SelectedTrack {
     One(usize),
 }
 
+mod _releases;
 mod _tracing;
 mod cli;
 pub(crate) use cli::Rip;
