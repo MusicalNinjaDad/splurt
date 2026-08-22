@@ -15,3 +15,10 @@ command = "/opt/cargo/bin/graphify hook-guard read"
 timeout = 5.0
 strict = false
 description = "Nudge toward `graphify query` instead of raw file reads."
+
+[[hooks]]
+name = "auto-approve-graphify"
+type = "pre_tool"
+match = "bash"
+command = "python3"
+strict = false
