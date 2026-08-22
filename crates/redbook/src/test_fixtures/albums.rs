@@ -3,7 +3,7 @@
 use std::fmt::Display;
 use std::path::PathBuf;
 
-use crate::{Frame, Msf, TocEntry, win::CdromTocExt};
+use crate::{Frame, Msf, TocEntry, Track, win::CdromTocExt};
 use windows_sys::Win32::Devices::Cdrom::CDROM_TOC;
 
 /// Test album identifier for parameterized tests
@@ -52,6 +52,14 @@ impl TestAlbum {
             TestAlbum::TheWallDisc1 => PathBuf::from("tests/assets/the_wall/disc1"),
             TestAlbum::TheWallDisc2 => PathBuf::from("tests/assets/the_wall/disc2"),
         }
+    }
+
+    /// Load and parse the TOC.hex file
+    pub fn expected_toc(&self) -> cdtoc::Toc {
+        let path = self.toc_path();
+        let toc_dump = super::load_hex_file(&path);
+        let toc_string = crate::hex::parse_toc(toc_dump);
+        cdtoc::Toc::from_cdtoc(toc_string).unwrap()
     }
 
     /// Load and parse the CDROM_TOC.hex file
@@ -368,5 +376,339 @@ impl TestAlbum {
             .into_iter()
             .map(|(entry, _)| entry)
             .collect()
+    }
+
+    /// Expected tracks as Track objects (without metadata)
+    pub fn expected_tracks(&self) -> Vec<Track<'static>> {
+        match self {
+            TestAlbum::DefinitelyMaybe => vec![
+                Track {
+                    toc_entry: TocEntry {
+                        track: 1,
+                        start: Frame::from(Msf::new(0x00, 0x02, 0x21)),
+                    },
+                    duration_frames: Frame::new(24242),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 2,
+                        start: Frame::from(Msf::new(0x05, 0x19, 0x32)),
+                    },
+                    duration_frames: Frame::new(23138),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 3,
+                        start: Frame::from(Msf::new(0x0A, 0x22, 0x0D)),
+                    },
+                    duration_frames: Frame::new(20762),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 4,
+                        start: Frame::from(Msf::new(0x0F, 0x0B, 0x00)),
+                    },
+                    duration_frames: Frame::new(20168),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 5,
+                        start: Frame::from(Msf::new(0x13, 0x27, 0x44)),
+                    },
+                    duration_frames: Frame::new(28272),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 6,
+                        start: Frame::from(Msf::new(0x19, 0x38, 0x41)),
+                    },
+                    duration_frames: Frame::new(21280),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 7,
+                        start: Frame::from(Msf::new(0x1E, 0x28, 0x2D)),
+                    },
+                    duration_frames: Frame::new(19338),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 8,
+                        start: Frame::from(Msf::new(0x22, 0x3A, 0x21)),
+                    },
+                    duration_frames: Frame::new(21700),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 9,
+                        start: Frame::from(Msf::new(0x27, 0x2F, 0x3A)),
+                    },
+                    duration_frames: Frame::new(11425),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 10,
+                        start: Frame::from(Msf::new(0x2A, 0x14, 0x08)),
+                    },
+                    duration_frames: Frame::new(29455),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 11,
+                        start: Frame::from(Msf::new(0x30, 0x34, 0x3F)),
+                    },
+                    duration_frames: Frame::new(14440),
+                    ..Default::default()
+                },
+            ],
+            TestAlbum::TheWallDisc1 => vec![
+                Track {
+                    toc_entry: TocEntry {
+                        track: 1,
+                        start: Frame::from(Msf::new(0x00, 0x02, 0x00)),
+                    },
+                    duration_frames: Frame::new(18840),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 2,
+                        start: Frame::from(Msf::new(0x03, 0x15, 0x2A)),
+                    },
+                    duration_frames: Frame::new(149866),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 3,
+                        start: Frame::from(Msf::new(0x05, 0x33, 0x20)),
+                    },
+                    duration_frames: Frame::new(190800),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 4,
+                        start: Frame::from(Msf::new(0x09, 0x01, 0x1E)),
+                    },
+                    duration_frames: Frame::new(111000),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 5,
+                        start: Frame::from(Msf::new(0x0A, 0x33, 0x43)),
+                    },
+                    duration_frames: Frame::new(190800),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 6,
+                        start: Frame::from(Msf::new(0x0E, 0x33, 0x1B)),
+                    },
+                    duration_frames: Frame::new(333866),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 7,
+                        start: Frame::from(Msf::new(0x14, 0x19, 0x11)),
+                    },
+                    duration_frames: Frame::new(169933),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 8,
+                        start: Frame::from(Msf::new(0x17, 0x0C, 0x3C)),
+                    },
+                    duration_frames: Frame::new(126200),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 9,
+                        start: Frame::from(Msf::new(0x19, 0x15, 0x0A)),
+                    },
+                    duration_frames: Frame::new(208133),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 10,
+                        start: Frame::from(Msf::new(0x1C, 0x34, 0x11)),
+                    },
+                    duration_frames: Frame::new(240733),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 11,
+                        start: Frame::from(Msf::new(0x20, 0x1C, 0x39)),
+                    },
+                    duration_frames: Frame::new(216400),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 12,
+                        start: Frame::from(Msf::new(0x24, 0x2D, 0x0C)),
+                    },
+                    duration_frames: Frame::new(174200),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 13,
+                        start: Frame::from(Msf::new(0x25, 0x3B, 0x41)),
+                    },
+                    duration_frames: Frame::new(147333),
+                    ..Default::default()
+                },
+            ],
+            TestAlbum::TheWallDisc2 => vec![
+                Track {
+                    toc_entry: TocEntry {
+                        track: 1,
+                        start: Frame::from(Msf::new(0x00, 0x02, 0x00)),
+                    },
+                    duration_frames: Frame::new(199560),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 2,
+                        start: Frame::from(Msf::new(0x04, 0x2B, 0x28)),
+                    },
+                    duration_frames: Frame::new(149906),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 3,
+                        start: Frame::from(Msf::new(0x07, 0x17, 0x3C)),
+                    },
+                    duration_frames: Frame::new(186766),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 4,
+                        start: Frame::from(Msf::new(0x0A, 0x30, 0x19)),
+                    },
+                    duration_frames: Frame::new(122866),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 5,
+                        start: Frame::from(Msf::new(0x0C, 0x15, 0x1E)),
+                    },
+                    duration_frames: Frame::new(168466),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 6,
+                        start: Frame::from(Msf::new(0x0D, 0x30, 0x2A)),
+                    },
+                    duration_frames: Frame::new(333706),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 7,
+                        start: Frame::from(Msf::new(0x14, 0x0A, 0x14)),
+                    },
+                    duration_frames: Frame::new(169933),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 8,
+                        start: Frame::from(Msf::new(0x15, 0x2E, 0x1E)),
+                    },
+                    duration_frames: Frame::new(162766),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 9,
+                        start: Frame::from(Msf::new(0x1A, 0x03, 0x0A)),
+                    },
+                    duration_frames: Frame::new(240733),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 10,
+                        start: Frame::from(Msf::new(0x1E, 0x1A, 0x41)),
+                    },
+                    duration_frames: Frame::new(217333),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 11,
+                        start: Frame::from(Msf::new(0x22, 0x19, 0x11)),
+                    },
+                    duration_frames: Frame::new(135000),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 12,
+                        start: Frame::from(Msf::new(0x22, 0x37, 0x23)),
+                    },
+                    duration_frames: Frame::new(333706),
+                    ..Default::default()
+                },
+                Track {
+                    toc_entry: TocEntry {
+                        track: 13,
+                        start: Frame::from(Msf::new(0x28, 0x0F, 0x0F)),
+                    },
+                    duration_frames: Frame::new(103133),
+                    ..Default::default()
+                },
+            ],
+        }
+    }
+
+    /// Load musicbrainz data from the musicbrainz.json file for this album
+    pub fn expected_musicbrainz(&self) -> crate::musicbrainz::Discid {
+        let path = self.assets_path().join("musicbrainz.json");
+        let json_content = std::fs::read_to_string(&path).unwrap_or_else(|_| {
+            panic!("Failed to read musicbrainz.json from {:?}", path)
+        });
+        serde_json::from_str(&json_content).unwrap_or_else(|e| {
+            panic!("Failed to parse musicbrainz.json from {:?}: {}", path, e)
+        })
+    }
+
+    /// Load the expected release menu from release_selection.txt
+    pub fn expected_release_menu(&self) -> Option<String> {
+        let path = self.assets_path().join("release_selection.txt");
+        match std::fs::read_to_string(&path) {
+            Ok(content) => {
+                if content.trim().is_empty() {
+                    None
+                } else {
+                    Some(content)
+                }
+            }
+            Err(_) => None,
+        }
     }
 }

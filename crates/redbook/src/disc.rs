@@ -232,6 +232,22 @@ impl Disc {
         self
     }
 
+    /// Set the MusicBrainz data directly
+    pub fn set_musicbrainz(&mut self, discid: Discid) -> &mut Self {
+        self.musicbrainz = Some(discid);
+        self.release_index = match self
+            .musicbrainz
+            .as_ref()
+            .and_then(|mb| mb.releases.as_ref())
+        {
+            None => Some(0),
+            Some(releases) if releases.is_empty() => Some(0),
+            Some(releases) if releases.len() == 1 => Some(1),
+            _ => None,
+        };
+        self
+    }
+
     /// Attempt to update the data from musicbrainz
     pub fn update_musicbrainz(&mut self) -> io::Result<()> {
         let discid = self.toc.musicbrainz_id().to_string();
@@ -261,25 +277,16 @@ impl Disc {
 
         let _api_call = mb_stuff.as_api_request(&mb_client).unwrap();
 
-        self.musicbrainz = Some(
-            mb_stuff
-                .execute_with_client(&mb_client)
-                .map_err(io::Error::other)?,
-        );
+        let discid = mb_stuff
+            .execute_with_client(&mb_client)
+            .map_err(io::Error::other)?;
+        
+        self.set_musicbrainz(discid);
+        
         if let Some(ref mb) = self.musicbrainz {
             let release_count = mb.releases.as_ref().map(|r| r.len()).unwrap_or(0);
             info!(releases = release_count, "musicbrainz_retrieved");
         }
-        self.release_index = match self
-            .musicbrainz
-            .as_ref()
-            .and_then(|mb| mb.releases.as_ref())
-        {
-            None => Some(0),
-            Some(releases) if releases.is_empty() => Some(0),
-            Some(releases) if releases.len() == 1 => Some(1),
-            _ => None,
-        };
         Ok(())
     }
 
