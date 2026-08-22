@@ -39,6 +39,9 @@ Rules:
 - Always create tests for new functionality
 - Tests MUST assert on the actual behavior being tested — tests that don't verify output are useless
 - Tests should be concise but meaningful; they serve as executable documentation
+- NEVER use generic assertions (e.g., `assert!(value > 0)`) when specific expected values are known or can be determined
+- For parameterized tests, use `rstest` crate with fixture structs/enums to store expected values
+- When hardcoding test data, combine: consts, fixture-like functions, and helper structs/enums to look up the right expected result based on test parameters
 
 ### Tooling
 
