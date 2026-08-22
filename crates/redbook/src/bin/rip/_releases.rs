@@ -14,36 +14,35 @@ pub fn release_menu(disc: Disc) -> Option<String> {
     // Group releases by title
     let mut groups: BTreeMap<&str, Vec<&Release>> = BTreeMap::new();
     for release in releases {
-        let title = release.title.as_str();
-        groups.entry(title).or_default().push(release);
+        groups.entry(&release.title).or_default().push(release);
     }
 
     let mut output = String::new();
-    output.push_str("Multiple releases found. Please select one:\n\n");
+    output.push_str("Multiple releases found. Please select one:");
+    output.push('\n');
+    output.push('\n');
 
     let mut index = 1;
-    for (group_title, group_releases) in &groups {
-        // Group header
+    for (group_title, group_releases) in &mut groups {
         output.push_str(group_title);
-        output.push_str("\n");
+        output.push('\n');
 
-        // Underline
         let underline = "=".repeat(group_title.len());
         output.push_str(&underline);
-        output.push_str("\n");
+        output.push('\n');
 
-        // Table header
-        output.push_str("    Date        Country     Barcode\n");
+        output.push_str("    Date        Country     Barcode");
+        output.push('\n');
 
         // Sort releases within group by date descending (newest first) for consistent ordering
-        let mut sorted_releases = group_releases.to_vec();
-        sorted_releases.sort_by(|a, b| {
-            let a_date = a.date.as_ref().map(|d| d.to_string().trim().to_string()).unwrap_or_default();
-            let b_date = b.date.as_ref().map(|d| d.to_string().trim().to_string()).unwrap_or_default();
-            b_date.cmp(&a_date)
-        });
+        group_releases.sort_by_key(|release| release
+            .date
+            .as_ref()
+            .map(ToString::to_string)
+            .unwrap_or_default()
+        );
 
-        for release in sorted_releases {
+        for release in group_releases {
             // Index: 4 chars (e.g., "1.  ", "10. ")
             output.push_str(&format!("{}.  ", index));
             index += 1;
@@ -68,17 +67,17 @@ pub fn release_menu(disc: Disc) -> Option<String> {
             output.push_str(barcode);
 
             // Disambiguation if present: 4 spaces before parentheses
-            if let Some(disambig) = &release.disambiguation {
-                if !disambig.is_empty() {
-                    output.push_str("    ");
-                    output.push_str(&format!("({})", disambig));
-                }
+            if let Some(disambig) = &release.disambiguation
+                && !disambig.is_empty()
+            {
+                output.push_str("    ");
+                output.push_str(&format!("({})", disambig));
             }
 
-            output.push_str("\n");
+            output.push('\n');
         }
 
-        output.push_str("\n");
+        output.push('\n');
     }
 
     Some(output)
@@ -100,6 +99,7 @@ mod tests {
         let musicbrainz: redbook::musicbrainz::Discid = album.expected_musicbrainz();
         disc.set_musicbrainz(musicbrainz);
         let release_selection = release_menu(disc);
+        println!("{}", release_selection.as_ref().unwrap());
         let expected_menu = album.expected_release_menu();
         assert_eq!(release_selection, expected_menu);
     }
