@@ -53,6 +53,7 @@ tracing-subscriber = { version = "0.3", features = ["fmt", "json"] }
 zune-jpeg.workspace = true
 
 [dev-dependencies]
+rstest.workspace = true
 
 [build-dependencies]
 build_safely.workspace = true

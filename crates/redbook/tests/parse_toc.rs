@@ -1,5 +1,4 @@
-//! Test parsing TOC for "Definitely Maybe"
-//! https://musicbrainz.org/release/9822581d-98bf-3f97-a94c-4b1350d090aa
+//! Test parsing TOC for various albums
 
 use std::path::PathBuf;
 
@@ -8,6 +7,7 @@ use redbook::{
     hex::{hex_to_bytes, parse_toc},
     win::CdromTocExt,
 };
+use rstest::rstest;
 use windows_sys::Win32::Devices::Cdrom::CDROM_TOC;
 
 /// Load a hex file and parse it as raw bytes
@@ -16,9 +16,30 @@ fn load_hex_file(path: &PathBuf) -> Vec<u8> {
     hex_to_bytes(&content).unwrap()
 }
 
-#[test]
-fn compare_definitely_maybe() {
-    let assets = PathBuf::from("tests/assets/definitely_maybe");
+/// Test album for parameterized tests
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TestAlbum {
+    DefinitelyMaybe,
+    TheWallDisc1,
+    TheWallDisc2,
+}
+
+impl TestAlbum {
+    fn assets_path(&self) -> PathBuf {
+        match self {
+            TestAlbum::DefinitelyMaybe => PathBuf::from("tests/assets/definitely_maybe"),
+            TestAlbum::TheWallDisc1 => PathBuf::from("tests/assets/the_wall/disc1"),
+            TestAlbum::TheWallDisc2 => PathBuf::from("tests/assets/the_wall/disc2"),
+        }
+    }
+}
+
+#[rstest]
+#[case(TestAlbum::DefinitelyMaybe)]
+#[case(TestAlbum::TheWallDisc1)]
+#[case(TestAlbum::TheWallDisc2)]
+fn compare_toc(#[case] album: TestAlbum) {
+    let assets = album.assets_path();
 
     let cdrom_toc_dump = load_hex_file(&assets.join("CDROM_TOC.hex"));
     let cdrom_toc = unsafe { CDROM_TOC::from_raw_bytes(cdrom_toc_dump) };
