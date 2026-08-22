@@ -362,8 +362,7 @@ impl AudioCdExt for ReadOnlyAudioCd {
         _frame_offset: usize,
         _frames_to_read: u32,
         _buf: &mut [u8],
-    ) -> io::Result<u32>
-    {
+    ) -> io::Result<u32> {
         unimplemented!("hardware access not available on other targets")
     }
 
@@ -479,8 +478,7 @@ impl AudioCdExt for AudioCd {
         _frame_offset: usize,
         _frames_to_read: u32,
         _buf: &mut [u8],
-    ) -> io::Result<u32>
-    {
+    ) -> io::Result<u32> {
         unimplemented!("hardware access not available on other targets")
     }
 }

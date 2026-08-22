@@ -689,12 +689,10 @@ impl TestAlbum {
     /// Load musicbrainz data from the musicbrainz.json file for this album
     pub fn expected_musicbrainz(&self) -> crate::musicbrainz::Discid {
         let path = self.assets_path().join("musicbrainz.json");
-        let json_content = std::fs::read_to_string(&path).unwrap_or_else(|_| {
-            panic!("Failed to read musicbrainz.json from {:?}", path)
-        });
-        serde_json::from_str(&json_content).unwrap_or_else(|e| {
-            panic!("Failed to parse musicbrainz.json from {:?}: {}", path, e)
-        })
+        let json_content = std::fs::read_to_string(&path)
+            .unwrap_or_else(|_| panic!("Failed to read musicbrainz.json from {:?}", path));
+        serde_json::from_str(&json_content)
+            .unwrap_or_else(|e| panic!("Failed to parse musicbrainz.json from {:?}: {}", path, e))
     }
 
     /// Load the expected release menu from release_selection.txt

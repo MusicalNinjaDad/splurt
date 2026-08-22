@@ -2,7 +2,6 @@
 #![feature(try_blocks)]
 #![feature(try_trait_v2)]
 #![feature(try_trait_v2_residual)]
-
 #![allow(rust_analyzer::inactive_code)]
 #![allow(unused_imports)]
 
