@@ -1,3 +1,6 @@
+#![allow(rust_analyzer::inactive_code)]
+#![allow(unused_imports, reason = "until split into platform & supporting")]
+
 //! Safe and sane wrappers around Windows APIs for CD drive access
 //!
 //! # Tracing
@@ -34,11 +37,14 @@ use windows_sys::{
         Devices::Cdrom::{
             CDROM_READ_TOC_EX, CDROM_TOC, IOCTL_CDROM_READ_TOC_EX, RAW_READ_INFO, TRACK_MODE_TYPE,
         },
-        Foundation::{CloseHandle, HANDLE},
-        Storage::FileSystem::CreateFile2,
-        System::IO::DeviceIoControl,
+        Foundation::HANDLE,
     },
     core::PCWSTR,
+};
+
+#[cfg(target_family = "windows")]
+use windows_sys::{
+    Foundation::CloseHandle, Storage::FileSystem::CreateFile2, System::IO::DeviceIoControl,
 };
 
 use windows_sys::Win32::{
@@ -101,6 +107,7 @@ impl CdDrive {
     /// - The handle has minimal (shared read only) access rights and will be closed
     ///   when the [`CdDrive`] is dropped. Consider using [exit_safely] to ensure that
     ///   this occurs in your binary even on error.
+    #[cfg(target_family = "windows")]
     pub fn open<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let path: PathBuf = PathBuf::from(path.as_ref());
         let path_str = path.display().to_string();
@@ -204,6 +211,7 @@ impl CdDrive {
         &self.toc
     }
 
+    #[cfg(target_family = "windows")]
     pub fn read_chunk(
         &self,
         track: &Track,
@@ -283,6 +291,7 @@ impl CdDrive {
     }
 }
 
+#[cfg(target_family = "windows")]
 impl Drop for CdDrive {
     fn drop(&mut self) {
         #[allow(unsafe_code)]
@@ -328,11 +337,13 @@ impl !Send for AudioCd {}
 /// [`Sync`] references to the metadata can be obtained via [`disc().clone()`][AudioCdExt::disc]
 /// and safely passed to other threads.
 pub struct ReadOnlyAudioCd {
+    #[allow(dead_code, reason = "until split into platform & supporting")]
     drive: CdDrive,
     disc: Arc<Disc>,
 }
 
 impl AudioCdExt for ReadOnlyAudioCd {
+    #[cfg(target_family = "windows")]
     fn read_chunk(
         &self,
         track: &Track,
@@ -344,6 +355,18 @@ impl AudioCdExt for ReadOnlyAudioCd {
             .read_chunk(track, frame_offset, frames_to_read, buf)
     }
 
+    #[cfg(not(target_family = "windows"))]
+    fn read_chunk(
+        &self,
+        _track: &Track,
+        _frame_offset: usize,
+        _frames_to_read: u32,
+        _buf: &mut [u8],
+    ) -> io::Result<u32>
+    {
+        unimplemented!("hardware access not available on other targets")
+    }
+
     fn disc(&self) -> &Arc<crate::Disc> {
         &self.disc
     }
@@ -351,6 +374,7 @@ impl AudioCdExt for ReadOnlyAudioCd {
 
 impl AudioCd {
     /// Opens drive, reads CD
+    #[cfg(target_family = "windows")]
     pub fn new<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let path_str = path.as_ref().display().to_string();
         let _span = tracing::info_span!("AudioCd::new", path = %path_str);
@@ -436,6 +460,7 @@ impl AudioCdExt for AudioCd {
         &self.disc
     }
 
+    #[cfg(target_family = "windows")]
     fn read_chunk(
         &self,
         track: &Track,
@@ -445,6 +470,18 @@ impl AudioCdExt for AudioCd {
     ) -> io::Result<u32> {
         self.drive
             .read_chunk(track, frame_offset, frames_to_read, buf)
+    }
+
+    #[cfg(not(target_family = "windows"))]
+    fn read_chunk(
+        &self,
+        _track: &Track,
+        _frame_offset: usize,
+        _frames_to_read: u32,
+        _buf: &mut [u8],
+    ) -> io::Result<u32>
+    {
+        unimplemented!("hardware access not available on other targets")
     }
 }
 

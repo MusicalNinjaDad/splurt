@@ -3,6 +3,9 @@
 #![feature(try_trait_v2)]
 #![feature(try_trait_v2_residual)]
 
+#![allow(rust_analyzer::inactive_code)]
+#![allow(unused_imports)]
+
 use std::{
     convert::Infallible,
     fs::{self, File},
@@ -25,6 +28,7 @@ use tracing::{debug, info, info_span};
 use try_v2::Try;
 
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 enum SelectedTrack {
     All,
     One(usize),
@@ -37,6 +41,7 @@ pub(crate) use cli::Rip;
 
 use clap::Error as ClapError;
 
+#[cfg(target_family = "windows")]
 fn main() -> Exit<()> {
     let ripper = Rip::try_parse()?;
 
@@ -275,6 +280,11 @@ fn main() -> Exit<()> {
         .join()
         .map_err(|panicked| Exit::Error(format!("encoding panicked: {panicked:?}")))??;
 
+    Exit::Ok(())
+}
+
+#[cfg(not(target_family = "windows"))]
+fn main() -> Exit<()> {
     Exit::Ok(())
 }
 
