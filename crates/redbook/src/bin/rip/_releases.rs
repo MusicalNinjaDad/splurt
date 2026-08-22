@@ -1,5 +1,6 @@
 use redbook::{Disc, musicbrainz::Release};
 use std::collections::BTreeMap;
+use tabular::{Row, Table, row};
 
 /// Generates a menu to select the correct release, where multiple options are available.
 /// Returns `None` if no menu is possible (no musicbrainz data), or required (only one release)
@@ -17,70 +18,61 @@ pub fn release_menu(disc: Disc) -> Option<String> {
         groups.entry(&release.title).or_default().push(release);
     }
 
-    let mut output = String::new();
-    output.push_str("Multiple releases found. Please select one:");
-    output.push('\n');
-    output.push('\n');
+    let mut releases = Table::new("{:<}  {:<}  {:<}  {:<}  {:<}");
+    releases.add_heading("Multiple releases found. Please select one:");
 
+    // Common across all groups - so can't enumerate releases
     let mut index = 1;
+
     for (group_title, group_releases) in &mut groups {
-        output.push_str(group_title);
-        output.push('\n');
+        releases.add_heading("");
+        releases.add_heading(*group_title);
 
         let underline = "=".repeat(group_title.len());
-        output.push_str(&underline);
-        output.push('\n');
+        releases.add_heading(underline);
 
-        output.push_str("    Date        Country     Barcode");
-        output.push('\n');
+        releases.add_row(Row::from_cells(["", "Date", "Country", "Barcode", ""]));
 
-        // Sort releases within group by date descending (newest first) for consistent ordering
-        group_releases.sort_by_key(|release| release
-            .date
-            .as_ref()
-            .map(ToString::to_string)
-            .unwrap_or_default()
-        );
+        group_releases.sort_by_key(|release| {
+            release
+                .date
+                .as_ref()
+                .map(ToString::to_string)
+                .unwrap_or_default()
+        });
+        group_releases.reverse();
 
         for release in group_releases {
-            // Index: 4 chars (e.g., "1.  ", "10. ")
-            output.push_str(&format!("{}.  ", index));
-            index += 1;
-
-            // Date: right-aligned in 10-char width at positions 4-13
             let date = release
                 .date
                 .as_ref()
-                .map(|d| d.to_string().trim().to_string())
+                .map(ToString::to_string)
                 .unwrap_or_default();
-            output.push_str(&format!("{:<10}", date));
-
-            // 2 spaces at positions 14-15
-            output.push_str("  ");
-
-            // Country: left-aligned in 10-char field at positions 16-25
-            let country = release.country.as_deref().unwrap_or("");
-            output.push_str(&format!("{:<10}", country));
-
-            // Barcode: starts at position 26, no padding
-            let barcode = release.barcode.as_deref().unwrap_or("");
-            output.push_str(barcode);
-
-            // Disambiguation if present: 4 spaces before parentheses
-            if let Some(disambig) = &release.disambiguation
-                && !disambig.is_empty()
-            {
-                output.push_str("    ");
-                output.push_str(&format!("({})", disambig));
-            }
-
-            output.push('\n');
+            let country = release.country.clone().unwrap_or_default();
+            let barcode = release.barcode.clone().unwrap_or_default();
+            let disambiguation = release
+                .disambiguation
+                .as_ref()
+                .map(|disambig| {
+                    if disambig.is_empty() {
+                        String::default()
+                    } else {
+                        format!("({disambig})")
+                    }
+                })
+                .unwrap_or_default();
+            releases.add_row(row!(
+                format!("{index}."),
+                date,
+                country,
+                barcode,
+                disambiguation
+            ));
+            index += 1;
         }
-
-        output.push('\n');
     }
-
-    Some(output)
+    releases.add_heading("");
+    Some(releases.to_string())
 }
 
 #[cfg(all(test, feature = "test_fixtures"))]

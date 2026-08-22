@@ -39,6 +39,7 @@ musicbrainz_rs = { version = "0.13.0", git = "https://github.com/RustyNova016/mu
 reqwest = { workspace = true, features = ["blocking", "native-tls", "json"] }
 serde.workspace = true
 serde_json.workspace = true
+tabular.workspace = true
 try_v2.workspace = true
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "json"] }
