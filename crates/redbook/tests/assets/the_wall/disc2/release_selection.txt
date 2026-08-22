@@ -1,0 +1,17 @@
+Multiple releases found. Please select one:
+
+Oh by the Way
+=============
+    Date        Country     Barcode
+1.  2000-04-25  US          724383124329    (disc 1: C1.1 158199-01, disc 2: C1.1 158200-01 or -02)
+
+The Wall
+========
+    Date        Country     Barcode
+2.  2007-12-11  XE          5099951126728
+3.  1997        US          074646851920
+4.  1994-10-10  XE          724383124329    (made in Holland, printed in the UK)
+5.  1994-10-10  XE          724383124329    (made in Italy, printed in the UK)
+6.  1994-10-10  XE          0724383124329   (made in Holland, printed in the UK)
+7.  1994-10-10  XE          724383124329    (made in Italy, printed in Italy)
+8.  1994        ZA          6002140924424
