@@ -46,6 +46,12 @@ pub struct Rip {
     pub format: LogFormat,
 }
 
+impl Rip {
+    pub fn verbosity(&self) -> isize {
+        self.verbose as isize - self.quiet as isize
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Default)]
 pub enum LogLevel {
     Warn,

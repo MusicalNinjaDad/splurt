@@ -8,18 +8,17 @@ use crate::{Exit, Rip, cli::LogLevel};
 
 impl Rip {
     pub fn init_tracing(&self) -> Exit<()> {
-        let stdout_level = match (self.verbose, self.quiet) {
-            // Clap ensures mutual exclusivity
-            (0, 0) => LevelFilter::INFO,
-            (1, _) => LevelFilter::DEBUG,
-            (2.., _) => LevelFilter::TRACE,
-            (_, 1..) => LevelFilter::OFF,
+        let stdout_level = match self.verbosity() {
+            ..=-1 => LevelFilter::OFF,
+            0 => LevelFilter::INFO,
+            1 => LevelFilter::DEBUG,
+            2.. => LevelFilter::TRACE,
         };
         let stdout = layer().with_filter(stdout_level);
 
-        let stderr_level = match self.quiet {
-            2.. => LevelFilter::OFF,
-            _ => LevelFilter::WARN,
+        let stderr_level = match self.verbosity() {
+            ..=-2 => LevelFilter::OFF,
+            -1.. => LevelFilter::WARN,
         };
         let stderr = layer()
             .with_writer(std::io::stderr)
