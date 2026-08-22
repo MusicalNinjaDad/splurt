@@ -38,8 +38,8 @@ pub fn release_menu(disc: Disc) -> Option<String> {
         // Sort releases within group by date descending (newest first) for consistent ordering
         let mut sorted_releases = group_releases.to_vec();
         sorted_releases.sort_by(|a, b| {
-            let a_date = a.date.as_ref().map(|d| d.to_string()).unwrap_or_default();
-            let b_date = b.date.as_ref().map(|d| d.to_string()).unwrap_or_default();
+            let a_date = a.date.as_ref().map(|d| d.to_string().trim().to_string()).unwrap_or_default();
+            let b_date = b.date.as_ref().map(|d| d.to_string().trim().to_string()).unwrap_or_default();
             b_date.cmp(&a_date)
         });
 
@@ -52,9 +52,9 @@ pub fn release_menu(disc: Disc) -> Option<String> {
             let date = release
                 .date
                 .as_ref()
-                .map(|d| d.to_string())
+                .map(|d| d.to_string().trim().to_string())
                 .unwrap_or_default();
-            output.push_str(&format!("{:>10}", date));
+            output.push_str(&format!("{:<10}", date));
 
             // 2 spaces at positions 14-15
             output.push_str("  ");
