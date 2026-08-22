@@ -30,8 +30,8 @@ enum SelectedTrack {
     One(usize),
 }
 
-mod cli;
 mod _tracing;
+mod cli;
 pub(crate) use cli::Rip;
 
 use clap::Error as ClapError;
@@ -105,8 +105,8 @@ fn main() -> Exit<()> {
     };
 
     let disc_title = cd.disc().title().unwrap_or_else(|| "Unknown".to_string());
-    let _album_span = info_span!("rip_album", album = %disc_title);
-    let _album_enter = _album_span.enter();
+
+    let _album_span = info_span!("rip_album", album = %disc_title).entered();
 
     let selected_track = match (ripper.all, ripper.track_number) {
         (true, Some(_)) => {
@@ -286,7 +286,7 @@ pub enum Exit<T: _T> {
     Error(String) = 1,
     InvocationError(String) = 2,
     IO(String) = 3,
-    Logging(String) = 4
+    Logging(String) = 4,
 }
 
 impl<T: _T> From<ClapError> for Exit<T> {

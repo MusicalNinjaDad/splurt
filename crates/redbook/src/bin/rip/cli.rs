@@ -27,10 +27,22 @@ pub struct Rip {
     #[arg(long, value_name = "LOGFILE")]
     pub log: Option<PathBuf>,
     /// Information level to ouput to logfile
-    #[arg(long, value_name = "LOGLEVEL", value_enum, default_value_os_t, requires = "log")]
+    #[arg(
+        long,
+        value_name = "LOGLEVEL",
+        value_enum,
+        default_value_os_t,
+        requires = "log"
+    )]
     pub loglevel: LogLevel,
     /// Logfile format
-    #[arg(long, value_name = "FORMAT", value_enum, default_value_os_t, requires = "log")]
+    #[arg(
+        long,
+        value_name = "FORMAT",
+        value_enum,
+        default_value_os_t,
+        requires = "log"
+    )]
     pub format: LogFormat,
 }
 
