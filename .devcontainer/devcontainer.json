@@ -2,10 +2,13 @@
     "build": {
         "dockerfile": "Dockerfile"
     },
-    // required so that command line & analyzer can share builds
     "remoteEnv": {
+        // required so that command line & analyzer can share builds
         "RUSTC_BOOTSTRAP": "1",
-        "CARGO_INCREMENTAL": "1"
+        // required so that command line & analyzer can share builds
+        "CARGO_INCREMENTAL": "1",
+        // only skills, hooks & AGENTS.md are committed to git
+        "VIBE_HOME": "${containerWorkspaceFolder}/.vibe"
     },
     "customizations": {
         "vscode": {

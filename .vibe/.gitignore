@@ -1,0 +1,9 @@
+# user specific stuff
+logs/**
+plans/**
+*.toml
+*.json
+vibehistory
+
+# project specific stuff
+!hooks.toml
