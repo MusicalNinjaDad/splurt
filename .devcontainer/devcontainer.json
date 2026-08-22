@@ -10,6 +10,7 @@
         // only skills, hooks & AGENTS.md are committed to git
         "VIBE_HOME": "${containerWorkspaceFolder}/.vibe"
     },
+    "onCreateCommand": "rustup target add x86_64-pc-windows-msvc",
     "customizations": {
         "vscode": {
             "extensions": [
