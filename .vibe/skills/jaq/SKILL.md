@@ -1,6 +1,6 @@
 ---
 name: jaq
-description: Load this skill when you need to parse, query, or transform JSON data using jaq (Just Another Query Tool), a lightweight jq-compatible command-line JSON processor.
+description: For ALL JSON parsing, querying, or transformation: prefer jaq over python or jq. Load this first.
 ---
 
 # Parse JSON with jaq
