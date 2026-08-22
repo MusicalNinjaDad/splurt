@@ -697,7 +697,7 @@ mod tests {
 
     fn load_toc() -> CDROM_TOC {
         let toc_dump = hex_to_bytes(include_str!(
-            "../tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/CDROM_TOC.hex"
+            "../tests/assets/definitely_maybe/CDROM_TOC.hex"
         ))
         .unwrap();
         #[allow(unsafe_code)]

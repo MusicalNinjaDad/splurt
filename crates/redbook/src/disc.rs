@@ -478,10 +478,8 @@ mod tests {
         use crate::{Msf, TocEntry, hex::*};
 
         fn create_toc() -> Toc {
-            let toc_dump = hex_to_bytes(include_str!(
-                "../tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/TOC.hex"
-            ))
-            .unwrap();
+            let toc_dump =
+                hex_to_bytes(include_str!("../tests/assets/definitely_maybe/TOC.hex")).unwrap();
             let toc_string = parse_toc(toc_dump);
             Toc::from_cdtoc(toc_string).unwrap()
         }
@@ -606,9 +604,7 @@ mod tests {
         #[test]
         fn set_release() {
             let mut disc = create_disc();
-            let json = include_str!(
-                "../tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/musicbrainz_disc.json"
-            );
+            let json = include_str!("../tests/assets/definitely_maybe/musicbrainz_disc.json");
             disc.musicbrainz = Some(serde_json::from_str(json).unwrap());
 
             disc.set_release(Some(2));
@@ -626,9 +622,7 @@ mod tests {
         #[test]
         fn set_release_invalid() {
             let mut disc = create_disc();
-            let json = include_str!(
-                "../tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/musicbrainz_disc.json"
-            );
+            let json = include_str!("../tests/assets/definitely_maybe/musicbrainz_disc.json");
             disc.musicbrainz = Some(serde_json::from_str(json).unwrap());
 
             disc.set_release(Some(999));
@@ -638,9 +632,7 @@ mod tests {
         #[test]
         fn track() {
             let mut disc = create_disc();
-            let json = include_str!(
-                "../tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/musicbrainz_disc.json"
-            );
+            let json = include_str!("../tests/assets/definitely_maybe/musicbrainz_disc.json");
             disc.musicbrainz = Some(serde_json::from_str(json).unwrap());
 
             disc.set_release(Some(2));
@@ -651,9 +643,7 @@ mod tests {
         #[test]
         fn tracks_len() {
             let mut disc = create_disc();
-            let json = include_str!(
-                "../tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/musicbrainz_disc.json"
-            );
+            let json = include_str!("../tests/assets/definitely_maybe/musicbrainz_disc.json");
             disc.musicbrainz = Some(serde_json::from_str(json).unwrap());
 
             disc.set_release(Some(2));
@@ -663,9 +653,7 @@ mod tests {
         #[test]
         fn tracks_data() {
             let mut disc = create_disc();
-            let json = include_str!(
-                "../tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa/musicbrainz_disc.json"
-            );
+            let json = include_str!("../tests/assets/definitely_maybe/musicbrainz_disc.json");
             disc.musicbrainz = Some(serde_json::from_str(json).unwrap());
 
             disc.set_release(Some(2));

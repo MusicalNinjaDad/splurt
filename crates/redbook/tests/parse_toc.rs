@@ -18,7 +18,7 @@ fn load_hex_file(path: &PathBuf) -> Vec<u8> {
 
 #[test]
 fn compare_definitely_maybe() {
-    let assets = PathBuf::from("tests/assets/9822581d-98bf-3f97-a94c-4b1350d090aa");
+    let assets = PathBuf::from("tests/assets/definitely_maybe");
 
     let cdrom_toc_dump = load_hex_file(&assets.join("CDROM_TOC.hex"));
     let cdrom_toc = unsafe { CDROM_TOC::from_raw_bytes(cdrom_toc_dump) };
