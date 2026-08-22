@@ -16,6 +16,8 @@ version = "0.0.1"
 [features]
 # required to allow integration tests to run on all targets
 binaries = []
+# for integration testing - expected results correlating to tests/assets
+test_fixtures = []
 
 [[bin]]
 name = "toc"
