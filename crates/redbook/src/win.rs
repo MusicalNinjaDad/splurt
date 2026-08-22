@@ -756,18 +756,8 @@ mod tests {
         fn expected_leadout(&self) -> Frame {
             match self {
                 TestAlbum::DefinitelyMaybe => Frame::from(Msf::new(0x34, 0x05, 0x1c)),
-                TestAlbum::TheWallDisc1 => {
-                    // Extracted from the_wall/disc1/CDROM_TOC.hex
-                    // Bytes[2] = FirstTrack = 1, Bytes[3] = LastTrack = 13
-                    // Leadout address needs to be parsed from the file
-                    // For now, this is a placeholder - TODO: fill in actual value
-                    Frame::from(Msf::new(0x27, 0x0E, 0x0A))
-                }
-                TestAlbum::TheWallDisc2 => {
-                    // Extracted from the_wall/disc2/CDROM_TOC.hex
-                    // Placeholder - TODO: fill in actual value
-                    Frame::from(Msf::new(0x29, 0x3a, 0x19))
-                }
+                TestAlbum::TheWallDisc1 => Frame::from(Msf::new(0x27, 0x0E, 0x0A)),
+                TestAlbum::TheWallDisc2 => Frame::from(Msf::new(0x29, 0x3a, 0x19)),
             }
         }
 
