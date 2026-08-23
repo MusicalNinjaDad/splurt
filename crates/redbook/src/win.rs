@@ -366,6 +366,11 @@ impl AudioCdExt for ReadOnlyAudioCd {
 }
 
 impl AudioCd {
+    #[cfg(not(target_family = "windows"))]
+    pub fn new<P: AsRef<Path>>(_path: P) -> io::Result<Self> {
+        unimplemented!("hardware access not available on other targets")
+    }
+
     /// Opens drive, reads CD
     #[cfg(target_family = "windows")]
     pub fn new<P: AsRef<Path>>(path: P) -> io::Result<Self> {
