@@ -418,13 +418,13 @@ impl PartialEq<Msf> for Frame {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// CD audio duration in min:sec/frames (75 frames/sec)
 pub struct Msf {
-    min: i8,
-    sec: i8,
-    frame: i8,
+    min: u8,
+    sec: u8,
+    frame: u8,
 }
 
 impl Msf {
-    pub fn new(min: i8, sec: i8, frame: i8) -> Self {
+    pub fn new(min: u8, sec: u8, frame: u8) -> Self {
         Self { min, sec, frame }
     }
 
@@ -441,6 +441,15 @@ impl Sub<Frame> for Msf {
     }
 }
 
+impl Sub<Duration> for Msf {
+    type Output = Self;
+
+    fn sub(self, rhs: Duration) -> Self::Output {
+        let as_frames = Frame::from(self) - Frame::from(rhs);
+        as_frames.into()
+    }
+}
+
 impl From<Duration> for Msf {
     fn from(duration: Duration) -> Self {
         trace!(
@@ -454,9 +463,9 @@ impl From<Duration> for Msf {
         let secs = secs % 60;
         let frames = (ms % 1000) * 75 / 1000;
         Self {
-            min: min as i8,
-            sec: secs as i8,
-            frame: frames as i8,
+            min: min as u8,
+            sec: secs as u8,
+            frame: frames as u8,
         }
     }
 }
@@ -482,9 +491,9 @@ impl From<Frame> for Msf {
         let secs = secs % 60;
         let frames = frames % 75;
         Self {
-            min: min as i8,
-            sec: secs as i8,
-            frame: frames as i8,
+            min: min as u8,
+            sec: secs as u8,
+            frame: frames as u8,
         }
     }
 }

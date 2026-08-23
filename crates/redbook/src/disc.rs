@@ -111,13 +111,13 @@ impl Disc {
                 .ok_or(DiscError::TocMismatch)?;
 
             let (min, sec, frame) = toc_track.msf();
-            if Msf::new(min as i8, sec as i8, frame as i8) != Msf::from(track.toc_entry.start) {
+            if Msf::new(min as u8, sec, frame) != Msf::from(track.toc_entry.start) {
                 return Err(DiscError::TocMismatch);
             }
 
             let (d, h, min, sec, frame) = toc_track.duration().dhmsf();
             let min = (((d * 24) + h as u64) * 60) + min as u64;
-            if Msf::new(min as i8, sec as i8, frame as i8) != Msf::from(track.duration_frames) {
+            if Msf::new(min as u8, sec, frame) != Msf::from(track.duration_frames) {
                 return Err(DiscError::TocMismatch);
             }
         }

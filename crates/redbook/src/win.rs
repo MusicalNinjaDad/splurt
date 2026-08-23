@@ -26,6 +26,7 @@ use std::{
     path::{Path, PathBuf},
     ptr::{null, null_mut},
     sync::Arc,
+    time::Duration,
 };
 
 use cdtoc::{Toc, TocError};
@@ -570,12 +571,13 @@ impl TryFrom<CdaFile> for Track<'static> {
         let duration_frames = u32::from_le_bytes([data[0x20], data[0x21], data[0x22], data[0x23]]);
         let duration_frames = Frame(duration_frames as usize);
 
-        // For inexplicable, probably historical, reasons Windows stores the absolute time in cda
         let starting_time = Msf {
-            frame: data[0x24] as i8,
-            sec: data[0x25] as i8 - 2,
-            min: data[0x26] as i8,
+            frame: data[0x24],
+            sec: data[0x25],
+            min: data[0x26],
         };
+        // For inexplicable, probably historical, reasons Windows stores the absolute time in cda
+        let starting_time = starting_time - Duration::from_secs(2);
 
         // Validate null byte after range position
         if data[0x27] != 0 {
@@ -587,9 +589,9 @@ impl TryFrom<CdaFile> for Track<'static> {
 
         // Parse duration time
         let duration = Msf {
-            frame: data[0x28] as i8,
-            sec: data[0x29] as i8,
-            min: data[0x2A] as i8,
+            frame: data[0x28],
+            sec: data[0x29],
+            min: data[0x2A],
         };
 
         // Validate null byte after duration

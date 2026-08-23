@@ -22,7 +22,7 @@ use crate::{
 impl TocEntry {
     pub fn from_raw_toc_bytes(data: &[u8]) -> Self {
         let track = data[3];
-        let start = Msf::new(data[8] as i8, data[9] as i8, data[10] as i8);
+        let start = Msf::new(data[8], data[9], data[10]);
         let start = Frame::from(start);
         Self { track, start }
     }
