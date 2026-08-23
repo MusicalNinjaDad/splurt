@@ -28,29 +28,23 @@ use std::{
     sync::Arc,
 };
 
-#[allow(unused_imports)]
-use tracing::{info_span, trace, trace_span, warn};
-
 use cdtoc::{Toc, TocError};
+use tracing::{info_span, trace, trace_span, warn};
 use windows_sys::{
     Win32::{
         Devices::Cdrom::{
-            CDROM_READ_TOC_EX, CDROM_TOC, IOCTL_CDROM_READ_TOC_EX, RAW_READ_INFO, TRACK_MODE_TYPE,
+            CDROM_READ_TOC_EX, CDROM_TOC, IOCTL_CDROM_RAW_READ, IOCTL_CDROM_READ_TOC_EX,
+            RAW_READ_INFO, TRACK_MODE_TYPE,
         },
-        Foundation::HANDLE,
+        Foundation::{GENERIC_READ, HANDLE, INVALID_HANDLE_VALUE},
+        Storage::FileSystem::{FILE_SHARE_READ, OPEN_EXISTING},
     },
     core::PCWSTR,
 };
 
 #[cfg(target_family = "windows")]
-use windows_sys::{
-    Foundation::CloseHandle, Storage::FileSystem::CreateFile2, System::IO::DeviceIoControl,
-};
-
 use windows_sys::Win32::{
-    Devices::Cdrom::IOCTL_CDROM_RAW_READ,
-    Foundation::{GENERIC_READ, INVALID_HANDLE_VALUE},
-    Storage::FileSystem::{FILE_SHARE_READ, OPEN_EXISTING},
+    Foundation::CloseHandle, Storage::FileSystem::CreateFile2, System::IO::DeviceIoControl,
 };
 
 use crate::{AudioCdExt, FRAME_SIZE, Frame, LEADIN, Msf, Track};
