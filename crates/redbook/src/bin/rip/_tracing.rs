@@ -7,6 +7,7 @@ use tracing_subscriber::{
 use crate::{Exit, Rip, cli::LogLevel};
 
 impl Rip {
+    #[cfg_attr(not(target_family = "windows"), expect(dead_code))]
     pub fn init_tracing(&self) -> Exit<()> {
         let stdout_level = match self.verbosity() {
             ..=-1 => LevelFilter::OFF,

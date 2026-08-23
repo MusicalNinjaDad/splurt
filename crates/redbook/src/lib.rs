@@ -1,4 +1,4 @@
-#![feature(exact_div)]
+#![cfg_attr(target_family = "windows", feature(exact_div))]
 #![feature(exact_size_is_empty)]
 #![feature(iter_array_chunks)]
 #![feature(iterator_try_collect)]

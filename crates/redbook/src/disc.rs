@@ -34,7 +34,7 @@ use musicbrainz_rs::{
 
 use crate::{
     Frame, Msf, Track,
-    musicbrainz::{ArtistCreditsExt, Discid, Media, Release, VorbisTagExt},
+    musicbrainz::{ArtistCreditsExt, Discid, Release, VorbisTagExt},
     tagging::PictureExt,
 };
 
