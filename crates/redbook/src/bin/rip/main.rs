@@ -184,7 +184,6 @@ fn main() -> Exit<()> {
         SelectedTrack::One(n) => n..=n,
     };
 
-    let disc_title = cd.disc().title().unwrap_or_else(|| "Unknown".to_string());
     let artist = cd
         .disc()
         .main_artist()
