@@ -27,7 +27,8 @@
 - [x] Store details in Track, simplify tagging
 - [x] Remove RipAll and loop in app
 - [ ] Tidy int types and as casts
-- [ ] add logging
+- [x] add logging
   - [ ] check for let _
 - [ ] AI image recognition to generate coverart description
-- [ ] Multi-thread
+- [x] Multi-thread
+- [ ] https://crates.io/crates/rstest_reuse
