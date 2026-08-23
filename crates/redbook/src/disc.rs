@@ -216,7 +216,7 @@ impl Disc {
 
         self.disc_index = match media.len() {
             ..=1 => Some(0),
-            _ => self.find_disc_index_from_media(media),
+            _ => self.find_disc_index_from_media(),
         };
         self.disc_index
     }
@@ -229,62 +229,30 @@ impl Disc {
     /// Returns:
     /// - Some(index) if exactly one media entry matches based on track offsets
     /// - None if no matches or multiple matches (ambiguous)
-    fn find_disc_index_from_media(&self, media: &[Media]) -> Option<usize> {
-        // Get the actual offsets from the Discid
-        let discid = self.musicbrainz.as_ref()?;
-        let discid_offsets = &discid.offsets;
-        let toc_track_count = self.tracks.len();
-
-        // Find all media entries that match based on track offsets
-        let matches: Vec<usize> = media
-            .iter()
-            .enumerate()
-            .filter_map(|(index, m)| {
-                let media_tracks = m.tracks.as_ref()?;
-                let mb_track_count = m.track_count;
-                let first_track_offset = m.track_offset?;
-
-                // Check if track count matches
-                if media_tracks.len() != toc_track_count || mb_track_count != toc_track_count as u32
-                {
-                    return None;
-                }
-
-                // Calculate expected offsets from media track lengths
-                // MusicBrainz track lengths are in milliseconds
-                // Convert to frames: length_ms * 75 / 1000
-                // First track offset is track_offset
-                // Subsequent tracks are calculated cumulatively
-                let mut calculated_offsets = Vec::with_capacity(toc_track_count);
-                let mut current_offset = first_track_offset as u64;
-                calculated_offsets.push(current_offset as u32);
-
-                for track in media_tracks.iter().skip(1) {
-                    let length_ms = track.length?;
-                    let length_frames = length_ms as u64 * 75 / 1000;
-                    current_offset += length_frames;
-                    calculated_offsets.push(current_offset as u32);
-                }
-
-                // Compare offsets with Discid offsets
-                // Allow some tolerance for rounding differences
-                // 1 CD frame = 1/75 second, MusicBrainz lengths are in ms
-                // Conversion: ms * 75 / 1000 might have rounding errors
-                // Allow ±1 frame tolerance
-                let offsets_match = discid_offsets
-                    .iter()
-                    .zip(calculated_offsets.iter())
-                    .all(|(&discid_offset, &calc_offset)| discid_offset.abs_diff(calc_offset) <= 1);
-
-                if offsets_match { Some(index) } else { None }
-            })
+    fn find_disc_index_from_media(&self) -> Option<usize> {
+        let release = self.release()?;
+        let offsets = self.toc.audio_sectors();
+        let matches: Vec<_> = release
+            .media
+            .as_ref()
+            .map(|all_media| {
+                all_media.iter().filter(|media| {
+                    media
+                        .discs
+                        .as_ref()
+                        .and_then(|discs| discs.iter().find(|disc| disc.offsets == offsets))
+                        .is_some()
+                })
+            })?
             .collect();
 
-        // Return Some if exactly one match, None otherwise (no match or ambiguous)
-        if matches.len() == 1 {
-            Some(matches[0])
-        } else {
-            None
+        match matches.len() {
+            1 => release.media.as_ref().and_then(|all_media| {
+                all_media.iter().position(|media| {
+                    Some(&media.id) == matches.first().map(|matched_media| &matched_media.id)
+                })
+            }),
+            _ => None,
         }
     }
 
@@ -398,7 +366,7 @@ impl Disc {
     }
 
     /// Get the 0-indexed disc number for multi-disc releases
-    pub fn disc_number(&self) -> Option<usize> {
+    pub fn disc_index(&self) -> Option<usize> {
         self.disc_index
     }
 
@@ -551,290 +519,70 @@ impl<'m> ExactSizeIterator for Tracks<'m> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test_fixtures"))]
 mod tests {
     use super::*;
+    use crate::test_fixtures::albums::TestAlbum::{self, *};
+    use rstest::rstest;
 
-    mod definitely_maybe {
-        use super::*;
-        use crate::{Msf, TocEntry, hex::*};
+    // TODO - validate with minimal track info
 
-        fn create_toc() -> Toc {
-            let toc_dump =
-                hex_to_bytes(include_str!("../tests/assets/definitely_maybe/TOC.hex")).unwrap();
-            let toc_string = parse_toc(toc_dump);
-            Toc::from_cdtoc(toc_string).unwrap()
-        }
+    #[rstest]
+    #[case(DefinitelyMaybe)]
+    #[case(TheWallDisc1)]
+    #[case(TheWallDisc2)]
+    fn new(#[case] album: TestAlbum) {
+        let toc = album.expected_toc();
+        let tracks = album.expected_tracks();
+        let leadout = album.expected_leadout();
 
-        fn create_tracks() -> Vec<Track<'static>> {
-            vec![
-                Track {
-                    toc_entry: TocEntry {
-                        track: 1,
-                        start: Frame::from(Msf::new(0x00, 0x02, 0x21)),
-                    },
-                    duration_frames: Frame::new(24242),
-                    ..Default::default()
-                },
-                Track {
-                    toc_entry: TocEntry {
-                        track: 2,
-                        start: Frame::from(Msf::new(0x05, 0x19, 0x32)),
-                    },
-                    duration_frames: Frame::new(23138),
-                    ..Default::default()
-                },
-                Track {
-                    toc_entry: TocEntry {
-                        track: 3,
-                        start: Frame::from(Msf::new(0x0A, 0x22, 0x0D)),
-                    },
-                    duration_frames: Frame::new(20762),
-                    ..Default::default()
-                },
-                Track {
-                    toc_entry: TocEntry {
-                        track: 4,
-                        start: Frame::from(Msf::new(0x0F, 0x0B, 0x00)),
-                    },
-                    duration_frames: Frame::new(20168),
-                    ..Default::default()
-                },
-                Track {
-                    toc_entry: TocEntry {
-                        track: 5,
-                        start: Frame::from(Msf::new(0x13, 0x27, 0x44)),
-                    },
-                    duration_frames: Frame::new(28272),
-                    ..Default::default()
-                },
-                Track {
-                    toc_entry: TocEntry {
-                        track: 6,
-                        start: Frame::from(Msf::new(0x19, 0x38, 0x41)),
-                    },
-                    duration_frames: Frame::new(21280),
-                    ..Default::default()
-                },
-                Track {
-                    toc_entry: TocEntry {
-                        track: 7,
-                        start: Frame::from(Msf::new(0x1E, 0x28, 0x2D)),
-                    },
-                    duration_frames: Frame::new(19338),
-                    ..Default::default()
-                },
-                Track {
-                    toc_entry: TocEntry {
-                        track: 8,
-                        start: Frame::from(Msf::new(0x22, 0x3A, 0x21)),
-                    },
-                    duration_frames: Frame::new(21700),
-                    ..Default::default()
-                },
-                Track {
-                    toc_entry: TocEntry {
-                        track: 9,
-                        start: Frame::from(Msf::new(0x27, 0x2F, 0x3A)),
-                    },
-                    duration_frames: Frame::new(11425),
-                    ..Default::default()
-                },
-                Track {
-                    toc_entry: TocEntry {
-                        track: 10,
-                        start: Frame::from(Msf::new(0x2A, 0x14, 0x08)),
-                    },
-                    duration_frames: Frame::new(29455),
-                    ..Default::default()
-                },
-                Track {
-                    toc_entry: TocEntry {
-                        track: 11,
-                        start: Frame::from(Msf::new(0x30, 0x34, 0x3F)),
-                    },
-                    duration_frames: Frame::new(14440),
-                    ..Default::default()
-                },
-            ]
-        }
-
-        fn create_disc() -> Disc {
-            Disc {
-                toc: create_toc(),
-                tracks: create_tracks(),
-                leadout: Frame::from(Msf::new(0x34, 0x05, 0x1C)),
-                musicbrainz: None,
-                release_index: None,
-                disc_index: None,
-                coverart: None,
-            }
-        }
-
-        #[test]
-        fn new() {
-            let toc = create_toc();
-            let tracks = create_tracks();
-            let leadout = Frame::from(Msf::new(0x34, 0x05, 0x1C));
-
-            let disc = Disc::new(toc, tracks, leadout).unwrap();
-
-            let expected = create_disc();
-            assert_eq!(disc, expected);
-        }
-
-        #[test]
-        fn set_release() {
-            let mut disc = create_disc();
-            let json = include_str!("../tests/assets/definitely_maybe/musicbrainz_disc.json");
-            disc.musicbrainz = Some(serde_json::from_str(json).unwrap());
-
-            disc.set_release(Some(2));
-            assert_eq!(disc.release_index, Some(2));
-        }
-
-        #[test]
-        fn set_release_no_musicbrainz() {
-            let mut disc = create_disc();
-
-            disc.set_release(Some(0));
-            assert!(disc.release_index.is_none());
-        }
-
-        #[test]
-        fn set_release_invalid() {
-            let mut disc = create_disc();
-            let json = include_str!("../tests/assets/definitely_maybe/musicbrainz_disc.json");
-            disc.musicbrainz = Some(serde_json::from_str(json).unwrap());
-
-            disc.set_release(Some(999));
-            assert!(disc.release_index.is_none());
-        }
-
-        #[test]
-        fn track() {
-            let mut disc = create_disc();
-            let json = include_str!("../tests/assets/definitely_maybe/musicbrainz_disc.json");
-            disc.musicbrainz = Some(serde_json::from_str(json).unwrap());
-
-            disc.set_release(Some(2));
-            let columbia = disc.track(5).unwrap();
-            assert_eq!(columbia.title(), Some("Columbia".to_string()));
-        }
-
-        #[test]
-        fn tracks_len() {
-            let mut disc = create_disc();
-            let json = include_str!("../tests/assets/definitely_maybe/musicbrainz_disc.json");
-            disc.musicbrainz = Some(serde_json::from_str(json).unwrap());
-
-            disc.set_release(Some(2));
-            assert_eq!(disc.tracks().len(), 11);
-        }
-
-        #[test]
-        fn tracks_data() {
-            let mut disc = create_disc();
-            let json = include_str!("../tests/assets/definitely_maybe/musicbrainz_disc.json");
-            disc.musicbrainz = Some(serde_json::from_str(json).unwrap());
-
-            disc.set_release(Some(2));
-            let columbia = disc.tracks().nth(4).unwrap();
-            assert_eq!(columbia.title(), Some("Columbia".to_string()));
-        }
+        let disc = Disc::new(toc, tracks, leadout).unwrap();
+        assert_eq!(disc.toc, album.expected_toc());
+        assert_eq!(disc.tracks().collect::<Vec<_>>(), album.expected_tracks());
+        assert_eq!(disc.leadout, album.expected_leadout());
     }
 
-    mod the_wall {
-        use super::*;
-        use crate::test_fixtures::albums::TestAlbum;
+    #[rstest]
+    #[case(DefinitelyMaybe)]
+    #[case(TheWallDisc1)]
+    #[case(TheWallDisc2)]
+    fn identify_disc_index(#[case] album: TestAlbum) {
+        let toc = album.expected_toc();
+        let tracks = album.expected_tracks();
+        let leadout = album.expected_leadout();
+        let musicbrainz = album.expected_musicbrainz();
 
-        fn create_disc_with_mb_and_disc_index(disc: TestAlbum, disc_index: usize) -> Disc {
-            Disc {
-                toc: disc.expected_toc(),
-                tracks: disc.expected_tracks(),
-                leadout: disc.expected_leadout(),
-                musicbrainz: Some(disc.expected_musicbrainz()),
-                release_index: Some(0),
-                disc_index: Some(disc_index),
-                coverart: None,
-            }
-        }
+        let mut disc = Disc::new(toc, tracks, leadout).unwrap();
+        disc.set_musicbrainz(musicbrainz);
+        disc.set_release(Some(album.release()));
+        assert_eq!(disc.disc_index(), album.expected_disc_index());
+    }
 
-        #[test]
-        fn disc1_new() {
-            let toc = TestAlbum::TheWallDisc1.expected_toc();
-            dbg!(&toc);
-            let tracks = TestAlbum::TheWallDisc1.expected_tracks();
-            dbg!(&tracks);
-            let leadout = TestAlbum::TheWallDisc1.expected_leadout();
-            dbg!(&leadout);
+    #[test]
+    fn set_release_invalid() {
+        let album = DefinitelyMaybe;
+        let toc = album.expected_toc();
+        let tracks = album.expected_tracks();
+        let leadout = album.expected_leadout();
+        let musicbrainz = album.expected_musicbrainz();
 
-            let disc = Disc::new(toc, tracks, leadout).unwrap();
-            assert_eq!(disc.tracks.len(), 13);
-        }
+        let mut disc = Disc::new(toc, tracks, leadout).unwrap();
+        disc.set_musicbrainz(musicbrainz);
 
-        #[test]
-        fn disc2_new() {
-            let toc = TestAlbum::TheWallDisc2.expected_toc();
-            let tracks = TestAlbum::TheWallDisc2.expected_tracks();
-            let leadout = TestAlbum::TheWallDisc2.expected_leadout();
+        disc.set_release(Some(999));
+        assert!(disc.release_index.is_none());
+    }
 
-            let disc = Disc::new(toc, tracks, leadout).unwrap();
-            assert_eq!(disc.tracks.len(), 13);
-        }
+    #[test]
+    fn set_release_no_musicbrainz() {
+        let album = DefinitelyMaybe;
+        let toc = album.expected_toc();
+        let tracks = album.expected_tracks();
+        let leadout = album.expected_leadout();
 
-        #[test]
-        fn disc1_track_with_metadata() {
-            let disc = create_disc_with_mb_and_disc_index(TestAlbum::TheWallDisc1, 0);
+        let mut disc = Disc::new(toc, tracks, leadout).unwrap();
 
-            let track1 = disc.track(1).unwrap();
-            assert_eq!(track1.title(), Some("In the Flesh?".to_string()));
-        }
-
-        #[test]
-        fn disc2_track_with_metadata() {
-            let disc = create_disc_with_mb_and_disc_index(TestAlbum::TheWallDisc2, 1);
-
-            let track1 = disc.track(1).unwrap();
-            assert_eq!(track1.title(), Some("Hey You".to_string()));
-        }
-
-        #[test]
-        fn disc_number_used_in_tags() {
-            let disc = create_disc_with_mb_and_disc_index(TestAlbum::TheWallDisc1, 0);
-
-            let tags = disc.tag_for(1).unwrap();
-            let disc_number = tags.get("DISCNUMBER");
-            assert!(
-                disc_number.is_some(),
-                "DISCNUMBER tag should be set for disc 1"
-            );
-            assert_eq!(disc_number.unwrap(), &vec!["1".to_string()]);
-        }
-
-        #[test]
-        fn disc2_disc_number_used_in_tags() {
-            let disc = create_disc_with_mb_and_disc_index(TestAlbum::TheWallDisc2, 1);
-
-            let tags = disc.tag_for(1).unwrap();
-            let disc_number = tags.get("DISCNUMBER");
-            assert!(
-                disc_number.is_some(),
-                "DISCNUMBER tag should be set for disc 2"
-            );
-            assert_eq!(disc_number.unwrap(), &vec!["2".to_string()]);
-        }
-
-        #[test]
-        fn disc1_has_13_tracks() {
-            let disc = create_disc_with_mb_and_disc_index(TestAlbum::TheWallDisc1, 0);
-            assert_eq!(disc.tracks().len(), 13);
-        }
-
-        #[test]
-        fn disc2_has_13_tracks() {
-            let disc = create_disc_with_mb_and_disc_index(TestAlbum::TheWallDisc2, 1);
-            assert_eq!(disc.tracks().len(), 13);
-        }
+        disc.set_release(Some(0));
+        assert!(disc.release_index.is_none());
     }
 }

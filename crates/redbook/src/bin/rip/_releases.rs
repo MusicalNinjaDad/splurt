@@ -1,3 +1,4 @@
+//! TODO: FIX BUG - returns wrong index(?)
 use redbook::{Disc, musicbrainz::Release};
 use std::collections::BTreeMap;
 use tabular::{Row, Table, row};

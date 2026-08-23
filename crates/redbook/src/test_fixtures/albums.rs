@@ -709,4 +709,60 @@ impl TestAlbum {
             Err(_) => None,
         }
     }
+
+    /// The correct release number for the album
+    pub fn release(&self) -> usize {
+        match self {
+            TestAlbum::DefinitelyMaybe => 2,
+            TestAlbum::TheWallDisc1 => self
+                .expected_musicbrainz()
+                .releases
+                .unwrap()
+                .iter()
+                .position(|release| release.id == "b13b64f6-85fc-3c1c-8aae-e5adb94d7181")
+                .unwrap(),
+            TestAlbum::TheWallDisc2 => self
+                .expected_musicbrainz()
+                .releases
+                .unwrap()
+                .iter()
+                .position(|release| release.id == "b13b64f6-85fc-3c1c-8aae-e5adb94d7181")
+                .unwrap(),
+        }
+    }
+
+    /// The disc_index as it should be automatically identified.
+    pub fn expected_disc_index(&self) -> Option<usize> {
+        match self {
+            TestAlbum::DefinitelyMaybe => Some(0),
+            TestAlbum::TheWallDisc1 => self
+                .expected_musicbrainz()
+                .releases
+                .unwrap()
+                .get(self.release())
+                .map(|release| {
+                    release
+                        .media
+                        .as_ref()
+                        .unwrap()
+                        .iter()
+                        .position(|media| media.position == Some(1))
+                })
+                .unwrap(),
+            TestAlbum::TheWallDisc2 => self
+                .expected_musicbrainz()
+                .releases
+                .unwrap()
+                .get(self.release())
+                .map(|release| {
+                    release
+                        .media
+                        .as_ref()
+                        .unwrap()
+                        .iter()
+                        .position(|media| media.position == Some(2))
+                })
+                .unwrap(),
+        }
+    }
 }
