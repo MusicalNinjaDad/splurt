@@ -109,7 +109,19 @@ fn main() -> Exit<()> {
         }
     };
 
-    let disc_title = cd.disc().title().unwrap_or_else(|| "Unknown".to_string());
+    let mut disc_title = cd.disc().title().unwrap_or_else(|| "Unknown".to_string());
+    if cd
+        .disc()
+        .release()
+        .and_then(|release| release.media.map(|all_media| all_media.len()))
+        .unwrap_or_default()
+        > 1
+    {
+        disc_title.push_str(&format!(
+            " [Disc {}]",
+            cd.disc().disc_number().unwrap_or_else("Unknown")
+        ));
+    }
 
     let _album_span = info_span!("rip_album", album = %disc_title).entered();
 

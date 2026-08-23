@@ -157,6 +157,14 @@ impl Disc {
             .and_then(|release| release.artist_credit.main_artist())
     }
 
+    /// The Number of the disc
+    pub fn disc_number(&self) -> Option<String> {
+        self.release()
+            .and_then(|release| release.media.as_ref())
+            .and_then(|all_media| all_media.get(self.disc_index?))
+            .and_then(|media| media.position.as_ref().map(ToString::to_string))
+    }
+
     /// Returns an *owned* Option<Track> with metadata valid for 'self
     ///
     /// - Holding on to the returned track will block any mutation to Self, in order
