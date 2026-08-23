@@ -10,7 +10,7 @@ use musicbrainz_rs::entity::release::{ReleaseScript, ReleaseStatus};
 pub use musicbrainz_rs::entity::{
     artist_credit::ArtistCredit,
     discid::Discid,
-    release::{Release, Track},
+    release::{Media, Release, Track},
 };
 
 pub trait VorbisTagExt {

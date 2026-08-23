@@ -34,7 +34,7 @@ use musicbrainz_rs::{
 
 use crate::{
     Frame, Msf, Track,
-    musicbrainz::{ArtistCreditsExt, Discid, Release, VorbisTagExt},
+    musicbrainz::{ArtistCreditsExt, Discid, Media, Release, VorbisTagExt},
     tagging::PictureExt,
 };
 
@@ -211,11 +211,81 @@ impl Disc {
 
     /// Reset the disc index to None (multi-disc / unknown release) / Some(0) (single-disc)
     pub fn reset_disc_index(&mut self) -> Option<usize> {
-        self.disc_index = match self.release()?.media.as_ref()?.len() {
+        let release = self.release()?;
+        let media = release.media.as_ref()?;
+
+        self.disc_index = match media.len() {
             ..=1 => Some(0),
-            _ => None,
+            _ => self.find_disc_index_from_media(media),
         };
         self.disc_index
+    }
+
+    /// Find which media entry in the release matches this disc's TOC
+    ///
+    /// For multi-disc releases, each media entry represents one disc.
+    /// We match by comparing track offsets from the Discid with calculated offsets from media.
+    ///
+    /// Returns:
+    /// - Some(index) if exactly one media entry matches based on track offsets
+    /// - None if no matches or multiple matches (ambiguous)
+    fn find_disc_index_from_media(&self, media: &[Media]) -> Option<usize> {
+        // Get the actual offsets from the Discid
+        let discid = self.musicbrainz.as_ref()?;
+        let discid_offsets = &discid.offsets;
+        let toc_track_count = self.tracks.len();
+
+        // Find all media entries that match based on track offsets
+        let matches: Vec<usize> = media
+            .iter()
+            .enumerate()
+            .filter_map(|(index, m)| {
+                let media_tracks = m.tracks.as_ref()?;
+                let mb_track_count = m.track_count;
+                let first_track_offset = m.track_offset?;
+
+                // Check if track count matches
+                if media_tracks.len() != toc_track_count || mb_track_count != toc_track_count as u32
+                {
+                    return None;
+                }
+
+                // Calculate expected offsets from media track lengths
+                // MusicBrainz track lengths are in milliseconds
+                // Convert to frames: length_ms * 75 / 1000
+                // First track offset is track_offset
+                // Subsequent tracks are calculated cumulatively
+                let mut calculated_offsets = Vec::with_capacity(toc_track_count);
+                let mut current_offset = first_track_offset as u64;
+                calculated_offsets.push(current_offset as u32);
+
+                for track in media_tracks.iter().skip(1) {
+                    let length_ms = track.length?;
+                    let length_frames = length_ms as u64 * 75 / 1000;
+                    current_offset += length_frames;
+                    calculated_offsets.push(current_offset as u32);
+                }
+
+                // Compare offsets with Discid offsets
+                // Allow some tolerance for rounding differences
+                // 1 CD frame = 1/75 second, MusicBrainz lengths are in ms
+                // Conversion: ms * 75 / 1000 might have rounding errors
+                // Allow ±1 frame tolerance
+                let offsets_match = discid_offsets
+                    .iter()
+                    .zip(calculated_offsets.iter())
+                    .all(|(&discid_offset, &calc_offset)| discid_offset.abs_diff(calc_offset) <= 1);
+
+                if offsets_match { Some(index) } else { None }
+            })
+            .collect();
+
+        // Return Some if exactly one match, None otherwise (no match or ambiguous)
+        if matches.len() == 1 {
+            Some(matches[0])
+        } else {
+            None
+        }
     }
 
     /// Provides an iterator over the releases to allow for programatic selection.
@@ -280,9 +350,9 @@ impl Disc {
         let discid = mb_stuff
             .execute_with_client(&mb_client)
             .map_err(io::Error::other)?;
-        
+
         self.set_musicbrainz(discid);
-        
+
         if let Some(ref mb) = self.musicbrainz {
             let release_count = mb.releases.as_ref().map(|r| r.len()).unwrap_or(0);
             info!(releases = release_count, "musicbrainz_retrieved");
@@ -325,6 +395,11 @@ impl Disc {
     /// Get the cached cover art
     pub fn cover_art(&self) -> Option<&Picture> {
         self.coverart.as_ref()
+    }
+
+    /// Get the 0-indexed disc number for multi-disc releases
+    pub fn disc_number(&self) -> Option<usize> {
+        self.disc_index
     }
 
     /// Save the cover art as "front.jpeg"
@@ -666,6 +741,100 @@ mod tests {
             disc.set_release(Some(2));
             let columbia = disc.tracks().nth(4).unwrap();
             assert_eq!(columbia.title(), Some("Columbia".to_string()));
+        }
+    }
+
+    mod the_wall {
+        use super::*;
+        use crate::test_fixtures::albums::TestAlbum;
+
+        fn create_disc_with_mb_and_disc_index(disc: TestAlbum, disc_index: usize) -> Disc {
+            Disc {
+                toc: disc.expected_toc(),
+                tracks: disc.expected_tracks(),
+                leadout: disc.expected_leadout(),
+                musicbrainz: Some(disc.expected_musicbrainz()),
+                release_index: Some(0),
+                disc_index: Some(disc_index),
+                coverart: None,
+            }
+        }
+
+        #[test]
+        fn disc1_new() {
+            let toc = TestAlbum::TheWallDisc1.expected_toc();
+            dbg!(&toc);
+            let tracks = TestAlbum::TheWallDisc1.expected_tracks();
+            dbg!(&tracks);
+            let leadout = TestAlbum::TheWallDisc1.expected_leadout();
+            dbg!(&leadout);
+
+            let disc = Disc::new(toc, tracks, leadout).unwrap();
+            assert_eq!(disc.tracks.len(), 13);
+        }
+
+        #[test]
+        fn disc2_new() {
+            let toc = TestAlbum::TheWallDisc2.expected_toc();
+            let tracks = TestAlbum::TheWallDisc2.expected_tracks();
+            let leadout = TestAlbum::TheWallDisc2.expected_leadout();
+
+            let disc = Disc::new(toc, tracks, leadout).unwrap();
+            assert_eq!(disc.tracks.len(), 13);
+        }
+
+        #[test]
+        fn disc1_track_with_metadata() {
+            let disc = create_disc_with_mb_and_disc_index(TestAlbum::TheWallDisc1, 0);
+
+            let track1 = disc.track(1).unwrap();
+            assert_eq!(track1.title(), Some("In the Flesh?".to_string()));
+        }
+
+        #[test]
+        fn disc2_track_with_metadata() {
+            let disc = create_disc_with_mb_and_disc_index(TestAlbum::TheWallDisc2, 1);
+
+            let track1 = disc.track(1).unwrap();
+            assert_eq!(track1.title(), Some("Hey You".to_string()));
+        }
+
+        #[test]
+        fn disc_number_used_in_tags() {
+            let disc = create_disc_with_mb_and_disc_index(TestAlbum::TheWallDisc1, 0);
+
+            let tags = disc.tag_for(1).unwrap();
+            let disc_number = tags.get("DISCNUMBER");
+            assert!(
+                disc_number.is_some(),
+                "DISCNUMBER tag should be set for disc 1"
+            );
+            assert_eq!(disc_number.unwrap(), &vec!["1".to_string()]);
+        }
+
+        #[test]
+        fn disc2_disc_number_used_in_tags() {
+            let disc = create_disc_with_mb_and_disc_index(TestAlbum::TheWallDisc2, 1);
+
+            let tags = disc.tag_for(1).unwrap();
+            let disc_number = tags.get("DISCNUMBER");
+            assert!(
+                disc_number.is_some(),
+                "DISCNUMBER tag should be set for disc 2"
+            );
+            assert_eq!(disc_number.unwrap(), &vec!["2".to_string()]);
+        }
+
+        #[test]
+        fn disc1_has_13_tracks() {
+            let disc = create_disc_with_mb_and_disc_index(TestAlbum::TheWallDisc1, 0);
+            assert_eq!(disc.tracks().len(), 13);
+        }
+
+        #[test]
+        fn disc2_has_13_tracks() {
+            let disc = create_disc_with_mb_and_disc_index(TestAlbum::TheWallDisc2, 1);
+            assert_eq!(disc.tracks().len(), 13);
         }
     }
 }
