@@ -533,12 +533,12 @@ mod tests {
     #[case(TheWallDisc2)]
     fn new(#[case] album: TestAlbum) {
         let toc = album.expected_toc();
-        let tracks = album.expected_tracks();
+        let tracks = album.expected_tracks_minimal();
         let leadout = album.expected_leadout();
 
         let disc = Disc::new(toc, tracks, leadout).unwrap();
         assert_eq!(disc.toc, album.expected_toc());
-        assert_eq!(disc.tracks().collect::<Vec<_>>(), album.expected_tracks());
+        assert_eq!(disc.tracks().collect::<Vec<_>>(), album.expected_tracks_minimal());
         assert_eq!(disc.leadout, album.expected_leadout());
     }
 
@@ -548,7 +548,7 @@ mod tests {
     #[case(TheWallDisc2)]
     fn identify_disc_index(#[case] album: TestAlbum) {
         let toc = album.expected_toc();
-        let tracks = album.expected_tracks();
+        let tracks = album.expected_tracks_minimal();
         let leadout = album.expected_leadout();
         let musicbrainz = album.expected_musicbrainz();
 
@@ -562,7 +562,7 @@ mod tests {
     fn set_release_invalid() {
         let album = DefinitelyMaybe;
         let toc = album.expected_toc();
-        let tracks = album.expected_tracks();
+        let tracks = album.expected_tracks_minimal();
         let leadout = album.expected_leadout();
         let musicbrainz = album.expected_musicbrainz();
 
@@ -577,7 +577,7 @@ mod tests {
     fn set_release_no_musicbrainz() {
         let album = DefinitelyMaybe;
         let toc = album.expected_toc();
-        let tracks = album.expected_tracks();
+        let tracks = album.expected_tracks_minimal();
         let leadout = album.expected_leadout();
 
         let mut disc = Disc::new(toc, tracks, leadout).unwrap();

@@ -86,7 +86,7 @@ mod tests {
     fn the_wall_2() {
         let album = TestAlbum::TheWallDisc2;
         let toc: cdtoc::Toc = album.expected_toc();
-        let tracks: Vec<Track> = album.expected_tracks();
+        let tracks: Vec<Track> = album.expected_tracks_minimal();
         let leadout = album.expected_leadout();
         let mut disc = Disc::new(toc, tracks, leadout).unwrap();
         let musicbrainz: redbook::musicbrainz::Discid = album.expected_musicbrainz();
