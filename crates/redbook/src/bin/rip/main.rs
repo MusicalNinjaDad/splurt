@@ -58,7 +58,7 @@ fn main() -> Exit<()> {
             let latest_release = cd
                 .disc()
                 .musicbrainz()
-                .and_then(|disc| disc.releases)
+                .and_then(|disc| disc.releases.as_ref())
                 .as_ref()
                 .and_then(|releases| {
                     releases
@@ -67,7 +67,7 @@ fn main() -> Exit<()> {
                             release
                                 .date
                                 .as_ref()
-                                .map(|date| date.into_naive_date(1, 1, 1))
+                                .map(|date| date.into_naive_date(1, 1, 1).ok())
                         })
                         .and_then(|latest_release| {
                             releases
@@ -113,13 +113,15 @@ fn main() -> Exit<()> {
     if cd
         .disc()
         .release()
-        .and_then(|release| release.media.map(|all_media| all_media.len()))
+        .and_then(|release| release.media.as_ref().map(|all_media| all_media.len()))
         .unwrap_or_default()
         > 1
     {
         disc_title.push_str(&format!(
             " [Disc {}]",
-            cd.disc().disc_number().unwrap_or_else("Unknown")
+            cd.disc()
+                .disc_number()
+                .unwrap_or_else(|| "Unknown".to_string())
         ));
     }
 
