@@ -256,20 +256,6 @@ impl Disc {
         }
     }
 
-    /// Provides an iterator over the releases to allow for programatic selection.
-    ///
-    /// Takes a closure which accepts a slice of releases and returns the index of
-    /// the release to select.
-    pub fn select_release<F>(&mut self, selector: F) -> &mut Self
-    where
-        F: FnOnce(&[Release]) -> Option<usize>,
-    {
-        if let Some(Some(releases)) = self.musicbrainz.as_ref().map(|disc_id| &disc_id.releases) {
-            self.set_release(selector(releases));
-        }
-        self
-    }
-
     /// Set the MusicBrainz data directly
     pub fn set_musicbrainz(&mut self, discid: Discid) -> &mut Self {
         self.musicbrainz = Some(discid);
