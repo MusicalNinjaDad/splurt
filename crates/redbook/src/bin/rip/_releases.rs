@@ -1,11 +1,10 @@
-//! TODO: FIX BUG - returns wrong index(?)
 use redbook::{Disc, musicbrainz::Release};
 use std::collections::BTreeMap;
 use tabular::{Row, Table, row};
 
 /// Generates a menu to select the correct release, where multiple options are available.
 /// Returns `None` if no menu is possible (no musicbrainz data), or required (only one release)
-pub fn release_menu(disc: Disc) -> Option<String> {
+pub fn release_menu(disc: &Disc) -> Option<ReleaseMenu<'_>> {
     let musicbrainz = disc.musicbrainz()?;
     let releases = musicbrainz.releases.as_ref()?;
 
@@ -19,20 +18,21 @@ pub fn release_menu(disc: Disc) -> Option<String> {
         groups.entry(&release.title).or_default().push(release);
     }
 
-    let mut releases = Table::new("{:<}  {:<}  {:<}  {:<}  {:<}");
-    releases.add_heading("Multiple releases found. Please select one:");
+    let mut release_table = Table::new("{:<}  {:<}  {:<}  {:<}  {:<}");
+    release_table.add_heading("Multiple releases found. Please select one:");
 
     // Common across all groups - so can't enumerate releases
     let mut index = 1;
+    let mut ordered_releases = Vec::<&Release>::new();
 
     for (group_title, group_releases) in &mut groups {
-        releases.add_heading("");
-        releases.add_heading(*group_title);
+        release_table.add_heading("");
+        release_table.add_heading(*group_title);
 
         let underline = "=".repeat(group_title.len());
-        releases.add_heading(underline);
+        release_table.add_heading(underline);
 
-        releases.add_row(Row::from_cells(["", "Date", "Country", "Barcode", ""]));
+        release_table.add_row(Row::from_cells(["", "Date", "Country", "Barcode", ""]));
 
         group_releases.sort_by_key(|release| {
             release
@@ -42,6 +42,7 @@ pub fn release_menu(disc: Disc) -> Option<String> {
                 .unwrap_or_default()
         });
         group_releases.reverse();
+        ordered_releases.extend(group_releases.iter());
 
         for release in group_releases {
             let date = release
@@ -62,7 +63,7 @@ pub fn release_menu(disc: Disc) -> Option<String> {
                     }
                 })
                 .unwrap_or_default();
-            releases.add_row(row!(
+            release_table.add_row(row!(
                 format!("{index}."),
                 date,
                 country,
@@ -72,8 +73,28 @@ pub fn release_menu(disc: Disc) -> Option<String> {
             index += 1;
         }
     }
-    releases.add_heading("");
-    Some(releases.to_string())
+    release_table.add_heading("");
+    Some(ReleaseMenu {
+        table: release_table.to_string(),
+        sorted_releases: ordered_releases,
+        original_releases: releases.iter().collect(),
+    })
+}
+
+pub struct ReleaseMenu<'disc> {
+    pub table: String,
+    pub sorted_releases: Vec<&'disc Release>,
+    pub original_releases: Vec<&'disc Release>,
+}
+
+impl<'d> ReleaseMenu<'d> {
+    pub fn index_for(&self, selection: usize) -> usize {
+        let selected = self.sorted_releases.get(selection - 1).unwrap();
+        self.original_releases
+            .iter()
+            .position(|release| release.id == selected.id)
+            .unwrap()
+    }
 }
 
 #[cfg(all(test, feature = "test_fixtures"))]
@@ -83,17 +104,37 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_wall_2() {
+    fn the_wall_2_menu() {
         let album = TestAlbum::TheWallDisc2;
         let toc: cdtoc::Toc = album.expected_toc();
         let tracks: Vec<Track> = album.expected_tracks_minimal();
         let leadout = album.expected_leadout();
         let mut disc = Disc::new(toc, tracks, leadout).unwrap();
-        let musicbrainz: redbook::musicbrainz::Discid = album.expected_musicbrainz();
+        let musicbrainz = album.expected_musicbrainz();
         disc.set_musicbrainz(musicbrainz);
-        let release_selection = release_menu(disc);
-        println!("{}", release_selection.as_ref().unwrap());
-        let expected_menu = album.expected_release_menu();
-        assert_eq!(release_selection, expected_menu);
+        let ReleaseMenu { table, .. } = release_menu(&disc).unwrap();
+        println!("{}", table);
+        let expected_menu = album.expected_release_menu().unwrap();
+        assert_eq!(table, expected_menu);
+    }
+
+    #[test]
+    fn the_wall_2_indices() {
+        let album = TestAlbum::TheWallDisc2;
+        let toc: cdtoc::Toc = album.expected_toc();
+        let tracks: Vec<Track> = album.expected_tracks_minimal();
+        let leadout = album.expected_leadout();
+        let mut disc = Disc::new(toc, tracks, leadout).unwrap();
+        let musicbrainz = album.expected_musicbrainz();
+        disc.set_musicbrainz(musicbrainz);
+
+        let releasemenu = release_menu(&disc).unwrap();
+
+        // reverse() -> identical dates end up in reverse index order
+        let orignal_indices = [1, 3, 0, 7, 6, 5, 2, 4];
+        let indices: Vec<_> = (1..=8)
+            .map(|selection| releasemenu.index_for(selection))
+            .collect();
+        assert_eq!(indices, orignal_indices);
     }
 }
