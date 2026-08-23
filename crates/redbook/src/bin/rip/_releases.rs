@@ -1,3 +1,4 @@
+use musicbrainz_rs::chrono::NaiveDate;
 use redbook::{Disc, musicbrainz::Release};
 use std::collections::BTreeMap;
 use tabular::{Row, Table, row};
@@ -35,8 +36,11 @@ pub fn release_menu(disc: &Disc) -> Option<ReleaseMenu<'_>> {
             release
                 .date
                 .as_ref()
-                .map(ToString::to_string)
-                .unwrap_or_default()
+                .and_then(|date| date.into_naive_date(1, 1, 1).ok())
+                .unwrap_or(
+                    // NaiveDate::default() is 1970-01-01 which is unsuitable for older music
+                    NaiveDate::from_ymd_opt(1, 1, 1).unwrap(),
+                )
         });
         group_releases.reverse();
         ordered_releases.extend(group_releases.iter());
