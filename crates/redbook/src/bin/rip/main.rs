@@ -40,6 +40,8 @@ pub(crate) use cli::Rip;
 
 use clap::Error as ClapError;
 
+use crate::_releases::release_menu;
+
 #[cfg(target_family = "windows")]
 fn main() -> Exit<()> {
     let ripper = Rip::try_parse()?;
@@ -47,47 +49,45 @@ fn main() -> Exit<()> {
     ripper.init_tracing()?;
 
     let drive = PathBuf::from_str(&ripper.drive)?;
-    let mut cd = AudioCd::new(drive)?;
+    let mut cd: AudioCd = AudioCd::new(drive)?;
 
     let _ = cd.disc_mut().update_musicbrainz();
-    if cd.disc().release().is_none() {
-        cd.disc_mut().select_release(|releases| {
-            if ripper.non_interactive {
-                releases
-                    .iter()
-                    .max_by_key(|release| {
-                        release
-                            .date
-                            .as_ref()
-                            .map(|date| date.into_naive_date(9999, 12, 12).ok())
-                    })
-                    .and_then(|release| releases.iter().position(|r| r.id == release.id))
-            } else {
-                println!("Multiple releases found. Please select one:");
-                releases.iter().enumerate().for_each(|(i, release)| {
-                    let date = release
-                        .date
-                        .as_ref()
-                        .map(ToString::to_string)
-                        .unwrap_or("unknown".to_string());
-                    let country = release.country.as_deref().unwrap_or("unknown");
-                    let barcode = release.barcode.as_deref().unwrap_or("none");
-                    println!(
-                        "{}. Date: {}, Country: {}, Barcode: {}",
-                        i + 1,
-                        date,
-                        country,
-                        barcode
-                    );
+    match (cd.disc().release(), ripper.non_interactive) {
+        (Some(_), _) => (),
+        (None, true) => {
+            let latest_release = cd
+                .disc()
+                .musicbrainz()
+                .and_then(|disc| disc.releases)
+                .as_ref()
+                .and_then(|releases| {
+                    releases
+                        .iter()
+                        .max_by_key(|release| {
+                            release
+                                .date
+                                .as_ref()
+                                .map(|date| date.into_naive_date(1, 1, 1))
+                        })
+                        .and_then(|latest_release| {
+                            releases
+                                .iter()
+                                .position(|release| release.id == latest_release.id)
+                        })
                 });
-
-                loop {
+            cd.disc_mut().set_release(latest_release);
+        }
+        (None, false) => {
+            try {
+                let release_menu = release_menu(cd.disc())?;
+                println!("{}", release_menu.table);
+                let selected = loop {
                     #[expect(unused, reason = "loop on error")]
                     try {
                         let mut input = String::new();
                         println!("\nEnter the number of the release to use:");
 
-                        let _ = io::stdin().read_line(&mut input).map_err(|error| {
+                        io::stdin().read_line(&mut input).map_err(|error| {
                             println!(
                                 "oops ... problem understanding you ... it's me, not you. {error}"
                             );
@@ -97,16 +97,16 @@ fn main() -> Exit<()> {
                             println!("oops ... try again {input} is not a number");
                         })?;
 
-                        let index = choice - 1;
-                        releases.get(index).ok_or_else(|| {
+                        let index = release_menu.index_for(choice).ok_or_else(|| {
                             println!("oops ... I can't find release number {choice}");
-                        });
+                        })?;
 
-                        return Some(index);
+                        break index;
                     };
-                }
-            }
-        });
+                };
+                cd.disc_mut().set_release(Some(selected));
+            };
+        }
     };
 
     let disc_title = cd.disc().title().unwrap_or_else(|| "Unknown".to_string());

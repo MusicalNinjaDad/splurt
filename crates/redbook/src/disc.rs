@@ -538,7 +538,10 @@ mod tests {
 
         let disc = Disc::new(toc, tracks, leadout).unwrap();
         assert_eq!(disc.toc, album.expected_toc());
-        assert_eq!(disc.tracks().collect::<Vec<_>>(), album.expected_tracks_minimal());
+        assert_eq!(
+            disc.tracks().collect::<Vec<_>>(),
+            album.expected_tracks_minimal()
+        );
         assert_eq!(disc.leadout, album.expected_leadout());
     }
 

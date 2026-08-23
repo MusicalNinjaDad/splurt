@@ -4,13 +4,10 @@ use tabular::{Row, Table, row};
 
 /// Generates a menu to select the correct release, where multiple options are available.
 /// Returns `None` if no menu is possible (no musicbrainz data), or required (only one release)
+#[cfg_attr(not(any(test, target_family = "windows")), expect(dead_code))]
 pub fn release_menu(disc: &Disc) -> Option<ReleaseMenu<'_>> {
     let musicbrainz = disc.musicbrainz()?;
     let releases = musicbrainz.releases.as_ref()?;
-
-    if releases.len() <= 1 {
-        return None;
-    }
 
     // Group releases by title
     let mut groups: BTreeMap<&str, Vec<&Release>> = BTreeMap::new();
@@ -81,19 +78,20 @@ pub fn release_menu(disc: &Disc) -> Option<ReleaseMenu<'_>> {
     })
 }
 
+#[cfg_attr(not(any(test, target_family = "windows")), expect(dead_code))]
 pub struct ReleaseMenu<'disc> {
     pub table: String,
     pub sorted_releases: Vec<&'disc Release>,
     pub original_releases: Vec<&'disc Release>,
 }
 
+#[cfg_attr(not(any(test, target_family = "windows")), expect(dead_code))]
 impl<'d> ReleaseMenu<'d> {
-    pub fn index_for(&self, selection: usize) -> usize {
-        let selected = self.sorted_releases.get(selection - 1).unwrap();
+    pub fn index_for(&self, selection: usize) -> Option<usize> {
+        let selected = self.sorted_releases.get(selection - 1)?;
         self.original_releases
             .iter()
             .position(|release| release.id == selected.id)
-            .unwrap()
     }
 }
 
@@ -133,7 +131,7 @@ mod tests {
         // reverse() -> identical dates end up in reverse index order
         let orignal_indices = [1, 3, 0, 7, 6, 5, 2, 4];
         let indices: Vec<_> = (1..=8)
-            .map(|selection| releasemenu.index_for(selection))
+            .map(|selection| releasemenu.index_for(selection).unwrap())
             .collect();
         assert_eq!(indices, orignal_indices);
     }
