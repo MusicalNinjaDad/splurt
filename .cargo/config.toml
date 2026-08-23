@@ -1,3 +1,6 @@
 [alias]
 bld = "ninja build"
-stage = "ninja stage"
+stage = "nitro stage"
+
+[env]
+LD_LIBRARY_PATH = { value = "", force = true }
